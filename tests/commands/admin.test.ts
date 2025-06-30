@@ -1,13 +1,19 @@
 import { execute } from '../../src/commands/admin/admin';
 
 jest.mock('@/utils/logger', () => ({ logger: { error: jest.fn(), info: jest.fn() } }));
+jest.mock('@/utils/permissions', () => ({ requireAdminPrivileges: jest.fn() }));
 jest.mock('@/services/DatabaseService', () => ({ databaseService: { prisma: { $queryRaw: jest.fn(), quiz: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() }, score: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() } } } }));
 jest.mock('@/services/QuizService', () => ({ quizService: { getActiveSessionByChannel: jest.fn(), stopQuiz: jest.fn() } }));
 jest.mock('@/services/ButtonCleanupService', () => ({ buttonCleanupService: {} }));
 
 describe('admin command', () => {
   let interaction: any;
+  let requireAdminPrivileges: jest.MockedFunction<any>;
+
   beforeEach(() => {
+    requireAdminPrivileges = require('@/utils/permissions').requireAdminPrivileges;
+    requireAdminPrivileges.mockResolvedValue(true);
+    
     interaction = {
       isChatInputCommand: jest.fn().mockReturnValue(true),
       options: { getSubcommand: jest.fn(), getBoolean: jest.fn(), getString: jest.fn(), getUser: jest.fn() },
@@ -31,5 +37,21 @@ describe('admin command', () => {
     interaction.deferReply.mockRejectedValue(new Error('fail'));
     await execute(interaction as any);
     expect(interaction.editReply).toHaveBeenCalled();
+  });
+
+  it('should check admin privileges for clear-user-data subcommand', async () => {
+    interaction.options.getSubcommand.mockReturnValue('clear-user-data');
+    interaction.options.getUser.mockReturnValue({ id: 'user123', username: 'testuser' });
+    await execute(interaction as any);
+    expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
+  });
+
+  it('should not execute clear-user-data when user lacks admin privileges', async () => {
+    requireAdminPrivileges.mockResolvedValue(false);
+    interaction.options.getSubcommand.mockReturnValue('clear-user-data');
+    interaction.options.getUser.mockReturnValue({ id: 'user123', username: 'testuser' });
+    await execute(interaction as any);
+    // The function should return early without calling any other functions
+    expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
   });
 }); 
