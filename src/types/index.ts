@@ -78,7 +78,7 @@ export interface LeaderboardEntry {
 export interface Config {
   token: string;
   clientId: string;
-  guildId?: string | undefined;
+  devGuildId?: string | undefined;
   databaseUrl: string;
   nodeEnv: string;
   logLevel: string;

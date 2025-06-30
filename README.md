@@ -91,7 +91,7 @@ https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&
    ```env
    DISCORD_TOKEN=your_discord_bot_token_here
    DISCORD_CLIENT_ID=your_discord_client_id_here
-   DISCORD_GUILD_ID=your_guild_id_here
+   DISCORD_DEV_GUILD_ID=your_guild_id_here
    DATABASE_URL="file:./dev.db"
    ```
 
@@ -172,6 +172,8 @@ src/
 - `npm run db:generate` - Generate Prisma client
 - `npm run db:push` - Push schema to database
 - `npm run db:studio` - Open Prisma Studio
+- `npm run deploy-commands` - (Re)deploy bot commands to your configured dev server
+- `npm run deploy-commands -- --guildId=1234567890` - (Re)deploy bot commands to the given server
 
 ### Code Quality
 

@@ -7,7 +7,7 @@ dotenv.config();
 export const config: Config = {
   token: process.env['DISCORD_TOKEN']!,
   clientId: process.env['DISCORD_CLIENT_ID']!,
-  guildId: process.env['DISCORD_GUILD_ID'] || undefined,
+  devGuildId: process.env['DISCORD_DEV_GUILD_ID'] || undefined,
   databaseUrl: process.env['DATABASE_URL']!,
   nodeEnv: process.env['NODE_ENV'] || 'development',
   logLevel: process.env['LOG_LEVEL'] || 'info',
