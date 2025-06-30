@@ -4,6 +4,7 @@ import { quizService } from '@/services/QuizService';
 import { leaderboardService } from '@/services/LeaderboardService';
 import { buttonCleanupService } from '@/services/ButtonCleanupService';
 import { databaseService } from '@/services/DatabaseService';
+import { requireAdminPrivileges } from '@/utils/permissions';
 
 export const name = Events.InteractionCreate;
 export const once = false;
@@ -186,6 +187,9 @@ async function handleAdminButton(interaction: ButtonInteraction): Promise<void> 
 
 async function handleUserDataDeletion(interaction: ButtonInteraction, userId: string, confirmed: boolean): Promise<void> {
   try {
+    // Check admin privileges for destructive action
+    if (!(await requireAdminPrivileges(interaction))) return;
+    
     if (!confirmed) {
       const embed = new EmbedBuilder()
         .setTitle('❌ User Data Deletion Cancelled')
@@ -617,7 +621,9 @@ async function handleQuizManagementButton(interaction: ButtonInteraction): Promi
     
     if (customId.startsWith('quiz_delete_confirm_')) {
       await handleQuizDeleteConfirm(interaction);
-    } else if (customId.startsWith('quiz_delete_cancel_')) {
+    } else if (customId.startsWith('quiz_delete_all_confirm')) {
+      await handleQuizDeleteAllConfirm(interaction);
+    } else if (customId.startsWith('quiz_delete_cancel_') || customId.startsWith('quiz_delete_all_cancel')) {
       await handleQuizDeleteCancel(interaction);
     } else if (customId.startsWith('quiz_toggle_status_')) {
       await handleQuizToggleStatus(interaction);
@@ -637,6 +643,9 @@ async function handleQuizManagementButton(interaction: ButtonInteraction): Promi
 
 async function handleQuizDeleteConfirm(interaction: ButtonInteraction): Promise<void> {
   try {
+    // Check admin privileges for destructive action
+    if (!(await requireAdminPrivileges(interaction))) return;
+    
     const quizId = interaction.customId.replace('quiz_delete_confirm_', '');
     
     // Get quiz info before deletion
@@ -703,10 +712,14 @@ async function handleQuizDeleteConfirm(interaction: ButtonInteraction): Promise<
 
   } catch (error) {
     logger.error('Error deleting quiz:', error);
-    await interaction.reply({ 
-      content: '❌ Error deleting quiz. Please try again.', 
-      ephemeral: true 
-    });
+    try {
+      await interaction.followUp({ 
+        content: '❌ Error deleting quiz. Please try again.', 
+        ephemeral: true 
+      });
+    } catch (followUpError) {
+      logger.error('Error sending followUp message:', followUpError);
+    }
   }
 }
 
@@ -725,10 +738,87 @@ async function handleQuizDeleteCancel(interaction: ButtonInteraction): Promise<v
 
   } catch (error) {
     logger.error('Error cancelling quiz deletion:', error);
-    await interaction.reply({ 
-      content: '❌ Error cancelling quiz deletion.', 
-      ephemeral: true 
+    // For button interactions, we should use followUp if the interaction was already responded to
+    try {
+      await interaction.followUp({ 
+        content: '❌ Error cancelling quiz deletion.', 
+        ephemeral: true 
+      });
+    } catch (followUpError) {
+      logger.error('Error sending followUp message:', followUpError);
+    }
+  }
+}
+
+async function handleQuizDeleteAllConfirm(interaction: ButtonInteraction): Promise<void> {
+  try {
+    // Check admin privileges for destructive action
+    if (!(await requireAdminPrivileges(interaction))) return;
+    
+    // Get quiz statistics before deletion
+    const quizStats = await databaseService.prisma.quiz.findMany({
+      include: {
+        _count: {
+          select: {
+            attempts: true,
+            questions: true
+          }
+        }
+      }
     });
+
+    if (quizStats.length === 0) {
+      await interaction.reply({ content: '❌ No quizzes found to delete.', ephemeral: true });
+      return;
+    }
+
+    const totalQuizzes = quizStats.length;
+    const totalQuestions = quizStats.reduce((sum, quiz) => sum + quiz._count.questions, 0);
+    const totalAttempts = quizStats.reduce((sum, quiz) => sum + quiz._count.attempts, 0);
+
+    // Delete all quizzes and related data
+    await databaseService.prisma.$transaction(async (tx) => {
+      // Delete question attempts first (due to foreign key constraints)
+      await tx.questionAttempt.deleteMany();
+
+      // Delete quiz attempts
+      await tx.quizAttempt.deleteMany();
+
+      // Delete questions
+      await tx.question.deleteMany();
+
+      // Delete all quizzes
+      await tx.quiz.deleteMany();
+    });
+
+    const embed = new EmbedBuilder()
+      .setTitle('✅ All Quizzes Deleted Successfully')
+      .setDescription(`**All ${totalQuizzes} quizzes** have been permanently deleted.`)
+      .addFields(
+        { name: 'Quizzes Deleted', value: totalQuizzes.toString(), inline: true },
+        { name: 'Questions Deleted', value: totalQuestions.toString(), inline: true },
+        { name: 'Attempts Deleted', value: totalAttempts.toString(), inline: true }
+      )
+      .setColor('#00ff00')
+      .setTimestamp();
+
+    await interaction.update({ 
+      embeds: [embed], 
+      components: [] 
+    });
+
+    logger.info(`All ${totalQuizzes} quizzes deleted by ${interaction.user.tag}`);
+
+  } catch (error) {
+    logger.error('Error deleting all quizzes:', error);
+    try {
+      await interaction.followUp({ 
+        content: '❌ Error deleting all quizzes. Please try again.', 
+        ephemeral: true 
+      });
+    } catch (followUpError) {
+      logger.error('Error sending followUp message:', followUpError);
+    }
   }
 }
 
@@ -773,10 +863,14 @@ async function handleQuizToggleStatus(interaction: ButtonInteraction): Promise<v
 
   } catch (error) {
     logger.error('Error toggling quiz status:', error);
-    await interaction.reply({ 
-      content: '❌ Error updating quiz status. Please try again.', 
-      ephemeral: true 
-    });
+    try {
+      await interaction.followUp({ 
+        content: '❌ Error updating quiz status. Please try again.', 
+        ephemeral: true 
+      });
+    } catch (followUpError) {
+      logger.error('Error sending followUp message:', followUpError);
+    }
   }
 }
 

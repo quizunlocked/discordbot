@@ -143,6 +143,15 @@ npm run build && npm start
 - `/admin add-question` - Add questions to a quiz
 - `/admin status` - Check bot and database status
 
+### Quiz Manager Commands
+
+- `/quiz-manager create` - Create a new quiz with interactive form
+- `/quiz-manager edit <quiz_id>` - Edit an existing quiz
+- `/quiz-manager delete <quiz_id>` - Delete a specific quiz (⚠️ DESTRUCTIVE)
+- `/quiz-manager delete-all` - Delete all quizzes (⚠️ DESTRUCTIVE)
+
+**Note:** All quiz-manager commands require administrator privileges and include confirmation prompts for destructive actions.
+
 ## Project Structure
 
 ```bash

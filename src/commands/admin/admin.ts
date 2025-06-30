@@ -11,6 +11,7 @@ import { logger } from '@/utils/logger';
 import { databaseService } from '@/services/DatabaseService';
 import { quizService } from '@/services/QuizService';
 import { buttonCleanupService } from '@/services/ButtonCleanupService';
+import { requireAdminPrivileges } from '@/utils/permissions';
 
 export const data = new SlashCommandBuilder()
   .setName('admin')
@@ -112,6 +113,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
         await handleUserStats(interaction);
         break;
       case 'clear-user-data':
+        if (!(await requireAdminPrivileges(interaction))) return;
         await handleClearUserData(interaction);
         break;
       case 'database-stats':
