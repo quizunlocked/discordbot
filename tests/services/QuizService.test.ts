@@ -207,4 +207,41 @@ describe('QuizService', () => {
       expect(replySpy).not.toHaveBeenCalled();
     });
   });
+
+  describe('setClient', () => {
+    it('should set the Discord client instance', () => {
+      const service = require('../../src/services/QuizService').quizService;
+      const mockClient = {};
+      service.setClient(mockClient);
+      // @ts-ignore
+      expect(service.client).toBe(mockClient);
+    });
+  });
+
+  describe('getActiveSessionByChannel', () => {
+    it('should return the active session for a given channel ID', () => {
+      const service = require('../../src/services/QuizService').quizService;
+      const session = {
+        id: 'test-session',
+        quizId: 'quiz1',
+        channelId: 'channel123',
+        currentQuestionIndex: 0,
+        participants: new Map(),
+        startTime: new Date(),
+        isActive: true,
+        isWaiting: true,
+        isQuestionComplete: false,
+      };
+      // @ts-ignore
+      service.activeSessions.set(session.id, session);
+      const found = service.getActiveSessionByChannel('channel123');
+      expect(found).toBe(session);
+    });
+
+    it('should return undefined if no active session for the channel', () => {
+      const service = require('../../src/services/QuizService').quizService;
+      const result = service.getActiveSessionByChannel('nonexistent');
+      expect(result).toBeUndefined();
+    });
+  });
 }); 

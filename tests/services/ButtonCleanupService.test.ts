@@ -202,4 +202,14 @@ describe('ButtonCleanupService', () => {
       expect(typeof buttonCleanupService.cancelCleanup).toBe('function');
     });
   });
+
+  describe('setClient', () => {
+    it('should set the Discord client instance', () => {
+      const service = require('../../src/services/ButtonCleanupService').buttonCleanupService;
+      const mockClient = {};
+      service.setClient(mockClient);
+      // @ts-ignore
+      expect(service.client).toBe(mockClient);
+    });
+  });
 }); 

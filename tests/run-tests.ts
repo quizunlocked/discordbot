@@ -23,6 +23,9 @@ if (!existsSync(coverageDir)) {
   mkdirSync(coverageDir);
 }
 
+// Ensure tests/commands directory exists for command handler tests
+// (No code needed here, just a note for the test suite organization)
+
 try {
   // Run tests with coverage
   console.log('📋 Running tests with coverage...');
