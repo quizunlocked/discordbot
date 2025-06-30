@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id
+  username  String
+  createdAt DateTime @default(now())
+  
+  quizAttempts QuizAttempt[]
+  scores       Score[]
+}
+
+model Quiz {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  isActive    Boolean  @default(true)
+  timeLimit   Int?     // Total quiz time limit in seconds
+  createdAt   DateTime @default(now())
+  
+  questions Question[]
+  attempts  QuizAttempt[]
+}
+
+model Question {
+  id       String   @id @default(cuid())
+  quizId   String
+  quiz     Quiz     @relation(fields: [quizId], references: [id])
+  
+  questionText String
+  options      String // JSON array of answer options
+  correctAnswer Int     // Index of correct answer
+  points       Int     @default(10)
+  timeLimit    Int?    // Time limit in seconds
+  
+  attempts QuestionAttempt[]
+}
+
+model QuizAttempt {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id])
+  
+  startedAt DateTime @default(now())
+  completedAt DateTime?
+  totalScore Int @default(0)
+  totalTime  Int? // Total time in seconds
+  
+  questionAttempts QuestionAttempt[]
+}
+
+model QuestionAttempt {
+  id             String @id @default(cuid())
+  quizAttemptId  String
+  quizAttempt    QuizAttempt @relation(fields: [quizAttemptId], references: [id])
+  questionId     String
+  question       Question @relation(fields: [questionId], references: [id])
+  
+  selectedAnswer Int?
+  isCorrect      Boolean?
+  timeSpent      Int? // Time spent in seconds
+  pointsEarned   Int @default(0)
+  answeredAt     DateTime @default(now())
+}
+
+model Score {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+  
+  period   String // "weekly", "monthly", "yearly"
+  year     Int
+  week     Int?   // For weekly scores
+  month    Int?   // For monthly scores
+  
+  totalScore    Int @default(0)
+  totalQuizzes  Int @default(0)
+  averageScore  Float @default(0)
+  bestTime      Int? // Best completion time in seconds
+  
+  @@unique([userId, period, year, week, month])
+} 

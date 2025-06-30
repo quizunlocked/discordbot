@@ -1,0 +1,127 @@
+{
+  "quizzes": [
+    {
+      "title": "General Knowledge",
+      "description": "Test your general knowledge with these interesting questions!",
+      "questions": [
+        {
+          "questionText": "What is the capital of France?",
+          "options": ["London", "Berlin", "Paris", "Madrid"],
+          "correctAnswer": 2,
+          "points": 10,
+          "timeLimit": 30
+        },
+        {
+          "questionText": "Which planet is known as the Red Planet?",
+          "options": ["Venus", "Mars", "Jupiter", "Saturn"],
+          "correctAnswer": 1,
+          "points": 10,
+          "timeLimit": 30
+        },
+        {
+          "questionText": "What is the largest ocean on Earth?",
+          "options": ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+          "correctAnswer": 3,
+          "points": 10,
+          "timeLimit": 30
+        },
+        {
+          "questionText": "Who painted the Mona Lisa?",
+          "options": ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Michelangelo"],
+          "correctAnswer": 2,
+          "points": 15,
+          "timeLimit": 45
+        },
+        {
+          "questionText": "What year did World War II end?",
+          "options": ["1943", "1944", "1945", "1946"],
+          "correctAnswer": 2,
+          "points": 10,
+          "timeLimit": 30
+        }
+      ]
+    },
+    {
+      "title": "Science Quiz",
+      "description": "Explore the wonders of science with these challenging questions!",
+      "questions": [
+        {
+          "questionText": "What is the chemical symbol for gold?",
+          "options": ["Ag", "Au", "Fe", "Cu"],
+          "correctAnswer": 1,
+          "points": 10,
+          "timeLimit": 30
+        },
+        {
+          "questionText": "What is the hardest natural substance on Earth?",
+          "options": ["Steel", "Iron", "Diamond", "Granite"],
+          "correctAnswer": 2,
+          "points": 10,
+          "timeLimit": 30
+        },
+        {
+          "questionText": "What is the largest organ in the human body?",
+          "options": ["Heart", "Brain", "Liver", "Skin"],
+          "correctAnswer": 3,
+          "points": 10,
+          "timeLimit": 30
+        },
+        {
+          "questionText": "What is the speed of light in a vacuum?",
+          "options": ["299,792 km/s", "199,792 km/s", "399,792 km/s", "499,792 km/s"],
+          "correctAnswer": 0,
+          "points": 15,
+          "timeLimit": 45
+        },
+        {
+          "questionText": "What is the atomic number of carbon?",
+          "options": ["4", "6", "8", "12"],
+          "correctAnswer": 1,
+          "points": 10,
+          "timeLimit": 30
+        }
+      ]
+    },
+    {
+      "title": "Technology Quiz",
+      "description": "Test your knowledge of modern technology and computing!",
+      "questions": [
+        {
+          "questionText": "What does CPU stand for?",
+          "options": ["Central Processing Unit", "Computer Personal Unit", "Central Program Utility", "Computer Processing Unit"],
+          "correctAnswer": 0,
+          "points": 10,
+          "timeLimit": 30
+        },
+        {
+          "questionText": "Which company created the iPhone?",
+          "options": ["Samsung", "Apple", "Google", "Microsoft"],
+          "correctAnswer": 1,
+          "points": 10,
+          "timeLimit": 30
+        },
+        {
+          "questionText": "What year was the first iPhone released?",
+          "options": ["2005", "2006", "2007", "2008"],
+          "correctAnswer": 2,
+          "points": 10,
+          "timeLimit": 30
+        },
+        {
+          "questionText": "What does HTML stand for?",
+          "options": ["HyperText Markup Language", "High Tech Modern Language", "Hyper Transfer Markup Language", "Home Tool Markup Language"],
+          "correctAnswer": 0,
+          "points": 10,
+          "timeLimit": 30
+        },
+        {
+          "questionText": "Who is the founder of Microsoft?",
+          "options": ["Steve Jobs", "Bill Gates", "Mark Zuckerberg", "Elon Musk"],
+          "correctAnswer": 1,
+          "points": 10,
+          "timeLimit": 30
+        }
+      ]
+    }
+  ]
+} 
