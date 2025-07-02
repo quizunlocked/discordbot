@@ -41,6 +41,7 @@ export interface QuizSession {
   isActive: boolean;
   isWaiting: boolean; // Track if quiz is in waiting period
   isQuestionComplete: boolean; // Track if current question has been completed
+  isPrivate: boolean; // Track if this is a private quiz session
 }
 
 export interface ParticipantData {

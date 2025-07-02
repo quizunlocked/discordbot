@@ -6,6 +6,7 @@ jest.mock('@/services/QuizService', () => ({ quizService: { handleButtonInteract
 describe('interactionCreate event', () => {
   it('should handle button interaction', async () => {
     const interaction = {
+      isAutocomplete: jest.fn().mockReturnValue(false),
       isButton: jest.fn().mockReturnValue(true),
       isModalSubmit: jest.fn().mockReturnValue(false),
       isRepliable: jest.fn().mockReturnValue(false),
@@ -16,6 +17,7 @@ describe('interactionCreate event', () => {
 
   it('should handle modal submit interaction', async () => {
     const interaction = {
+      isAutocomplete: jest.fn().mockReturnValue(false),
       isButton: jest.fn().mockReturnValue(false),
       isModalSubmit: jest.fn().mockReturnValue(true),
       isRepliable: jest.fn().mockReturnValue(false),
@@ -26,6 +28,7 @@ describe('interactionCreate event', () => {
 
   it('should handle errors and reply if repliable', async () => {
     const interaction = {
+      isAutocomplete: jest.fn().mockReturnValue(false),
       isButton: jest.fn().mockImplementation(() => { throw new Error('fail'); }),
       isModalSubmit: jest.fn().mockReturnValue(false),
       isRepliable: jest.fn().mockReturnValue(true),

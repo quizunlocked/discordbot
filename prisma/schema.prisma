@@ -17,6 +17,7 @@ model User {
   
   quizAttempts QuizAttempt[]
   scores       Score[]
+  ownedQuizzes Quiz[] // Quizzes created by this user
 }
 
 model Quiz {
@@ -25,6 +26,9 @@ model Quiz {
   description String?
   isActive    Boolean  @default(true)
   timeLimit   Int?     // Total quiz time limit in seconds
+  private     Boolean  @default(false) // Whether this quiz is private
+  quizOwnerId String?  // ID of the user who created this quiz
+  quizOwner   User?    @relation(fields: [quizOwnerId], references: [id])
   createdAt   DateTime @default(now())
   
   questions Question[]
