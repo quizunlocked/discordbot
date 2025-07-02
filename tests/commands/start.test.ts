@@ -9,7 +9,12 @@ describe('quiz start command', () => {
   beforeEach(() => {
     interaction = {
       isChatInputCommand: jest.fn().mockReturnValue(true),
-      options: { getSubcommand: jest.fn().mockReturnValue('start'), getString: jest.fn(), getInteger: jest.fn() },
+      options: {
+        getSubcommand: jest.fn().mockReturnValue('start'),
+        getString: jest.fn(),
+        getInteger: jest.fn(),
+        getBoolean: jest.fn(),
+      },
       reply: jest.fn().mockResolvedValue(undefined),
       channel: {},
       channelId: 'test-channel',

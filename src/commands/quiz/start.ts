@@ -3,9 +3,7 @@ import { logger } from '@/utils/logger';
 import { quizService } from '@/services/QuizService';
 import { databaseService } from '@/services/DatabaseService';
 import { QuizConfig } from '@/types';
-import fs from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { canAccessQuiz } from '@/utils/permissions';
 
 export const data = new SlashCommandBuilder()
   .setName('quiz')
@@ -16,14 +14,10 @@ export const data = new SlashCommandBuilder()
       .setDescription('Start a new quiz')
       .addStringOption(option =>
         option
-          .setName('quiz_name')
-          .setDescription('The name of the quiz to start')
+          .setName('quiz_id')
+          .setDescription('The quiz to start (type to search)')
           .setRequired(true)
-          .addChoices(
-            { name: 'General Knowledge', value: 'general-knowledge' },
-            { name: 'Science Quiz', value: 'science-quiz' },
-            { name: 'Technology Quiz', value: 'technology-quiz' }
-          )
+          .setAutocomplete(true)
       )
       .addIntegerOption(option =>
         option
@@ -41,6 +35,12 @@ export const data = new SlashCommandBuilder()
           .setMinValue(60)
           .setMaxValue(3600)
       )
+      .addBooleanOption(option =>
+        option
+          .setName('private')
+          .setDescription('Start this quiz as private (only you can participate)')
+          .setRequired(false)
+      )
   )
   .addSubcommand(subcommand =>
     subcommand
@@ -55,9 +55,10 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
   
   if (subcommand === 'start') {
-    const quizName = interaction.options.getString('quiz_name', true);
+    const quizId = interaction.options.getString('quiz_id', true);
     const waitTime = interaction.options.getInteger('wait_time') || 30;
     const totalTimeLimit = interaction.options.getInteger('total_time_limit');
+    const isPrivate = interaction.options.getBoolean('private') || false;
     
     try {
       // Check if there's already an active quiz in this channel
@@ -70,52 +71,43 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
         return;
       }
 
-      // First, try to find an existing quiz in the database
-      let existingQuiz = await databaseService.prisma.quiz.findFirst({
-        where: {
-          title: {
-            contains: quizName.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
-          },
-          isActive: true
-        },
+      // Find the quiz by ID in the database
+      let existingQuiz = await databaseService.prisma.quiz.findUnique({
+        where: { id: quizId },
         include: { questions: true }
       });
 
-      let quizConfig: QuizConfig;
-      let quizId: string;
+      if (!existingQuiz) {
+        await interaction.reply({
+          content: `Quiz not found. Please select a valid quiz.`,
+          ephemeral: true,
+        });
+        return;
+      }
 
-      if (existingQuiz && existingQuiz.questions.length > 0) {
-        // Use existing quiz from database
-        quizConfig = {
-          title: existingQuiz.title,
-          description: existingQuiz.description || '',
-          timeLimit: (existingQuiz as any).timeLimit,
-          questions: existingQuiz.questions.map((q: any) => ({
-            questionText: q.questionText,
-            options: JSON.parse(q.options),
-            correctAnswer: q.correctAnswer,
-            points: q.points,
-            timeLimit: q.timeLimit
-          }))
-        };
-        quizId = existingQuiz.id;
-        logger.info(`Using existing quiz from database: ${existingQuiz.title} (${quizId})`);
-      } else {
-        // Load quiz data from sample questions and create new quiz
-        const loadedConfig = await loadQuizConfig(quizName);
-        if (!loadedConfig) {
+      // Check access permissions for private quizzes
+      if ((existingQuiz as any).private) {
+        if (!canAccessQuiz(interaction.user.id, (existingQuiz as any).quizOwnerId, (existingQuiz as any).private)) {
           await interaction.reply({
-            content: `Quiz "${quizName}" not found. Available quizzes: general-knowledge, science-quiz, technology-quiz`,
+            content: '❌ This is a private quiz. Only the creator can start it.',
             ephemeral: true,
           });
           return;
         }
-        quizConfig = loadedConfig;
-
-        // Generate unique quiz ID for new quiz
-        quizId = uuidv4();
-        logger.info(`Creating new quiz from sample data: ${quizConfig.title} (${quizId})`);
       }
+
+      let quizConfig: QuizConfig = {
+        title: existingQuiz.title,
+        description: existingQuiz.description || '',
+        timeLimit: (existingQuiz as any).timeLimit,
+        questions: existingQuiz.questions.map((q: any) => ({
+          questionText: q.questionText,
+          options: JSON.parse(q.options),
+          correctAnswer: q.correctAnswer,
+          points: q.points,
+          timeLimit: q.timeLimit
+        }))
+      };
 
       // Add total time limit to quiz config if provided
       if (totalTimeLimit) {
@@ -133,10 +125,12 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
         quizConfig,
         quizId,
         waitTime,
-        !existingQuiz // Only save to database if we're creating a new quiz
+        false, // Don't save to DB, already exists
+        isPrivate,
+        isPrivate ? interaction.user.id : undefined
       );
       
-      logger.info(`Quiz "${quizName}" started by ${interaction.user.tag} in ${interaction.guild?.name}`);
+      logger.info(`Quiz "${quizConfig.title}" started by ${interaction.user.tag} in ${interaction.guild?.name}`);
       
     } catch (error) {
       logger.error('Error starting quiz:', error);
@@ -178,22 +172,26 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
 }
 
 /**
- * Load quiz configuration from sample data
+ * Autocomplete handler for quiz_name/quiz_id
  */
-async function loadQuizConfig(quizName: string): Promise<QuizConfig | null> {
-  try {
-    const dataPath = path.join(process.cwd(), 'data', 'sample-questions.json');
-    const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-    
-    const quizMap: Record<string, QuizConfig> = {
-      'general-knowledge': data.quizzes[0],
-      'science-quiz': data.quizzes[1],
-      'technology-quiz': data.quizzes[2],
-    };
-    
-    return quizMap[quizName] || null;
-  } catch (error) {
-    logger.error('Error loading quiz config:', error);
-    return null;
-  }
+export async function autocomplete(interaction: any) {
+  if (!interaction.isAutocomplete()) return;
+  const focusedValue = interaction.options.getFocused();
+  // Fetch up to 25 quizzes matching the input
+  const quizzes = await databaseService.prisma.quiz.findMany({
+    where: {
+      title: {
+        contains: focusedValue,
+      },
+      isActive: true,
+    },
+    take: 25,
+    orderBy: { createdAt: 'desc' },
+  });
+  await interaction.respond(
+    quizzes.map(q => ({
+      name: q.title,
+      value: q.id,
+    }))
+  );
 } 

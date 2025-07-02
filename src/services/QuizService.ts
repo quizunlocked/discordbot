@@ -19,7 +19,7 @@ import {
 } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 
-class QuizService {
+export class QuizService {
   private static instance: QuizService;
   private activeSessions: Map<string, QuizSession> = new Map();
   private questionTimeouts: Map<string, NodeJS.Timeout> = new Map();
@@ -49,7 +49,9 @@ class QuizService {
     quizConfig: QuizConfig,
     quizId: string,
     waitTime: number = 30,
-    saveToDatabase: boolean = true
+    saveToDatabase: boolean = true,
+    isPrivate: boolean = false,
+    userId?: string
   ): Promise<void> {
     const sessionId = uuidv4();
     
@@ -63,16 +65,35 @@ class QuizService {
       isActive: true,
       isWaiting: true, // New field to track waiting state
       isQuestionComplete: false, // Track if current question has been completed
+      isPrivate, // Track if this is a private quiz session
     };
 
     this.activeSessions.set(sessionId, session);
     
     // Save quiz to database only if requested
     if (saveToDatabase) {
-      await this.saveQuizToDatabase(quizConfig, quizId);
+      await this.saveQuizToDatabase(quizConfig, quizId, isPrivate, userId);
     }
     
-    // Send welcome message with join button
+    // For private quizzes, start immediately without join phase
+    if (isPrivate) {
+      // Add the quiz creator as the only participant
+      const participant: ParticipantData = {
+        userId: userId || channel.client.user?.id || 'unknown',
+        username: channel.client.user?.username || 'Unknown',
+        score: 0,
+        streak: 0,
+        answers: new Map(),
+        startTime: new Date(),
+      };
+      session.participants.set(participant.userId, participant);
+      
+      // Start questions immediately
+      await this.startQuizQuestions(session, channel);
+      return;
+    }
+    
+    // Send welcome message with join button for public quizzes
     const welcomeEmbed = new EmbedBuilder()
       .setTitle(`🎯 ${quizConfig.title}`)
       .setDescription(quizConfig.description || 'Get ready to test your knowledge!')
@@ -256,7 +277,7 @@ class QuizService {
   }
 
   /**
-   * Display a question with answer buttons
+   * Display the current question
    */
   private async displayQuestion(
     session: QuizSession,
@@ -295,16 +316,39 @@ class QuizService {
       rows.push(row);
     }
 
-    const message = await channel.send({
-      embeds: [embed],
-      components: rows,
-    });
+    let message;
+    if (session.isPrivate) {
+      // For private quizzes, send to the quiz owner
+      const quizOwnerId = Array.from(session.participants.keys())[0]; // First participant is the owner
+      if (!quizOwnerId) {
+        logger.error('No participants found for private quiz');
+        return;
+      }
+      const user = await this.client?.users.fetch(quizOwnerId);
+      if (user) {
+        message = await user.send({
+          embeds: [embed],
+          components: rows,
+        });
+      } else {
+        logger.error(`Could not send private quiz message to user ${quizOwnerId}`);
+        return;
+      }
+    } else {
+      // For public quizzes, send to the channel
+      message = await channel.send({
+        embeds: [embed],
+        components: rows,
+      });
+    }
 
     // Track when this question started
     session.questionStartTime = new Date();
 
     // Schedule button cleanup for question
-    buttonCleanupService.scheduleQuestionCleanup(message.id, channel.id, questionTimeLimit + 10);
+    if (message) {
+      buttonCleanupService.scheduleQuestionCleanup(message.id, session.isPrivate ? 'dm' : channel.id, questionTimeLimit + 10);
+    }
 
     // Set question timeout using the question's individual time limit
     const questionTimeoutId = setTimeout(() => {
@@ -447,13 +491,19 @@ class QuizService {
   ): Promise<void> {
     if (!session.isActive) return;
 
-    // Get the last message in the channel (should be the question message)
-    const messages = await channel.messages.fetch({ limit: 1 });
-    const lastMessage = messages.first();
-    
-    if (lastMessage && lastMessage.components.length > 0) {
-      // Remove buttons from the question message
-      await buttonCleanupService.removeButtons(lastMessage.id, channel.id, 'question');
+    let lastMessage;
+    if (session.isPrivate) {
+      // For private quizzes, we can't easily get the last message from DM
+      // Just proceed without removing buttons
+    } else {
+      // Get the last message in the channel (should be the question message)
+      const messages = await channel.messages.fetch({ limit: 1 });
+      lastMessage = messages.first();
+      
+      if (lastMessage && lastMessage.components.length > 0) {
+        // Remove buttons from the question message
+        await buttonCleanupService.removeButtons(lastMessage.id, channel.id, 'question');
+      }
     }
 
     const correctAnswer = options[question.correctAnswer];
@@ -470,7 +520,19 @@ class QuizService {
       .setColor('#ff0000')
       .setTimestamp();
 
-    await channel.send({ embeds: [embed] });
+    if (session.isPrivate) {
+      // For private quizzes, send to the quiz owner
+      const quizOwnerId = Array.from(session.participants.keys())[0];
+      if (quizOwnerId) {
+        const user = await this.client?.users.fetch(quizOwnerId);
+        if (user) {
+          await user.send({ embeds: [embed] });
+        }
+      }
+    } else {
+      // For public quizzes, send to the channel
+      await channel.send({ embeds: [embed] });
+    }
 
     // Move to next question or end quiz
     session.currentQuestionIndex++;
@@ -511,7 +573,7 @@ class QuizService {
     this.clearAllTimeouts(session);
 
     // Remove buttons from quiz join message if it exists
-    if (session.messageId) {
+    if (session.messageId && !session.isPrivate) {
       await buttonCleanupService.removeButtons(session.messageId, channel.id, 'quiz');
     }
 
@@ -559,12 +621,26 @@ class QuizService {
         // Save quiz attempt to database
         await this.saveQuizAttempts(session, participants, totalTime);
 
-        // Update leaderboard scores
-        await this.updateLeaderboardScores(participants);
+        // Update leaderboard scores only for public quizzes
+        if (!session.isPrivate) {
+          await this.updateLeaderboardScores(participants);
+        }
       }
 
       // Send final results
-      await channel.send({ embeds: [embed] });
+      if (session.isPrivate) {
+        // For private quizzes, send to the quiz owner
+        const quizOwnerId = Array.from(session.participants.keys())[0];
+        if (quizOwnerId) {
+          const user = await this.client?.users.fetch(quizOwnerId);
+          if (user) {
+            await user.send({ embeds: [embed] });
+          }
+        }
+      } else {
+        // For public quizzes, send to the channel
+        await channel.send({ embeds: [embed] });
+      }
 
       // Clean up session
       this.activeSessions.delete(session.id);
@@ -671,7 +747,7 @@ class QuizService {
   /**
    * Save quiz to database
    */
-  private async saveQuizToDatabase(quizConfig: QuizConfig, quizId: string): Promise<void> {
+  private async saveQuizToDatabase(quizConfig: QuizConfig, quizId: string, isPrivate: boolean, userId?: string): Promise<void> {
     try {
       await databaseService.prisma.quiz.create({
         data: {
@@ -679,6 +755,8 @@ class QuizService {
           title: quizConfig.title,
           description: quizConfig.description || null,
           timeLimit: quizConfig.timeLimit || null,
+          isPrivate,
+          quizOwnerId: userId,
           questions: {
             create: quizConfig.questions.map(q => ({
               questionText: q.questionText,
@@ -817,6 +895,28 @@ class QuizService {
         ephemeral: true 
       });
     }
+  }
+
+  /**
+   * Seed example quizzes if the Quiz table is empty
+   */
+  public static async seedQuizzesIfEmpty() {
+    const quizCount = await databaseService.prisma.quiz.count();
+    if (quizCount > 0) {
+      logger.info('Quiz table is not empty, skipping seeding.');
+      return;
+    }
+    logger.info('Quiz table is empty, seeding example quizzes...');
+    const fs = require('fs');
+    const path = require('path');
+    const dataPath = path.join(process.cwd(), 'data', 'sample-questions.json');
+    const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+    for (const quiz of data.quizzes) {
+      const quizId = require('uuid').v4();
+      await QuizService.getInstance().saveQuizToDatabase(quiz, quizId, false);
+      logger.info(`Seeded quiz: ${quiz.title}`);
+    }
+    logger.info('Seeding complete.');
   }
 }
 

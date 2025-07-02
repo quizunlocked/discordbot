@@ -3,7 +3,7 @@ import { config } from '@/utils/config';
 import { logger } from '@/utils/logger';
 import { databaseService } from '@/services/DatabaseService';
 import { buttonCleanupService } from '@/services/ButtonCleanupService';
-import { quizService } from '@/services/QuizService';
+import { QuizService, quizService } from '@/services/QuizService';
 import { BotClient } from '@/types';
 import path from 'path';
 import fs from 'fs';
@@ -132,6 +132,9 @@ async function initializeBot(): Promise<void> {
   try {
     // Connect to database
     await databaseService.connect();
+    
+    // Seed quizzes if DB is empty
+    await QuizService.seedQuizzesIfEmpty();
     
     // Set client in services
     buttonCleanupService.setClient(client);

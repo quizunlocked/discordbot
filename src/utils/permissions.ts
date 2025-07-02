@@ -47,4 +47,48 @@ export async function requireAdminPrivileges(interaction: CommandInteraction | B
   }
   
   return true;
+}
+
+/**
+ * Check if a user can access a quiz (public quizzes or private quizzes owned by the user)
+ * @param userId - The ID of the user trying to access the quiz
+ * @param quizOwnerId - The ID of the quiz owner (null for public quizzes)
+ * @param isPrivate - Whether the quiz is private
+ * @returns true if user can access the quiz, false otherwise
+ */
+export function canAccessQuiz(userId: string, quizOwnerId: string | null, isPrivate: boolean): boolean {
+  // Public quizzes can be accessed by anyone
+  if (!isPrivate) {
+    return true;
+  }
+  
+  // Private quizzes can only be accessed by their owner
+  return quizOwnerId === userId;
+}
+
+/**
+ * Check if a user is the owner of a quiz
+ * @param userId - The ID of the user to check
+ * @param quizOwnerId - The ID of the quiz owner
+ * @returns true if user is the quiz owner, false otherwise
+ */
+export function isQuizOwner(userId: string, quizOwnerId: string | null): boolean {
+  return quizOwnerId === userId;
+}
+
+/**
+ * Check if a user can manage a quiz (owner or admin)
+ * @param userId - The ID of the user trying to manage the quiz
+ * @param quizOwnerId - The ID of the quiz owner
+ * @param hasAdminPrivileges - Whether the user has admin privileges
+ * @returns true if user can manage the quiz, false otherwise
+ */
+export function canManageQuiz(userId: string, quizOwnerId: string | null, hasAdminPrivileges: boolean): boolean {
+  // Admins can manage any quiz
+  if (hasAdminPrivileges) {
+    return true;
+  }
+  
+  // Quiz owners can manage their own quizzes
+  return isQuizOwner(userId, quizOwnerId);
 } 

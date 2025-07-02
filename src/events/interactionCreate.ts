@@ -4,7 +4,8 @@ import { quizService } from '@/services/QuizService';
 import { leaderboardService } from '@/services/LeaderboardService';
 import { buttonCleanupService } from '@/services/ButtonCleanupService';
 import { databaseService } from '@/services/DatabaseService';
-import { requireAdminPrivileges } from '@/utils/permissions';
+import { requireAdminPrivileges, canManageQuiz, hasAdminPrivileges } from '@/utils/permissions';
+import { autocomplete as quizAutocomplete } from '@/commands/quiz/start';
 
 export const name = Events.InteractionCreate;
 export const once = false;
@@ -12,6 +13,13 @@ export const once = false;
 export async function execute(interaction: Interaction): Promise<void> {
   try {
     // Handle different types of interactions
+    if (interaction.isAutocomplete()) {
+      // Quiz command autocomplete
+      if (interaction.commandName === 'quiz') {
+        await quizAutocomplete(interaction);
+        return;
+      }
+    }
     if (interaction.isButton()) {
       await handleButtonInteraction(interaction);
     } else if (interaction.isModalSubmit()) {
@@ -627,6 +635,8 @@ async function handleQuizManagementButton(interaction: ButtonInteraction): Promi
       await handleQuizDeleteCancel(interaction);
     } else if (customId.startsWith('quiz_toggle_status_')) {
       await handleQuizToggleStatus(interaction);
+    } else if (customId.startsWith('quiz_toggle_private_')) {
+      await handleQuizTogglePrivate(interaction);
     } else if (customId.startsWith('quiz_edit_')) {
       await handleQuizEdit(interaction);
     } else {
@@ -866,6 +876,75 @@ async function handleQuizToggleStatus(interaction: ButtonInteraction): Promise<v
     try {
       await interaction.followUp({ 
         content: '❌ Error updating quiz status. Please try again.', 
+        ephemeral: true 
+      });
+    } catch (followUpError) {
+      logger.error('Error sending followUp message:', followUpError);
+    }
+  }
+}
+
+async function handleQuizTogglePrivate(interaction: ButtonInteraction): Promise<void> {
+  try {
+    const quizId = interaction.customId.replace('quiz_toggle_private_', '');
+    
+    const quiz = await databaseService.prisma.quiz.findUnique({
+      where: { id: quizId },
+      include: { questions: true }
+    });
+
+    if (!quiz) {
+      await interaction.reply({ content: '❌ Quiz not found.', ephemeral: true });
+      return;
+    }
+
+    // Check if user can manage this quiz
+    const userCanManage = canManageQuiz(
+      interaction.user.id, 
+      (quiz as any).quizOwnerId, 
+      hasAdminPrivileges(interaction)
+    );
+
+    if (!userCanManage) {
+      await interaction.reply({ 
+        content: '❌ You can only modify quizzes you own or have admin privileges for.', 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    // Toggle the private status
+    const currentPrivate = (quiz as any).private || false;
+    const newPrivate = !currentPrivate;
+    
+    await databaseService.prisma.quiz.update({
+      where: { id: quizId },
+      data: { private: newPrivate } as any
+    });
+
+    const embed = new EmbedBuilder()
+      .setTitle(`🔒 Quiz Privacy Updated`)
+      .setDescription(`**${quiz.title}** is now ${newPrivate ? '🔒 Private' : '🌐 Public'}`)
+      .addFields(
+        { name: 'Questions', value: quiz.questions.length.toString(), inline: true },
+        { name: 'Status', value: quiz.isActive ? '🟢 Active' : '🔴 Inactive', inline: true },
+        { name: 'Privacy', value: newPrivate ? '🔒 Private' : '🌐 Public', inline: true }
+      )
+      .setColor(newPrivate ? '#ff9900' : '#00ff00')
+      .setTimestamp();
+
+    await interaction.update({ 
+      embeds: [embed], 
+      components: [] 
+    });
+
+    logger.info(`Quiz "${quiz.title}" (${quizId}) privacy ${newPrivate ? 'set to private' : 'set to public'} by ${interaction.user.tag}`);
+
+  } catch (error) {
+    logger.error('Error toggling quiz privacy:', error);
+    try {
+      await interaction.followUp({ 
+        content: '❌ Error updating quiz privacy. Please try again.', 
         ephemeral: true 
       });
     } catch (followUpError) {
