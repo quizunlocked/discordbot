@@ -1,14 +1,15 @@
 import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { logger } from '@/utils/logger';
 import { databaseService } from '@/services/DatabaseService';
+import { partition } from '@/utils/arrayUtils';
 import Papa from 'papaparse';
 
 interface CSVQuestion {
   questionText: string;
   options: string; // JSON array
   correctAnswer: number;
-  points?: number;
-  timeLimit?: number;
+  points?: number | undefined;
+  timeLimit?: number | undefined;
 }
 
 interface ValidationError {
@@ -65,8 +66,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       return;
     }
 
-    // Parse CSV content
-    const { questions, errors } = parseCSV(csvContent);
+    // Parse CSV content using functional approach
+    const { questions, errors } = parseCSVFunctional(csvContent);
     
     if (errors.length > 0) {
       const errorMessage = formatValidationErrors(errors);
@@ -86,7 +87,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     // Create quiz in database
     const quizTitle = title || `Custom Quiz - ${interaction.user.username}`;
-    const quizId = `quiz_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const quizId = `quiz_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
     await databaseService.prisma.$transaction(async (tx) => {
       // Create or get user
@@ -162,51 +163,52 @@ async function downloadAttachment(url: string): Promise<string | null> {
   }
 }
 
-function parseCSV(csvContent: string): { questions: CSVQuestion[], errors: ValidationError[] } {
-  const questions: CSVQuestion[] = [];
-  const errors: ValidationError[] = [];
-
-  Papa.parse(csvContent, {
+function parseCSVFunctional(csvContent: string): { questions: CSVQuestion[], errors: ValidationError[] } {
+  const parseResult = Papa.parse(csvContent, {
     header: true,
     skipEmptyLines: true,
-    complete: (results) => {
-             if (results.errors.length > 0) {
-         results.errors.forEach(error => {
-           errors.push({
-             row: (error.row || 0) + 1,
-             field: 'CSV Format',
-             message: error.message,
-           });
-         });
-         return;
-       }
-
-      results.data.forEach((row: any, index: number) => {
-        const rowNumber = index + 1;
-        const rowErrors = validateRow(row, rowNumber);
-        errors.push(...rowErrors);
-
-                 if (rowErrors.length === 0) {
-           questions.push({
-             questionText: row.questionText?.trim(),
-             options: row.options?.trim(),
-             correctAnswer: parseInt(row.correctAnswer),
-             points: row.points ? parseInt(row.points) : undefined,
-             timeLimit: row.timeLimit ? parseInt(row.timeLimit) : undefined,
-           } as CSVQuestion);
-         }
-      });
-    },
-         error: (error: any) => {
-       errors.push({
-         row: 0,
-         field: 'CSV Parsing',
-         message: error.message,
-       });
-     },
   });
 
+  // Handle parsing errors
+  if (parseResult.errors.length > 0) {
+    const errors = parseResult.errors.map(error => ({
+      row: (error.row || 0) + 1,
+      field: 'CSV Format',
+      message: error.message,
+    }));
+    return { questions: [], errors };
+  }
+
+  // Process rows functionally
+  const rowsWithValidation = parseResult.data.map((row: any, index: number) => ({
+    row,
+    index: index + 1,
+    errors: validateRow(row, index + 1),
+  }));
+
+  // Partition into valid and invalid rows
+  const [validRows, invalidRows] = partition(
+    rowsWithValidation,
+    ({ errors }: { errors: ValidationError[] }) => errors.length === 0
+  );
+
+  // Extract questions from valid rows
+  const questions = validRows.map(({ row }: { row: any }) => transformRowToQuestion(row));
+
+  // Extract errors from invalid rows
+  const errors = invalidRows.flatMap(({ errors }: { errors: ValidationError[] }) => errors);
+
   return { questions, errors };
+}
+
+function transformRowToQuestion(row: any): CSVQuestion {
+  return {
+    questionText: row.questionText?.trim(),
+    options: row.options?.trim(),
+    correctAnswer: parseInt(row.correctAnswer),
+    points: row.points ? parseInt(row.points) : undefined,
+    timeLimit: row.timeLimit ? parseInt(row.timeLimit) : undefined,
+  };
 }
 
 function validateRow(row: any, rowNumber: number): ValidationError[] {
@@ -333,4 +335,4 @@ function formatValidationErrors(errors: ValidationError[]): string {
   }
 
   return message.trim();
-} 
+}
