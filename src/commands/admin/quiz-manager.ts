@@ -57,6 +57,15 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
 
   const subcommand = interaction.options.getSubcommand();
   
+  // Validate channel type - admin commands must be run in guild channels
+  if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {
+    await interaction.reply({
+      content: '❌ Admin commands can only be used in server channels, not in direct messages.',
+      ephemeral: true,
+    });
+    return;
+  }
+  
   try {
     switch (subcommand) {
       case 'create':

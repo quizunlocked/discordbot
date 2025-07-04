@@ -77,10 +77,20 @@ export class QuizService {
     
     // For private quizzes, start immediately without join phase
     if (isPrivate) {
+      if (!userId) {
+        throw new Error('User ID is required for private quizzes');
+      }
+      
+      // Get the actual user who started the quiz
+      const user = await channel.client.users.fetch(userId).catch(() => null);
+      if (!user) {
+        throw new Error(`Could not fetch user ${userId} for private quiz`);
+      }
+      
       // Add the quiz creator as the only participant
       const participant: ParticipantData = {
-        userId: userId || channel.client.user?.id || 'unknown',
-        username: channel.client.user?.username || 'Unknown',
+        userId: user.id,
+        username: user.username,
         score: 0,
         streak: 0,
         answers: new Map(),
@@ -347,7 +357,12 @@ export class QuizService {
 
     // Schedule button cleanup for question
     if (message) {
-      buttonCleanupService.scheduleQuestionCleanup(message.id, session.isPrivate ? 'dm' : channel.id, questionTimeLimit + 10);
+      if (session.isPrivate) {
+        // For private quizzes, we don't need to schedule cleanup since DM messages can't be edited by bots after user interaction
+        // The message buttons will be automatically disabled after the question timeout
+      } else {
+        buttonCleanupService.scheduleQuestionCleanup(message.id, channel.id, questionTimeLimit + 10);
+      }
     }
 
     // Set question timeout using the question's individual time limit

@@ -24,6 +24,9 @@ describe('quiz-manager command', () => {
       options: { getSubcommand: jest.fn(), getString: jest.fn() },
       reply: jest.fn().mockResolvedValue(undefined),
       showModal: mockShowModal,
+      channel: {
+        isDMBased: jest.fn().mockReturnValue(false),
+      },
       user: { id: 'user1', tag: 'user#1' },
       guild: { name: 'TestGuild' },
     };
@@ -70,5 +73,36 @@ describe('quiz-manager command', () => {
     interaction.options.getSubcommand.mockReturnValue('delete-all');
     await execute(interaction as any);
     expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
+  });
+
+  it('should reject quiz-manager commands in DM channels', async () => {
+    // Mock DM channel
+    interaction.channel.isDMBased.mockReturnValue(true);
+    interaction.guild = null; // DM channels don't have guilds
+    interaction.options.getSubcommand.mockReturnValue('create');
+    
+    await execute(interaction as any);
+    
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: '❌ Admin commands can only be used in server channels, not in direct messages.',
+      ephemeral: true,
+    });
+    // Should not proceed to handle the subcommand
+    expect(mockShowModal).not.toHaveBeenCalled();
+  });
+
+  it('should reject quiz-manager commands when guild is null', async () => {
+    // Mock no guild context
+    interaction.guild = null;
+    interaction.options.getSubcommand.mockReturnValue('create');
+    
+    await execute(interaction as any);
+    
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: '❌ Admin commands can only be used in server channels, not in direct messages.',
+      ephemeral: true,
+    });
+    // Should not proceed to handle the subcommand
+    expect(mockShowModal).not.toHaveBeenCalled();
   });
 }); 
