@@ -16,7 +16,9 @@ describe('quiz start command', () => {
         getBoolean: jest.fn(),
       },
       reply: jest.fn().mockResolvedValue(undefined),
-      channel: {},
+      channel: {
+        isDMBased: jest.fn().mockReturnValue(false),
+      },
       channelId: 'test-channel',
       user: { id: 'user1', tag: 'user#1' },
       guild: { name: 'TestGuild' },

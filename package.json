@@ -39,9 +39,12 @@
     "@discordjs/rest": "^2.2.0",
     "@discordjs/ws": "^1.0.2",
     "@prisma/client": "^5.7.1",
+    "@types/papaparse": "^5.3.16",
     "@types/uuid": "^10.0.0",
     "discord.js": "^14.14.1",
     "dotenv": "^16.3.1",
+    "module-alias": "^2.2.3",
+    "papaparse": "^5.5.3",
     "uuid": "^11.1.0",
     "winston": "^3.11.0"
   },
@@ -63,5 +66,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "_moduleAliases": {
+    "@": "dist"
   }
 }

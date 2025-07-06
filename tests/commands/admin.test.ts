@@ -12,6 +12,7 @@ describe('admin command', () => {
 
   beforeEach(() => {
     requireAdminPrivileges = require('@/utils/permissions').requireAdminPrivileges;
+    requireAdminPrivileges.mockClear();
     requireAdminPrivileges.mockResolvedValue(true);
     
     interaction = {
@@ -21,6 +22,9 @@ describe('admin command', () => {
       editReply: jest.fn().mockResolvedValue(undefined),
       reply: jest.fn().mockResolvedValue(undefined),
       channelId: 'test-channel',
+      channel: {
+        isDMBased: jest.fn().mockReturnValue(false),
+      },
       user: { id: 'user1', tag: 'user#1' },
       guild: { name: 'TestGuild' },
     };
@@ -53,5 +57,34 @@ describe('admin command', () => {
     await execute(interaction as any);
     // The function should return early without calling any other functions
     expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
+  });
+
+  it('should reject admin commands in DM channels', async () => {
+    // Mock DM channel
+    interaction.channel.isDMBased.mockReturnValue(true);
+    interaction.guild = null; // DM channels don't have guilds
+    interaction.options.getSubcommand.mockReturnValue('status');
+    
+    await execute(interaction as any);
+    
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      content: '❌ Admin commands can only be used in server channels, not in direct messages.',
+    });
+    // Should not proceed to handle the subcommand
+    expect(requireAdminPrivileges).not.toHaveBeenCalled();
+  });
+
+  it('should reject admin commands when channel is null', async () => {
+    // Mock null channel
+    interaction.channel = null;
+    interaction.options.getSubcommand.mockReturnValue('status');
+    
+    await execute(interaction as any);
+    
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      content: '❌ Admin commands can only be used in server channels, not in direct messages.',
+    });
+    // Should not proceed to handle the subcommand
+    expect(requireAdminPrivileges).not.toHaveBeenCalled();
   });
 }); 

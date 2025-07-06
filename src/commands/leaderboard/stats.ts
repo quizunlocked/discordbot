@@ -20,6 +20,14 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
   try {
     await interaction.deferReply();
 
+    // Validate channel type - leaderboard commands must be run in guild channels
+    if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {
+      await interaction.editReply({
+        content: '❌ Leaderboard commands can only be used in server channels, not in direct messages.',
+      });
+      return;
+    }
+
     const targetUser = interaction.options.getUser('user') || interaction.user;
     const stats = await leaderboardService.getUserStats(targetUser.id);
 
