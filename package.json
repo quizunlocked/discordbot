@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "npm run deploy-commands && npm run db:deploy:prod && node dist/index.js",
+    "start": "npm run deploy-commands && npm run db:generate:prod && npm run db:deploy:prod && node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
