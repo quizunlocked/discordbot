@@ -129,6 +129,8 @@ npm run build && npm start
 - `/quiz start <quiz_name>` - Start a new quiz session
 - `/quiz stop` - Stop the current quiz
 - `/quiz status` - Check current quiz status
+- `/upload-quiz-csv [title] [file]` - Upload a CSV file to create a custom quiz
+- `/get-quiz-template` - Get a CSV template for creating custom quizzes
 
 ### Leaderboard Commands
 
@@ -151,6 +153,55 @@ npm run build && npm start
 - `/quiz-manager delete-all` - Delete all quizzes (⚠️ DESTRUCTIVE)
 
 **Note:** All quiz-manager commands require administrator privileges and include confirmation prompts for destructive actions.
+
+## CSV Quiz Upload Feature
+
+The bot supports creating custom quizzes by uploading CSV files. This feature allows users to easily create quizzes from existing question banks or spreadsheets.
+
+### CSV Format
+
+The CSV file should have the following columns:
+
+| Column | Type | Required | Description |
+|--------|------|----------|-------------|
+| `questionText` | string | Yes | The question text |
+| `options` | JSON array | Yes | Array of answer options (e.g., `["Option A","Option B","Option C","Option D"]`) |
+| `correctAnswer` | integer | Yes | 0-based index of the correct answer |
+| `points` | integer | No | Points for this question (1-100, default: 10) |
+| `timeLimit` | integer | No | Time limit in seconds (10-300, default: 30) |
+
+### Example CSV
+
+```csv
+questionText,options,correctAnswer,points,timeLimit
+"What is the capital of Poland?","[""Warsaw"",""Krakow"",""Gdansk"",""Wroclaw""]",0,10,30
+"What is the Polish word for 'hello'?","[""Cześć"",""Dzień dobry"",""Do widzenia"",""Dziękuję""]",0,10,30
+"What is 2 + 2 in Polish?","[""Dwa"",""Trzy"",""Cztery"",""Pięć""]",2,5,15
+```
+
+### CSV Feature Usage
+
+1. **Get a template**: Use `/get-quiz-template` to download a sample CSV file
+2. **Edit the template**: Replace the example questions with your own
+3. **Upload your quiz**: Use `/upload-quiz-csv [title] [file]` to create your quiz
+
+### Validation Rules
+
+- **File size**: Maximum 25MB
+- **File type**: Must be CSV format
+- **Questions**: Maximum 100 questions per quiz
+- **Options**: Must be valid JSON array with at least 2 options
+- **Correct answer**: Must be a valid index within the options array
+- **Points**: Must be between 1-100 (optional, default: 10)
+- **Time limit**: Must be between 10-300 seconds (optional, default: 30)
+
+### Error Handling
+
+The bot provides detailed error messages for validation failures, including:
+
+- Row-specific error reporting
+- Field-specific validation messages
+- Format examples and suggestions
 
 ## Project Structure
 

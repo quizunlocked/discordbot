@@ -2,6 +2,7 @@ import { EmbedBuilder } from 'discord.js';
 import { databaseService } from './DatabaseService';
 import { logger } from '@/utils/logger';
 import { LeaderboardPeriod, LeaderboardEntry } from '@/types';
+import { sumBy, minBy } from '@/utils/arrayUtils';
 
 class LeaderboardService {
   private static instance: LeaderboardService;
@@ -57,19 +58,9 @@ class LeaderboardService {
         },
       });
 
-      // Aggregate scores by user
-      const userScores = new Map<string, {
-        userId: string;
-        username: string;
-        totalScore: number;
-        totalQuizzes: number;
-        totalTime: number;
-        bestTime: number | undefined;
-        attempts: any[];
-      }>();
-
-      for (const attempt of attempts) {
-        const existing = userScores.get(attempt.userId);
+      // Aggregate scores by user using functional reduce
+      const userScores = attempts.reduce((acc, attempt) => {
+        const existing = acc.get(attempt.userId);
         if (existing) {
           existing.totalScore += attempt.totalScore;
           existing.totalQuizzes += 1;
@@ -79,7 +70,7 @@ class LeaderboardService {
           }
           existing.attempts.push(attempt);
         } else {
-          userScores.set(attempt.userId, {
+          acc.set(attempt.userId, {
             userId: attempt.userId,
             username: attempt.user.username,
             totalScore: attempt.totalScore,
@@ -89,7 +80,16 @@ class LeaderboardService {
             attempts: [attempt],
           });
         }
-      }
+        return acc;
+      }, new Map<string, {
+        userId: string;
+        username: string;
+        totalScore: number;
+        totalQuizzes: number;
+        totalTime: number;
+        bestTime: number | undefined;
+        attempts: any[];
+      }>());
 
       // Convert to array and sort by total score
       const leaderboard = Array.from(userScores.values())
@@ -275,30 +275,32 @@ class LeaderboardService {
     rank: number;
   } | null> {
     try {
-      const attempts = await databaseService.prisma.quizAttempt.findMany({
-        where: { userId },
-        include: { questionAttempts: true },
-        orderBy: { startedAt: 'desc' },
-      });
+      // Parallel database queries for better performance
+      const [attempts, allUsers] = await Promise.all([
+        databaseService.prisma.quizAttempt.findMany({
+          where: { userId },
+          include: { questionAttempts: true },
+          orderBy: { startedAt: 'desc' },
+        }),
+        databaseService.prisma.quizAttempt.groupBy({
+          by: ['userId'],
+          _sum: { totalScore: true },
+          orderBy: { _sum: { totalScore: 'desc' } },
+        })
+      ]);
 
       if (attempts.length === 0) {
         return null;
       }
 
-      const totalScore = attempts.reduce((sum, attempt) => sum + attempt.totalScore, 0);
+      const totalScore = sumBy(attempts, attempt => attempt.totalScore);
       const totalQuizzes = attempts.length;
       const averageScore = Math.round(totalScore / totalQuizzes);
-      const bestTime = attempts.reduce((best, attempt) => {
-        if (!attempt.totalTime) return best;
-        return !best || attempt.totalTime < best ? attempt.totalTime : best;
-      }, undefined as number | undefined);
+      const bestTime = minBy(
+        attempts.filter(attempt => attempt.totalTime),
+        attempt => attempt.totalTime!
+      )?.totalTime;
 
-      // Get overall rank
-      const allUsers = await databaseService.prisma.quizAttempt.groupBy({
-        by: ['userId'],
-        _sum: { totalScore: true },
-        orderBy: { _sum: { totalScore: 'desc' } },
-      });
 
       const rank = allUsers.findIndex(user => user.userId === userId) + 1;
 
@@ -306,7 +308,7 @@ class LeaderboardService {
         totalScore,
         totalQuizzes,
         averageScore,
-        bestTime,
+        bestTime: bestTime || undefined,
         rank,
       };
     } catch (error) {

@@ -60,6 +60,15 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
     const totalTimeLimit = interaction.options.getInteger('total_time_limit');
     const isPrivate = interaction.options.getBoolean('private') || false;
     
+    // Validate channel type - quiz commands must be run in guild channels
+    if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {
+      await interaction.reply({
+        content: '❌ Quiz commands can only be used in server channels, not in direct messages.',
+        ephemeral: true,
+      });
+      return;
+    }
+    
     try {
       // Check if there's already an active quiz in this channel
       const activeSession = quizService.getActiveSessionByChannel(interaction.channelId);
