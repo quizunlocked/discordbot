@@ -1,4 +1,4 @@
-// This is your Prisma schema file,
+// This is your Prisma schema file for PRODUCTION (PostgreSQL),
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -94,4 +94,4 @@ model Score {
   bestTime      Int? // Best completion time in seconds
   
   @@unique([userId, period, year, week, month])
-} 
+}
