@@ -320,7 +320,7 @@ export class QuizService {
         .setStyle(ButtonStyle.Secondary)
     );
 
-    const rows = [];
+    const rows: ActionRowBuilder<ButtonBuilder>[] = [];
     for (let i = 0; i < buttons.length; i += 4) {
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(buttons.slice(i, i + 4));
       rows.push(row);
