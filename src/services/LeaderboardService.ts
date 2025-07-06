@@ -59,7 +59,7 @@ class LeaderboardService {
       });
 
       // Aggregate scores by user using functional reduce
-      const userScores = attempts.reduce((acc, attempt) => {
+      const userScores = attempts.reduce((acc: any, attempt: any) => {
         const existing = acc.get(attempt.userId);
         if (existing) {
           existing.totalScore += attempt.totalScore;
@@ -93,7 +93,7 @@ class LeaderboardService {
 
       // Convert to array and sort by total score
       const leaderboard = Array.from(userScores.values())
-        .map(user => ({
+        .map((user: any) => ({
           userId: user.userId,
           username: user.username,
           totalScore: user.totalScore,
@@ -293,16 +293,16 @@ class LeaderboardService {
         return null;
       }
 
-      const totalScore = sumBy(attempts, attempt => attempt.totalScore);
+      const totalScore = sumBy(attempts, (attempt: any) => attempt.totalScore);
       const totalQuizzes = attempts.length;
       const averageScore = Math.round(totalScore / totalQuizzes);
       const bestTime = minBy(
-        attempts.filter(attempt => attempt.totalTime),
-        attempt => attempt.totalTime!
+        attempts.filter((attempt: any) => attempt.totalTime),
+        (attempt: any) => attempt.totalTime!
       )?.totalTime;
 
 
-      const rank = allUsers.findIndex(user => user.userId === userId) + 1;
+      const rank = allUsers.findIndex((user: any) => user.userId === userId) + 1;
 
       return {
         totalScore,

@@ -217,7 +217,7 @@ async function handleUserDataDeletion(interaction: ButtonInteraction, userId: st
     const username = user?.username || 'Unknown User';
 
     // Delete user data
-    await databaseService.prisma.$transaction(async (tx) => {
+    await databaseService.prisma.$transaction(async (tx: any) => {
       // Delete question attempts first (due to foreign key constraints)
       await tx.questionAttempt.deleteMany({
         where: {
@@ -460,7 +460,7 @@ async function handleDashboardQuizzes(interaction: ButtonInteraction): Promise<v
     const embed = new EmbedBuilder()
       .setTitle('📚 Quiz Management')
       .setColor('#0099ff')
-      .setDescription(quizzes.map(quiz => {
+      .setDescription(quizzes.map((quiz: any) => {
         const status = quiz.isActive ? '🟢 Active' : '🔴 Inactive';
         return `**${quiz.title}** (${quiz.id})\n${status} • ${quiz._count.questions} questions • ${quiz._count.attempts} attempts`;
       }).join('\n\n'))
@@ -500,7 +500,7 @@ async function handleDashboardUsers(interaction: ButtonInteraction): Promise<voi
     const embed = new EmbedBuilder()
       .setTitle('👥 User Management')
       .setColor('#0099ff')
-      .setDescription(users.map(user => 
+      .setDescription(users.map((user: any) => 
         `**${user.username}**\n${user._count.quizAttempts} attempts • ${user._count.scores} score records`
       ).join('\n\n'))
       .setTimestamp();
@@ -555,7 +555,7 @@ async function handleDashboardDatabase(interaction: ButtonInteraction): Promise<
       .setTimestamp();
 
     if (recentAttempts.length > 0) {
-      const recentActivity = recentAttempts.map(a => 
+      const recentActivity = recentAttempts.map((a: any) => 
         `${a.user.username}: ${a.quiz.title} (${a.totalScore} pts)`
       ).join('\n');
       
@@ -682,7 +682,7 @@ async function handleQuizDeleteConfirm(interaction: ButtonInteraction): Promise<
     }
 
     // Delete the quiz and all related data
-    await databaseService.prisma.$transaction(async (tx) => {
+    await databaseService.prisma.$transaction(async (tx: any) => {
       // Delete question attempts first (due to foreign key constraints)
       await tx.questionAttempt.deleteMany({
         where: {
@@ -788,11 +788,11 @@ async function handleQuizDeleteAllConfirm(interaction: ButtonInteraction): Promi
     }
 
     const totalQuizzes = quizStats.length;
-    const totalQuestions = quizStats.reduce((sum, quiz) => sum + quiz._count.questions, 0);
-    const totalAttempts = quizStats.reduce((sum, quiz) => sum + quiz._count.attempts, 0);
+    const totalQuestions = quizStats.reduce((sum: number, quiz: any) => sum + quiz._count.questions, 0);
+    const totalAttempts = quizStats.reduce((sum: number, quiz: any) => sum + quiz._count.attempts, 0);
 
     // Delete all quizzes and related data
-    await databaseService.prisma.$transaction(async (tx) => {
+    await databaseService.prisma.$transaction(async (tx: any) => {
       // Delete question attempts first (due to foreign key constraints)
       await tx.questionAttempt.deleteMany();
 
