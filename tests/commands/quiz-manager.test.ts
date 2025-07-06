@@ -21,7 +21,11 @@ describe('quiz-manager command', () => {
     
     interaction = {
       isChatInputCommand: jest.fn().mockReturnValue(true),
-      options: { getSubcommand: jest.fn(), getString: jest.fn() },
+      options: { 
+        getSubcommand: jest.fn(), 
+        getSubcommandGroup: jest.fn().mockReturnValue(null),
+        getString: jest.fn() 
+      },
       reply: jest.fn().mockResolvedValue(undefined),
       showModal: mockShowModal,
       channel: {

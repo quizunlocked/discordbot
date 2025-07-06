@@ -237,8 +237,8 @@ async function handleUserDataDeletion(interaction: ButtonInteraction, userId: st
         where: { userId: userId }
       });
 
-      // Delete user
-      await tx.user.delete({
+      // Delete user (if exists)
+      await tx.user.deleteMany({
         where: { id: userId }
       });
     });
@@ -272,6 +272,11 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction): Promise<v
 
     if (customId === 'quiz_create_modal') {
       await handleQuizCreationModal(interaction);
+      return;
+    }
+
+    if (customId.startsWith('add_question_modal_')) {
+      await handleAddQuestionModal(interaction);
       return;
     }
 
@@ -966,6 +971,149 @@ async function handleQuizEdit(interaction: ButtonInteraction): Promise<void> {
     logger.error('Error handling quiz edit:', error);
     await interaction.reply({ 
       content: '❌ Error handling quiz edit request.', 
+      ephemeral: true 
+    });
+  }
+}
+
+async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Promise<void> {
+  try {
+    // Extract quiz ID from the custom ID
+    const quizId = interaction.customId.replace('add_question_modal_', '');
+    
+    // Extract form data
+    const questionText = interaction.fields.getTextInputValue('question_text');
+    const optionsText = interaction.fields.getTextInputValue('question_options');
+    const correctAnswerStr = interaction.fields.getTextInputValue('correct_answer');
+    const timeLimitStr = interaction.fields.getTextInputValue('time_limit') || '';
+    const pointsStr = interaction.fields.getTextInputValue('points') || '';
+
+    // Validate and parse options
+    const options = optionsText.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
+    
+    if (options.length < 2) {
+      await interaction.reply({ 
+        content: '❌ Please provide at least 2 answer options.', 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    if (options.length > 10) {
+      await interaction.reply({ 
+        content: '❌ Maximum 10 answer options allowed.', 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    // Validate correct answer index
+    const correctAnswer = parseInt(correctAnswerStr, 10);
+    if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
+      await interaction.reply({ 
+        content: `❌ Invalid correct answer index. Please enter a number between 0 and ${options.length - 1}.`, 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    // Validate optional fields
+    let timeLimit: number | null = null;
+    if (timeLimitStr) {
+      timeLimit = parseInt(timeLimitStr, 10);
+      if (isNaN(timeLimit) || timeLimit < 5 || timeLimit > 300) {
+        await interaction.reply({ 
+          content: '❌ Invalid time limit. Please enter a number between 5 and 300 seconds.', 
+          ephemeral: true 
+        });
+        return;
+      }
+    }
+
+    let points = 10; // Default points
+    if (pointsStr) {
+      points = parseInt(pointsStr, 10);
+      if (isNaN(points) || points < 1 || points > 100) {
+        await interaction.reply({ 
+          content: '❌ Invalid points. Please enter a number between 1 and 100.', 
+          ephemeral: true 
+        });
+        return;
+      }
+    }
+
+    // Check if quiz exists and user has permission
+    const quiz = await databaseService.prisma.quiz.findUnique({
+      where: { id: quizId },
+      include: { questions: true }
+    });
+
+    if (!quiz) {
+      await interaction.reply({ content: '❌ Quiz not found.', ephemeral: true });
+      return;
+    }
+
+    // Check if user can manage this quiz
+    const userCanManage = canManageQuiz(
+      interaction.user.id, 
+      (quiz as any).quizOwnerId, 
+      interaction.guild?.members.cache.get(interaction.user.id)?.permissions.has('Administrator') || false
+    );
+
+    if (!userCanManage) {
+      await interaction.reply({ 
+        content: '❌ You can only add questions to quizzes you own or have admin privileges for.', 
+        ephemeral: true 
+      });
+      return;
+    }
+
+    // Create the question
+    await databaseService.prisma.question.create({
+      data: {
+        quizId,
+        questionText,
+        options: JSON.stringify(options),
+        correctAnswer,
+        timeLimit,
+        points
+      }
+    });
+
+    // Create success embed
+    const embed = new EmbedBuilder()
+      .setTitle('✅ Question Added Successfully')
+      .setDescription(`Question added to **${quiz.title}**`)
+      .addFields(
+        { name: 'Question', value: questionText.length > 100 ? questionText.substring(0, 100) + '...' : questionText, inline: false },
+        { name: 'Options', value: options.map((opt, i) => `${i}: ${opt}`).join('\n').substring(0, 1000), inline: false },
+        { name: 'Correct Answer', value: `${correctAnswer}: ${options[correctAnswer]}`, inline: true },
+        { name: 'Points', value: points.toString(), inline: true }
+      )
+      .setColor('#00ff00')
+      .setTimestamp();
+
+    if (timeLimit) {
+      embed.addFields({ name: 'Time Limit', value: `${timeLimit}s`, inline: true });
+    }
+
+    embed.addFields({ 
+      name: 'Quiz Status', 
+      value: `${quiz.questions.length + 1} questions total`, 
+      inline: false 
+    });
+
+    await interaction.reply({ 
+      embeds: [embed], 
+      ephemeral: true 
+    });
+
+    logger.info(`Question added to quiz "${quiz.title}" (${quizId}) by ${interaction.user.tag}`);
+
+  } catch (error) {
+    logger.error('Error adding question from modal:', error);
+    await interaction.reply({ 
+      content: '❌ Error adding question. Please try again.', 
       ephemeral: true 
     });
   }
