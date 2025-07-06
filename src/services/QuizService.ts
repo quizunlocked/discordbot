@@ -770,7 +770,7 @@ export class QuizService {
           title: quizConfig.title,
           description: quizConfig.description || null,
           timeLimit: quizConfig.timeLimit || null,
-          isPrivate,
+          private: isPrivate,
           quizOwnerId: userId,
           questions: {
             create: quizConfig.questions.map(q => ({

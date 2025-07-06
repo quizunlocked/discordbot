@@ -119,8 +119,5 @@ Thumbs.db
 dist/
 build/
 
-# Prisma
-prisma/migrations/
-
 # Husky
 .husky/ 
