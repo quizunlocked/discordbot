@@ -28,11 +28,15 @@ async function loadCommands(): Promise<void> {
   const commandsPath = path.join(__dirname, 'commands');
   const commandFolders = fs.readdirSync(commandsPath);
 
+  // Determine if we're in development (src) or production (dist)
+  const isDevelopment = __dirname.includes('/src');
+  const fileExtension = isDevelopment ? '.ts' : '.js';
+
   for (const folder of commandFolders) {
     const folderPath = path.join(commandsPath, folder);
     const commandFiles = fs
       .readdirSync(folderPath)
-      .filter((file) => (file.endsWith('.js') || file.endsWith('.ts')) && !file.endsWith('.d.ts'));
+      .filter((file) => file.endsWith(fileExtension) && !file.endsWith('.d.ts'));
 
     for (const file of commandFiles) {
       const filePath = path.join(folderPath, file);
@@ -51,9 +55,14 @@ async function loadCommands(): Promise<void> {
 // Load events
 async function loadEvents(): Promise<void> {
   const eventsPath = path.join(__dirname, 'events');
+  
+  // Determine if we're in development (src) or production (dist)
+  const isDevelopment = __dirname.includes('/src');
+  const fileExtension = isDevelopment ? '.ts' : '.js';
+  
   const eventFiles = fs
     .readdirSync(eventsPath)
-    .filter((file) => (file.endsWith('.js') || file.endsWith('.ts')) && !file.endsWith('.d.ts'));
+    .filter((file) => file.endsWith(fileExtension) && !file.endsWith('.d.ts'));
 
   for (const file of eventFiles) {
     const filePath = path.join(eventsPath, file);

@@ -5,14 +5,14 @@ import fs from 'fs';
 import path from 'path';
 
 const commands: any[] = [];
-const commandsPath = path.join(__dirname, '../src/commands');
+const commandsPath = path.join(__dirname, '../dist/commands');
 const commandFolders = fs.readdirSync(commandsPath);
 
 for (const folder of commandFolders) {
   const folderPath = path.join(commandsPath, folder);
   const commandFiles = fs
     .readdirSync(folderPath)
-    .filter((file) => file.endsWith('.js') || file.endsWith('.ts'));
+    .filter((file) => file.endsWith('.js') && !file.endsWith('.d.ts'));
 
   for (const file of commandFiles) {
     const filePath = path.join(folderPath, file);
