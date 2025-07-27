@@ -32,7 +32,7 @@ async function loadCommands(): Promise<void> {
     const folderPath = path.join(commandsPath, folder);
     const commandFiles = fs
       .readdirSync(folderPath)
-      .filter((file) => file.endsWith('.js') && !file.endsWith('.d.ts'));
+      .filter((file) => (file.endsWith('.js') || file.endsWith('.ts')) && !file.endsWith('.d.ts'));
 
     for (const file of commandFiles) {
       const filePath = path.join(folderPath, file);
@@ -53,7 +53,7 @@ async function loadEvents(): Promise<void> {
   const eventsPath = path.join(__dirname, 'events');
   const eventFiles = fs
     .readdirSync(eventsPath)
-    .filter((file) => file.endsWith('.js') && !file.endsWith('.d.ts'));
+    .filter((file) => (file.endsWith('.js') || file.endsWith('.ts')) && !file.endsWith('.d.ts'));
 
   for (const file of eventFiles) {
     const filePath = path.join(eventsPath, file);

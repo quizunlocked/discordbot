@@ -8,7 +8,7 @@ A feature-rich Discord bot for hosting interactive quizzes with leaderboards, bu
 - **Real-time Scoring**: Score participants based on correctness and speed
 - **Leaderboards**: Track weekly, monthly, and yearly statistics
 - **Admin Controls**: Manage quizzes and bot settings
-- **Database Persistence**: Store quiz data and user statistics using SQLite
+- **Database Persistence**: Store quiz data and user statistics using PostgreSQL
 - **Modern Architecture**: Built with TypeScript, Discord.js v14, and Prisma ORM
 
 ## Prerequisites
@@ -88,32 +88,21 @@ https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&
 
    Edit `.env` and add your Discord bot token and other configuration:
 
-   **For Development (SQLite):**
+   **For Development (PostgreSQL):**
+
    ```env
    DISCORD_TOKEN=your_discord_bot_token_here
    DISCORD_CLIENT_ID=your_discord_client_id_here
    DISCORD_DEV_GUILD_ID=your_guild_id_here
-   DATABASE_URL="file:./dev.db"
-   ```
-
-   **For Production (PostgreSQL):**
-   ```env
-   DISCORD_TOKEN=your_discord_bot_token_here
-   DISCORD_CLIENT_ID=your_discord_client_id_here
-   NODE_ENV=production
    DATABASE_URL="postgresql://username:password@host:5432/database_name"
    ```
 
 4. **Set up the database**
 
-   **Development (SQLite with migrations):**
+   **Development (PostgreSQL with migrations):**
+
    ```bash
    npm run db:deploy:dev
-   ```
-   
-   **Alternative for quick prototyping:**
-   ```bash
-   npm run db:push:dev
    ```
 
 5. **Build the project**
@@ -133,25 +122,18 @@ npm run dev
 ### In Production
 
 **For PostgreSQL (Production):**
-```bash
-npm run db:deploy:prod
-npm run build
-npm start
-```
 
-**For SQLite (Development/Testing):**
 ```bash
-npm run db:deploy:dev
+npm run db:deploy
 npm run build
 npm start
 ```
 
 **Notes:**
+
 - The `start` command automatically deploys Discord slash commands and then starts the bot
-- Use `start:dev` if you want to skip command deployment during development
-- `db:deploy:prod` uses PostgreSQL with proper migrations (`schema.prod.prisma`)
-- `db:deploy:dev` uses SQLite with migrations for development (`schema.dev.prisma`)
-- Ensure your `DATABASE_URL` matches your chosen database type
+- `db:deploy` uses PostgreSQL with proper migrations (`schema.prisma`)
+- Ensure your `DATABASE_URL` is a valid PostgreSQL connection string
 
 ## Commands
 
@@ -278,7 +260,7 @@ This project uses:
 
 ### Database
 
-The project uses **Prisma** as the ORM with **SQLite** as the database. The schema is defined in `prisma/schema.prisma`.
+The project uses **Prisma** as the ORM with **PostgreSQL** as the database. The schema is defined in `prisma/schema.prisma`.
 
 ## Configuration
 
@@ -305,42 +287,27 @@ The project uses **Prisma** as the ORM with **SQLite** as the database. The sche
 
 ### Database Configuration
 
-This application supports both SQLite (development) and PostgreSQL (production) databases using separate schema files and follows Prisma best practices for migrations.
-
-#### Schema Files
-
-| File | Database | Purpose |
-|------|----------|---------|
-| `prisma/schema.dev.prisma` | SQLite | Development and testing |
-| `prisma/schema.prod.prisma` | PostgreSQL | Production deployment |
+This application uses PostgreSQL for both development and production environments, with a single schema file (`prisma/schema.prisma`).
 
 #### Environment Variables
 
-| Variable | Description | SQLite Example | PostgreSQL Example |
-|----------|-------------|----------------|-------------------|
-| `DATABASE_URL` | Connection string | `"file:./dev.db"` | `"postgresql://user:pass@host:5432/db"` |
+| Variable | Description | PostgreSQL Example |
+|----------|-------------|-------------------|
+| `DATABASE_URL` | Connection string | `"postgresql://user:pass@host:5432/db"` |
 
 #### Database Scripts (Following Prisma Best Practices)
 
-| Script | Purpose | Schema Used | Use Case |
+| Script | Purpose | Use Case |
 |--------|---------|-------------|----------|
-| **Development Scripts** | | | |
-| `npm run db:migrate:dev` | Create and apply migrations | `schema.dev.prisma` | **Recommended for development** |
-| `npm run db:push:dev` | Push schema directly | `schema.dev.prisma` | Quick prototyping only |
-| `npm run db:deploy:dev` | Generate client + migrate | `schema.dev.prisma` | Development setup |
-| `npm run db:studio:dev` | Open Prisma Studio | `schema.dev.prisma` | Database browsing (dev) |
-| `npm run db:reset:dev` | Reset database | `schema.dev.prisma` | Fresh development start |
-| **Production Scripts** | | | |
-| `npm run db:migrate:deploy` | Apply migrations | `schema.prod.prisma` | **Recommended for production** |
-| `npm run db:push:prod` | Push schema directly | `schema.prod.prisma` | Emergency use only |
-| `npm run db:deploy:prod` | Generate client + deploy | `schema.prod.prisma` | Production setup |
-| `npm run db:studio:prod` | Open Prisma Studio | `schema.prod.prisma` | Database browsing (prod) |
+| `npm run db:migrate:deploy` | Apply migrations | **Recommended for production** |
+| `npm run db:deploy` | Generate client + deploy | Production setup |
+| `npm run db:studio` | Open Prisma Studio | Database browsing |
 
 #### Recommended Workflows
 
 **Development Workflow (Prisma Best Practice):**
-1. Make changes to `prisma/schema.dev.prisma`
-2. Run `npm run db:migrate:dev --name describe_your_change`
+1. Make changes to `prisma/schema.prisma`
+2. Run `npm run db:migrate --name describe_your_change`
 3. Test your changes
 4. Commit both schema and migration files
 
@@ -348,16 +315,6 @@ This application supports both SQLite (development) and PostgreSQL (production) 
 1. Deploy migrations: `npm run db:migrate:deploy`
 2. This should be part of your CI/CD pipeline
 3. Never run `migrate dev` in production
-
-#### Switching Between Databases
-
-1. **Development (SQLite):** 
-   - Set `DATABASE_URL="file:./dev.db"`
-   - Run `npm run db:deploy:dev`
-
-2. **Production (PostgreSQL):** 
-   - Set `DATABASE_URL` to your PostgreSQL connection string
-   - Run `npm run db:deploy:prod`
 
 ## Deployment Troubleshooting
 
@@ -393,6 +350,7 @@ Ensure `module-alias` is installed and `_moduleAliases` is configured in `packag
 **Error:** "connection to server failed" or database connection errors
 
 **Solutions:**
+
 1. Verify your `DATABASE_URL` format: `postgresql://username:password@host:port/database`
 2. Ensure the PostgreSQL database exists and is accessible
 3. Check firewall settings and network connectivity
@@ -401,18 +359,19 @@ Ensure `module-alias` is installed and `_moduleAliases` is configured in `packag
 #### Production Deployment Checklist
 
 **Environment Setup:**
+
 1. ✅ **Environment variables set** (`.env` file or environment)
    - `DATABASE_URL` with valid PostgreSQL connection string
    - `DISCORD_TOKEN` and `DISCORD_CLIENT_ID` set
    - `NODE_ENV=production` (recommended)
 2. ✅ **Dependencies installed** (`npm install`)
-3. ✅ **Database initialized** (`npm run db:deploy:prod`)
+3. ✅ **Database initialized** (`npm run db:deploy`)
 4. ✅ **Project built** (`npm run build`)
 5. ✅ **Bot started** (`npm start`) - automatically deploys commands
 
 **Database Support:**
-- ✅ **Development:** SQLite with migrations - `schema.dev.prisma`
-- ✅ **Production:** PostgreSQL with migrations - `schema.prod.prisma`
+
+- ✅ **Development & Production:** PostgreSQL with migrations - `schema.prisma`
 
 ## Contributing
 
