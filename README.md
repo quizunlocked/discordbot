@@ -247,6 +247,8 @@ src/
 - `npm run db:studio` - Open Prisma Studio
 - `npm run deploy-commands` - (Re)deploy bot commands to your configured dev server
 - `npm run deploy-commands -- --guildId=1234567890` - (Re)deploy bot commands to the given server
+- `npm run reset-commands` - Clear all registered Discord commands (global and guild)
+- `npm run reset-commands -- --guildId=1234567890` - Clear commands for a specific guild
 
 ### Code Quality
 
@@ -289,7 +291,7 @@ The project uses **Prisma** as the ORM with **PostgreSQL** as the database. The 
 
 This application uses PostgreSQL for both development and production environments, with a single schema file (`prisma/schema.prisma`).
 
-#### Environment Variables
+#### Environment Variables for DB config
 
 | Variable | Description | PostgreSQL Example |
 |----------|-------------|-------------------|
@@ -306,15 +308,37 @@ This application uses PostgreSQL for both development and production environment
 #### Recommended Workflows
 
 **Development Workflow (Prisma Best Practice):**
+
 1. Make changes to `prisma/schema.prisma`
 2. Run `npm run db:migrate --name describe_your_change`
 3. Test your changes
 4. Commit both schema and migration files
 
 **Production Workflow (Prisma Best Practice):**
+
 1. Deploy migrations: `npm run db:migrate:deploy`
 2. This should be part of your CI/CD pipeline
 3. Never run `migrate dev` in production
+
+## Command Management
+
+### Resetting Discord Commands
+
+If you encounter duplicate commands or deployment issues, use the reset script to clear all registered commands:
+
+```bash
+# Clear all commands (global and configured guild commands)
+npm run reset-commands
+
+# Clear commands for a specific guild
+npm run reset-commands -- --guildId=YOUR_GUILD_ID
+```
+
+**Note:**
+
+- Global command changes may take up to 1 hour to propagate
+- After resetting, redeploy your commands with `npm run deploy-commands`
+- This is useful when switching between development and production deployments
 
 ## Deployment Troubleshooting
 

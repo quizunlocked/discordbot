@@ -20,7 +20,8 @@
     "db:deploy:dev": "npm run db:generate && npm run db:migrate:dev",
     "db:deploy": "npm run db:generate && npm run db:migrate:deploy",
     "prepare": "husky install",
-    "deploy-commands": "tsx scripts/deploy-commands.ts"
+    "deploy-commands": "tsx scripts/deploy-commands.ts",
+    "reset-commands": "tsx scripts/reset-commands.ts"
   },
   "keywords": [
     "discord",
