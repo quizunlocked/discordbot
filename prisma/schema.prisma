@@ -18,6 +18,7 @@ model User {
   quizAttempts QuizAttempt[]
   scores       Score[]
   ownedQuizzes Quiz[] // Quizzes created by this user
+  images       Image[] // Images uploaded by this user
 }
 
 model Quiz {
@@ -45,6 +46,9 @@ model Question {
   correctAnswer Int     // Index of correct answer
   points       Int     @default(10)
   timeLimit    Int?    // Time limit in seconds
+  
+  imageId String?
+  image   Image? @relation(fields: [imageId], references: [id])
   
   attempts QuestionAttempt[]
 }
@@ -94,4 +98,17 @@ model Score {
   bestTime      Int? // Best completion time in seconds
   
   @@unique([userId, period, year, week, month])
+}
+
+model Image {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  
+  path       String   // File path to the image
+  title      String?  // User-friendly title
+  altText    String?  // Accessibility description
+  uploadedAt DateTime @default(now())
+
+  questions  Question[]
 }

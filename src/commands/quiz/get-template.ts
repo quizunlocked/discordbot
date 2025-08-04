@@ -12,10 +12,10 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
     await interaction.deferReply({ ephemeral: true });
 
     // Create CSV template content
-    const csvContent = `questionText,options,correctAnswer,points,timeLimit
-"What is the capital of Poland?","[""Warsaw"",""Krakow"",""Gdansk"",""Wroclaw""]",0,10,30
-"What is 2 + 2?","[""3"",""4"",""5"",""6""]",1,5,15
-"What is the largest planet in our solar system?","[""Mars"",""Venus"",""Jupiter"",""Saturn""]",2,15,45`;
+    const csvContent = `questionText,options,correctAnswer,points,timeLimit,imageId
+"What is the capital of Poland?","[""Warsaw"",""Krakow"",""Gdansk"",""Wroclaw""]",0,10,30,
+"What is 2 + 2?","[""3"",""4"",""5"",""6""]",1,5,15,
+"What is the largest planet in our solar system?","[""Mars"",""Venus"",""Jupiter"",""Saturn""]",2,15,45,`;
 
     // Create attachment
     const attachment = new AttachmentBuilder(
@@ -58,6 +58,11 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
           value: 'Time limit in seconds (10-300, optional, default: 30)', 
           inline: true 
         },
+        { 
+          name: 'imageId', 
+          value: 'Image ID from /image upload (optional)', 
+          inline: true 
+        },
         {
           name: '📝 Instructions',
           value: [
@@ -65,7 +70,8 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
             '2. Replace the example questions with your own',
             '3. Ensure options is a valid JSON array (e.g., `["Option A","Option B"]`)',
             '4. Set correctAnswer to the 0-based index of the correct option',
-            '5. Upload your CSV using `/upload-quiz-csv`',
+            '5. (Optional) Upload images using `/image upload` and add their IDs to imageId column',
+            '6. Upload your CSV using `/upload-quiz-csv`',
             '',
             '**Note:** Maximum 100 questions per quiz, file size limit 25MB'
           ].join('\n'),

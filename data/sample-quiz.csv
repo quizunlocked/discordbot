@@ -1,6 +1,6 @@
-questionText,options,correctAnswer,points,timeLimit
-"What is the capital of Poland?","[""Warsaw"",""Krakow"",""Gdansk"",""Wroclaw""]",0,10,30
-"What is the Polish word for 'hello'?","[""Cześć"",""Dzień dobry"",""Do widzenia"",""Dziękuję""]",0,10,30
-"What is 2 + 2 in Polish?","[""Dwa"",""Trzy"",""Cztery"",""Pięć""]",2,5,15
-"What is the largest city in Poland?","[""Krakow"",""Warsaw"",""Gdansk"",""Wroclaw""]",1,15,45
-"What does 'tak' mean in Polish?","[""No"",""Yes"",""Maybe"",""Please""]",1,10,30 
+questionText,options,correctAnswer,points,timeLimit,imageId
+"What is the capital of Poland?","[""Warsaw"",""Krakow"",""Gdansk"",""Wroclaw""]",0,10,30,cmdnoik7i0002jgyxfj5f0pii
+"What is the Polish word for 'hello'?","[""Cześć"",""Dzień dobry"",""Do widzenia"",""Dziękuję""]",0,10,30,
+"What is 2 + 2 in Polish?","[""Dwa"",""Trzy"",""Cztery"",""Pięć""]",2,5,15,
+"What is the largest city in Poland?","[""Krakow"",""Warsaw"",""Gdansk"",""Wroclaw""]",1,15,45,
+"What does 'tak' mean in Polish?","[""No"",""Yes"",""Maybe"",""Please""]",1,10,30, 

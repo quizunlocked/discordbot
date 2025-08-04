@@ -6,6 +6,7 @@ import { buttonCleanupService } from '@/services/ButtonCleanupService';
 import { databaseService } from '@/services/DatabaseService';
 import { requireAdminPrivileges, canManageQuiz, hasAdminPrivileges } from '@/utils/permissions';
 import { autocomplete as quizAutocomplete } from '@/commands/quiz/start';
+import * as fs from 'fs/promises';
 
 export const name = Events.InteractionCreate;
 export const once = false;
@@ -73,6 +74,12 @@ async function handleButtonInteraction(interaction: ButtonInteraction): Promise<
     // Handle dashboard buttons
     if (customId.startsWith('dashboard_')) {
       await handleDashboardButton(interaction);
+      return;
+    }
+
+    // Handle image buttons
+    if (customId.startsWith('image_')) {
+      await handleImageButton(interaction);
       return;
     }
 
@@ -1116,5 +1123,145 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
       content: '❌ Error adding question. Please try again.', 
       ephemeral: true 
     });
+  }
+}
+
+async function handleImageButton(interaction: ButtonInteraction): Promise<void> {
+  try {
+    const { customId } = interaction;
+    
+    if (customId.startsWith('image_delete_confirm_')) {
+      await handleImageDeleteConfirm(interaction);
+    } else if (customId.startsWith('image_delete_cancel_')) {
+      await handleImageDeleteCancel(interaction);
+    } else {
+      await interaction.reply({ content: '❌ Unknown image action.', ephemeral: true });
+    }
+  } catch (error) {
+    logger.error('Error handling image button:', error);
+    await interaction.reply({ 
+      content: '❌ An error occurred while processing the image action.', 
+      ephemeral: true 
+    });
+  }
+}
+
+async function handleImageDeleteConfirm(interaction: ButtonInteraction): Promise<void> {
+  try {
+    // Check admin privileges for destructive action
+    if (!(await requireAdminPrivileges(interaction))) return;
+    
+    const imageId = interaction.customId.replace('image_delete_confirm_', '');
+    
+    // Get image info before deletion
+    const image = await databaseService.prisma.image.findUnique({
+      where: { id: imageId },
+      include: {
+        user: true,
+        questions: {
+          include: {
+            quiz: true
+          }
+        }
+      }
+    });
+
+    if (!image) {
+      await interaction.reply({ content: '❌ Image not found.', ephemeral: true });
+      return;
+    }
+
+    // Delete the image and update related questions
+    await databaseService.prisma.$transaction(async (tx) => {
+      // Remove image reference from questions
+      await tx.question.updateMany({
+        where: { imageId: imageId },
+        data: { imageId: null }
+      });
+
+      // Delete the image record
+      await tx.image.delete({
+        where: { id: imageId }
+      });
+    });
+
+    // Delete the actual file
+    try {
+      if (image.path && await fileExists(image.path)) {
+        await fs.unlink(image.path);
+        logger.info(`Image file deleted: ${image.path}`);
+      }
+    } catch (fileError) {
+      logger.error('Error deleting image file:', fileError);
+      // Continue anyway - database record is already deleted
+    }
+
+    const embed = new EmbedBuilder()
+      .setTitle('✅ Image Deleted Successfully')
+      .setDescription(`Image has been permanently deleted.`)
+      .addFields(
+        { name: 'Image ID', value: image.id, inline: true },
+        { name: 'Uploaded By', value: image.user.username, inline: true },
+        { name: 'Questions Updated', value: image.questions.length.toString(), inline: true }
+      )
+      .setColor('#00ff00')
+      .setTimestamp();
+
+    if (image.title) {
+      embed.addFields({ name: 'Title', value: image.title, inline: true });
+    }
+
+    await interaction.update({ 
+      embeds: [embed], 
+      components: [] 
+    });
+
+    logger.info(`Image ${imageId} deleted by ${interaction.user.tag}`);
+
+  } catch (error) {
+    logger.error('Error deleting image:', error);
+    try {
+      await interaction.followUp({ 
+        content: '❌ Error deleting image. Please try again.', 
+        ephemeral: true 
+      });
+    } catch (followUpError) {
+      logger.error('Error sending followUp message:', followUpError);
+    }
+  }
+}
+
+async function handleImageDeleteCancel(interaction: ButtonInteraction): Promise<void> {
+  try {
+    const embed = new EmbedBuilder()
+      .setTitle('❌ Image Deletion Cancelled')
+      .setDescription('Image deletion has been cancelled.')
+      .setColor('#ff9900')
+      .setTimestamp();
+
+    await interaction.update({ 
+      embeds: [embed], 
+      components: [] 
+    });
+
+  } catch (error) {
+    logger.error('Error cancelling image deletion:', error);
+    try {
+      await interaction.followUp({ 
+        content: '❌ Error cancelling image deletion.', 
+        ephemeral: true 
+      });
+    } catch (followUpError) {
+      logger.error('Error sending followUp message:', followUpError);
+    }
+  }
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
   }
 } 

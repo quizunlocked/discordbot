@@ -5,7 +5,8 @@ import {
   ActionRowBuilder, 
   EmbedBuilder,
   ButtonInteraction,
-  Client
+  Client,
+  AttachmentBuilder
 } from 'discord.js';
 import { databaseService } from './DatabaseService';
 import { leaderboardService } from './LeaderboardService';
@@ -18,6 +19,8 @@ import {
   QuizConfig
 } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 export class QuizService {
   private static instance: QuizService;
@@ -242,7 +245,13 @@ export class QuizService {
     // Get quiz data from database
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: session.quizId },
-      include: { questions: true },
+      include: { 
+        questions: {
+          include: {
+            image: true
+          }
+        }
+      },
     });
 
     if (!quiz) {
@@ -313,6 +322,27 @@ export class QuizService {
       .setColor('#ff9900')
       .setTimestamp();
 
+    // Add image if present
+    if (question.image && question.image.path) {
+      const imagePath = path.resolve(question.image.path);
+      try {
+        // Check if image file exists
+        await fs.access(imagePath);
+        
+        // For public quizzes, we can use attachments
+        if (!session.isPrivate) {
+          embed.setImage(`attachment://question-image.${path.extname(question.image.path).slice(1)}`);
+        }
+        
+        // Add alt text if available
+        if (question.image.altText) {
+          embed.setFooter({ text: `Image: ${question.image.altText}` });
+        }
+      } catch (error) {
+        logger.warn(`Image file not found for question ${question.id}: ${imagePath}`);
+      }
+    }
+
     const buttons = options.map((option: string, index: number) =>
       new ButtonBuilder()
         .setCustomId(`quiz_answer_${session.id}_${session.currentQuestionIndex}_${index}`)
@@ -326,6 +356,30 @@ export class QuizService {
       rows.push(row);
     }
 
+    // Prepare message options
+    const messageOptions: any = {
+      embeds: [embed],
+      components: rows,
+    };
+
+    // Add image attachment if present
+    if (question.image && question.image.path) {
+      const imagePath = path.resolve(question.image.path);
+      try {
+        await fs.access(imagePath);
+        const imageBuffer = await fs.readFile(imagePath);
+        const imageExtension = path.extname(question.image.path).slice(1);
+        
+        messageOptions.files = [
+          new AttachmentBuilder(imageBuffer, { 
+            name: `question-image.${imageExtension}` 
+          })
+        ];
+      } catch (error) {
+        logger.warn(`Could not attach image for question ${question.id}: ${error}`);
+      }
+    }
+
     let message;
     if (session.isPrivate) {
       // For private quizzes, send to the quiz owner
@@ -336,20 +390,14 @@ export class QuizService {
       }
       const user = await this.client?.users.fetch(quizOwnerId);
       if (user) {
-        message = await user.send({
-          embeds: [embed],
-          components: rows,
-        });
+        message = await user.send(messageOptions);
       } else {
         logger.error(`Could not send private quiz message to user ${quizOwnerId}`);
         return;
       }
     } else {
       // For public quizzes, send to the channel
-      message = await channel.send({
-        embeds: [embed],
-        components: rows,
-      });
+      message = await channel.send(messageOptions);
     }
 
     // Track when this question started
@@ -421,7 +469,13 @@ export class QuizService {
     // Get question data
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: session.quizId },
-      include: { questions: true },
+      include: { 
+        questions: {
+          include: {
+            image: true
+          }
+        }
+      },
     });
 
     if (!quiz) {
@@ -476,7 +530,13 @@ export class QuizService {
     // Get the current question
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: session.quizId },
-      include: { questions: true },
+      include: { 
+        questions: {
+          include: {
+            image: true
+          }
+        }
+      },
     });
 
     if (!quiz) {
@@ -556,7 +616,13 @@ export class QuizService {
     // Get quiz data for next question check
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: session.quizId },
-      include: { questions: true },
+      include: { 
+        questions: {
+          include: {
+            image: true
+          }
+        }
+      },
     });
 
     if (!quiz) {
@@ -678,7 +744,13 @@ export class QuizService {
       // Get quiz data to access actual question IDs
       const quiz = await databaseService.prisma.quiz.findUnique({
         where: { id: session.quizId },
-        include: { questions: true },
+        include: { 
+          questions: {
+            include: {
+              image: true
+            }
+          }
+        },
       });
 
       if (!quiz) {
