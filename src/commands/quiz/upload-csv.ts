@@ -10,6 +10,7 @@ interface CSVQuestion {
   correctAnswer: number;
   points?: number | undefined;
   timeLimit?: number | undefined;
+  imageId?: string | undefined;
 }
 
 interface ValidationError {
@@ -36,58 +37,132 @@ export const data = new SlashCommandBuilder()
 
 export const cooldown = 10; // 10 second cooldown
 
+// Track in-progress uploads to prevent duplicates
+const uploadInProgress = new Map<string, boolean>();
+
+// Helper function to safely exit with cleanup
+function safeReturn(uploadKey: string): void {
+  uploadInProgress.delete(uploadKey);
+}
+
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+  const uploadKey = `${interaction.user.id}-${interaction.id}`;
+  
+  // Prevent duplicate executions
+  if (uploadInProgress.has(uploadKey)) {
+    logger.warn(`CSV upload already in progress for interaction ${interaction.id}, skipping duplicate`);
+    return;
+  }
+  
+  // Mark upload as in progress
+  uploadInProgress.set(uploadKey, true);
+  
+  let isDeferred = false;
+  
   try {
-    await interaction.deferReply({ ephemeral: true });
+    // Quick validation that the interaction is still valid
+    if (interaction.replied || interaction.deferred) {
+      logger.warn('Interaction already processed, skipping CSV upload');
+      safeReturn(uploadKey);
+      return;
+    }
+    
+    // Try to defer the reply, but don't fail if the interaction is already expired
+    try {
+      await interaction.deferReply({ ephemeral: true });
+      isDeferred = true;
+      logger.info(`CSV upload started for user ${interaction.user.tag} (${interaction.id})`);
+    } catch (deferError) {
+      logger.warn('Failed to defer reply, will attempt direct reply instead:', deferError);
+      isDeferred = false;
+    }
 
     const title = interaction.options.getString('title') || null;
     const attachment = interaction.options.getAttachment('file');
 
     if (!attachment) {
-      await interaction.editReply('❌ No file was provided. Please attach a CSV file.');
+      await safeEditReply(interaction, isDeferred, '❌ No file was provided. Please attach a CSV file.');
+      safeReturn(uploadKey);
       return;
     }
 
     // Validate file type and size
     if (!attachment.contentType?.includes('text/csv') && !attachment.name?.endsWith('.csv')) {
-      await interaction.editReply('❌ Invalid file type. Please upload a CSV file.');
+      await safeEditReply(interaction, isDeferred, '❌ Invalid file type. Please upload a CSV file.');
+      safeReturn(uploadKey);
       return;
     }
 
     if (attachment.size > 25 * 1024 * 1024) { // 25MB limit
-      await interaction.editReply('❌ File too large. Please upload a CSV file smaller than 25MB.');
+      await safeEditReply(interaction, isDeferred, '❌ File too large. Please upload a CSV file smaller than 25MB.');
+      safeReturn(uploadKey);
       return;
     }
 
     // Download and parse the CSV file
     const csvContent = await downloadAttachment(attachment.url);
     if (!csvContent) {
-      await interaction.editReply('❌ Failed to download the CSV file. Please try again.');
+      await safeEditReply(interaction, isDeferred, '❌ Failed to download the CSV file. Please try again.');
+      safeReturn(uploadKey);
       return;
     }
 
     // Parse CSV content using functional approach
-    const { questions, errors } = parseCSVFunctional(csvContent);
+    const { questions, errors: parseErrors } = parseCSVFunctional(csvContent);
     
-    if (errors.length > 0) {
-      const errorMessage = formatValidationErrors(errors);
-      await interaction.editReply(`❌ CSV validation failed:\n\n${errorMessage}`);
+    if (parseErrors.length > 0) {
+      const errorMessage = formatValidationErrors(parseErrors);
+      await safeEditReply(interaction, isDeferred, `❌ CSV validation failed:\n\n${errorMessage}`);
+      safeReturn(uploadKey);
+      return;
+    }
+
+    // Validate image IDs if present
+    const imageErrors = await validateImageIds(questions);
+    if (imageErrors.length > 0) {
+      const errorMessage = formatValidationErrors(imageErrors);
+      await safeEditReply(interaction, isDeferred, `❌ Image validation failed:\n\n${errorMessage}`);
+      safeReturn(uploadKey);
       return;
     }
 
     if (questions.length === 0) {
-      await interaction.editReply('❌ No valid questions found in the CSV file.');
+      await safeEditReply(interaction, isDeferred, '❌ No valid questions found in the CSV file.');
+      safeReturn(uploadKey);
       return;
     }
 
     if (questions.length > 100) {
-      await interaction.editReply('❌ Too many questions. Maximum allowed is 100 questions per quiz.');
+      await safeEditReply(interaction, isDeferred, '❌ Too many questions. Maximum allowed is 100 questions per quiz.');
+      safeReturn(uploadKey);
       return;
     }
 
     // Create quiz in database
     const quizTitle = title || `Custom Quiz - ${interaction.user.username}`;
-    const quizId = `quiz_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    // Use interaction ID to ensure uniqueness and prevent duplicates
+    const quizId = `quiz_${interaction.id}_${Date.now()}`;
+
+    // Check if a quiz with this interaction ID already exists
+    const existingQuiz = await databaseService.prisma.quiz.findFirst({
+      where: {
+        id: {
+          startsWith: `quiz_${interaction.id}_`
+        }
+      }
+    });
+
+    if (existingQuiz) {
+      logger.warn(`Quiz already exists for interaction ${interaction.id}, skipping duplicate creation`);
+      await safeEditReply(interaction, isDeferred, { 
+        embeds: [new EmbedBuilder()
+          .setTitle('✅ Quiz Already Created')
+          .setDescription(`The quiz "${existingQuiz.title}" was already created from this upload.`)
+          .setColor('#00ff00')]
+      });
+      safeReturn(uploadKey);
+      return;
+    }
 
     await databaseService.prisma.$transaction(async (tx) => {
       // Create or get user
@@ -120,6 +195,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
         correctAnswer: q.correctAnswer,
         points: q.points || 10,
         timeLimit: q.timeLimit || 30,
+        imageId: q.imageId || null,
       }));
 
       await tx.question.createMany({
@@ -140,13 +216,46 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setColor('#00ff00')
       .setTimestamp();
 
-    await interaction.editReply({ embeds: [embed] });
+    await safeEditReply(interaction, isDeferred, { embeds: [embed] });
 
     logger.info(`Quiz "${quizTitle}" created from CSV by ${interaction.user.tag} with ${questions.length} questions`);
 
   } catch (error) {
     logger.error('Error uploading CSV quiz:', error);
-    await interaction.editReply('❌ An error occurred while processing your CSV file. Please check the format and try again.');
+    await safeEditReply(interaction, isDeferred, '❌ An error occurred while processing your CSV file. Please check the format and try again.');
+  } finally {
+    // Always clean up the tracking map
+    uploadInProgress.delete(uploadKey);
+  }
+}
+
+async function safeEditReply(interaction: ChatInputCommandInteraction, isDeferred: boolean, content: string | any): Promise<void> {
+  try {
+    // Check if we can still respond to the interaction
+    if (interaction.replied) {
+      logger.warn('Interaction already replied to, cannot send response');
+      return;
+    }
+
+    if (isDeferred) {
+      // Try to edit the deferred reply
+      await interaction.editReply(content);
+    } else {
+      // Try to send a direct reply
+      const replyContent = typeof content === 'string' 
+        ? { content, ephemeral: true } 
+        : { ...content, ephemeral: true };
+      await interaction.reply(replyContent);
+    }
+  } catch (error) {
+    // Log the error but don't throw - we don't want to crash the command
+    logger.error('Failed to send interaction response:', error);
+    
+    // If this is an "Unknown interaction" error, the user won't see any response
+    // but at least we won't crash the bot
+    if (error instanceof Error && error.message.includes('Unknown interaction')) {
+      logger.warn('Interaction expired - user will not receive response');
+    }
   }
 }
 
@@ -208,6 +317,7 @@ function transformRowToQuestion(row: any): CSVQuestion {
     correctAnswer: parseInt(row.correctAnswer),
     points: row.points ? parseInt(row.points) : undefined,
     timeLimit: row.timeLimit ? parseInt(row.timeLimit) : undefined,
+    imageId: row.imageId?.trim() || undefined,
   };
 }
 
@@ -306,6 +416,51 @@ function validateRow(row: any, rowNumber: number): ValidationError[] {
         message: 'Time limit must be between 10 and 300 seconds',
       });
     }
+  }
+
+  return errors;
+}
+
+async function validateImageIds(questions: CSVQuestion[]): Promise<ValidationError[]> {
+  const errors: ValidationError[] = [];
+  const imageIds = questions
+    .map((q, index) => ({ imageId: q.imageId, index: index + 1 }))
+    .filter(item => item.imageId);
+
+  if (imageIds.length === 0) {
+    return errors; // No images to validate
+  }
+
+  try {
+    // Check which image IDs exist in the database
+    const existingImages = await databaseService.prisma.image.findMany({
+      where: { 
+        id: { 
+          in: imageIds.map(item => item.imageId!) 
+        } 
+      },
+      select: { id: true }
+    });
+
+    const existingImageIds = new Set(existingImages.map(img => img.id));
+
+    // Check for missing images
+    for (const { imageId, index } of imageIds) {
+      if (imageId && !existingImageIds.has(imageId)) {
+        errors.push({
+          row: index,
+          field: 'imageId',
+          message: `Image ID "${imageId}" not found. Upload the image first using /image upload`,
+        });
+      }
+    }
+  } catch (error) {
+    logger.error('Error validating image IDs:', error);
+    errors.push({
+      row: 0,
+      field: 'imageId',
+      message: 'Error validating image IDs. Please try again.',
+    });
   }
 
   return errors;
