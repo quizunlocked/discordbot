@@ -248,7 +248,8 @@ export class QuizService {
       include: { 
         questions: {
           include: {
-            image: true
+            image: true,
+            hints: true
           }
         }
       },
@@ -354,6 +355,22 @@ export class QuizService {
     for (let i = 0; i < buttons.length; i += 4) {
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(buttons.slice(i, i + 4));
       rows.push(row);
+    }
+
+    // Add hint buttons if they exist
+    if (question.hints && question.hints.length > 0) {
+      const hintButtons = question.hints.map((hint: any) =>
+        new ButtonBuilder()
+          .setCustomId(`quiz_hint_${session.id}_${session.currentQuestionIndex}_${hint.id}`)
+          .setLabel(`💡 ${hint.title}`)
+          .setStyle(ButtonStyle.Primary)
+      );
+
+      // Add hint buttons in a separate row (limit to 5 per row as per Discord limits)
+      for (let i = 0; i < hintButtons.length; i += 5) {
+        const hintRow = new ActionRowBuilder<ButtonBuilder>().addComponents(hintButtons.slice(i, i + 5));
+        rows.push(hintRow);
+      }
     }
 
     // Prepare message options
@@ -472,7 +489,8 @@ export class QuizService {
       include: { 
         questions: {
           include: {
-            image: true
+            image: true,
+            hints: true
           }
         }
       },
@@ -533,7 +551,8 @@ export class QuizService {
       include: { 
         questions: {
           include: {
-            image: true
+            image: true,
+            hints: true
           }
         }
       },
@@ -619,7 +638,8 @@ export class QuizService {
       include: { 
         questions: {
           include: {
-            image: true
+            image: true,
+            hints: true
           }
         }
       },
@@ -747,7 +767,8 @@ export class QuizService {
         include: { 
           questions: {
             include: {
-              image: true
+              image: true,
+              hints: true
             }
           }
         },
@@ -960,6 +981,91 @@ export class QuizService {
   }
 
   /**
+   * Handle hint button clicks
+   */
+  public async handleHint(interaction: ButtonInteraction): Promise<void> {
+    const parts = interaction.customId.split('_');
+    if (parts.length < 5) {
+      await interaction.reply({ content: 'Invalid hint button interaction.', ephemeral: true });
+      return;
+    }
+
+    const [, , sessionId, questionIndex, hintId] = parts;
+    if (!sessionId || !questionIndex || !hintId) {
+      await interaction.reply({ content: 'Invalid hint button interaction.', ephemeral: true });
+      return;
+    }
+
+    const session = this.activeSessions.get(sessionId);
+    
+    if (!session || !session.isActive || session.isWaiting) {
+      await interaction.reply({ content: 'Quiz session not found or not active.', ephemeral: true });
+      return;
+    }
+
+    const questionIdx = parseInt(questionIndex);
+    if (questionIdx !== session.currentQuestionIndex) {
+      await interaction.reply({ content: 'This hint is for a previous question.', ephemeral: true });
+      return;
+    }
+
+    // Get the hint from database
+    try {
+      const hint = await databaseService.prisma.hint.findUnique({
+        where: { id: hintId },
+        include: { question: true },
+      });
+
+      if (!hint) {
+        await interaction.reply({ content: 'Hint not found.', ephemeral: true });
+        return;
+      }
+
+      // Verify the hint belongs to the current question
+      const quiz = await databaseService.prisma.quiz.findUnique({
+        where: { id: session.quizId },
+        include: { 
+          questions: {
+            include: {
+              hints: true
+            }
+          }
+        },
+      });
+
+      if (!quiz) {
+        await interaction.reply({ content: 'Quiz not found.', ephemeral: true });
+        return;
+      }
+
+      const currentQuestion = quiz.questions[questionIdx];
+      if (!currentQuestion || currentQuestion.id !== hint.questionId) {
+        await interaction.reply({ content: 'Invalid hint for current question.', ephemeral: true });
+        return;
+      }
+
+      // Send the hint privately to the user
+      const embed = new EmbedBuilder()
+        .setTitle(`💡 ${hint.title}`)
+        .setDescription(hint.text)
+        .setColor('#ffff00')
+        .setFooter({ text: 'This hint is only visible to you' })
+        .setTimestamp();
+
+      await interaction.reply({ embeds: [embed], ephemeral: true });
+
+      logger.info(`User ${interaction.user.tag} viewed hint "${hint.title}" for question ${questionIdx + 1} in quiz ${session.quizId}`);
+
+    } catch (error) {
+      logger.error('Error handling hint interaction:', error);
+      await interaction.reply({ 
+        content: '❌ An error occurred while loading the hint.', 
+        ephemeral: true 
+      });
+    }
+  }
+
+  /**
    * Handle button interactions for quiz-related buttons
    */
   public async handleButtonInteraction(interaction: ButtonInteraction): Promise<void> {
@@ -972,6 +1078,8 @@ export class QuizService {
         await this.handleManualStart(interaction);
       } else if (customId.startsWith('quiz_answer_')) {
         await this.handleAnswer(interaction);
+      } else if (customId.startsWith('quiz_hint_')) {
+        await this.handleHint(interaction);
       } else {
         logger.warn(`Unknown quiz button interaction: ${customId}`);
       }

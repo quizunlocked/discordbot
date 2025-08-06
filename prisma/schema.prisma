@@ -51,6 +51,7 @@ model Question {
   image   Image? @relation(fields: [imageId], references: [id])
   
   attempts QuestionAttempt[]
+  hints    Hint[]
 }
 
 model QuizAttempt {
@@ -111,4 +112,14 @@ model Image {
   uploadedAt DateTime @default(now())
 
   questions  Question[]
+}
+
+model Hint {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  
+  title      String   // Button label
+  text       String   // Content shown when clicked
+  createdAt  DateTime @default(now())
 }
