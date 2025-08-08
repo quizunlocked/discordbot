@@ -123,3 +123,21 @@ model Hint {
   text       String   // Content shown when clicked
   createdAt  DateTime @default(now())
 }
+
+model Corpus {
+  id        String   @id @default(cuid())
+  title     String   @unique
+  createdAt DateTime @default(now())
+  entries   CorpusEntry[]
+}
+
+model CorpusEntry {
+  id              String   @id @default(cuid())
+  corpusId        String
+  corpus          Corpus   @relation(fields: [corpusId], references: [id])
+  
+  questionVariants String[] // JSON array of question variants
+  answerVariants   String[] // JSON array of answer variants
+  hintTitles       String[] // Array of hint column headers
+  hintVariants     Json     // JSON object: {title: [variants]}
+}
