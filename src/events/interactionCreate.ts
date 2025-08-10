@@ -96,13 +96,13 @@ async function handleButtonInteraction(interaction: ButtonInteraction): Promise<
 async function handleLeaderboardButton(interaction: ButtonInteraction): Promise<void> {
   try {
     const parts = interaction.customId.split('_');
-    if (parts.length !== 3) {
+    if (parts.length !== 4) {
       await interaction.reply({ content: '❌ Invalid leaderboard button.', ephemeral: true });
       return;
     }
 
-    const [, period, pageStr] = parts;
-    if (!period || !pageStr) {
+    const [, buttonType, period, pageStr] = parts;
+    if (!buttonType || !period || !pageStr) {
       await interaction.reply({ content: '❌ Invalid leaderboard button.', ephemeral: true });
       return;
     }
@@ -132,12 +132,12 @@ async function handleLeaderboardButton(interaction: ButtonInteraction): Promise<
     if (totalPages > 1) {
       row.addComponents(
         new ButtonBuilder()
-          .setCustomId(`leaderboard_${period}_${Math.max(1, page - 1)}`)
+          .setCustomId(`leaderboard_nav_${period}_${Math.max(1, page - 1)}`)
           .setLabel('◀️ Previous')
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(page <= 1),
         new ButtonBuilder()
-          .setCustomId(`leaderboard_${period}_${Math.min(totalPages, page + 1)}`)
+          .setCustomId(`leaderboard_nav_${period}_${Math.min(totalPages, page + 1)}`)
           .setLabel('Next ▶️')
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(page >= totalPages)
@@ -150,7 +150,7 @@ async function handleLeaderboardButton(interaction: ButtonInteraction): Promise<
     PERIODS.forEach(p => {
       periodRow.addComponents(
         new ButtonBuilder()
-          .setCustomId(`leaderboard_${p}_1`)
+          .setCustomId(`leaderboard_period_${p}_1`)
           .setLabel(p.charAt(0).toUpperCase() + p.slice(1))
           .setStyle(p === period ? ButtonStyle.Primary : ButtonStyle.Secondary)
       );
@@ -178,15 +178,15 @@ async function handleLeaderboardButton(interaction: ButtonInteraction): Promise<
 async function handleAdminButton(interaction: ButtonInteraction): Promise<void> {
   try {
     const parts = interaction.customId.split('_');
-    if (parts.length < 4) {
+    if (parts.length < 5) {
       await interaction.reply({ content: '❌ Invalid admin button.', ephemeral: true });
       return;
     }
 
-    const [, action, target, userId] = parts;
+    const [, action, target, actionType, userId] = parts;
     
-    if (action === 'clear' && target === 'user' && userId) {
-      await handleUserDataDeletion(interaction, userId, parts[3] === 'confirm');
+    if (action === 'clear' && target === 'user' && actionType && userId) {
+      await handleUserDataDeletion(interaction, userId, actionType === 'confirm');
       return;
     }
 
@@ -223,6 +223,12 @@ async function handleUserDataDeletion(interaction: ButtonInteraction, userId: st
     const user = await interaction.client.users.fetch(userId).catch(() => null);
     const username = user?.username || 'Unknown User';
 
+    // Get user's images for file cleanup
+    const userImages = await databaseService.prisma.image.findMany({
+      where: { userId: userId },
+      select: { path: true }
+    });
+
     // Delete user data
     await databaseService.prisma.$transaction(async (tx: any) => {
       // Delete question attempts first (due to foreign key constraints)
@@ -244,11 +250,29 @@ async function handleUserDataDeletion(interaction: ButtonInteraction, userId: st
         where: { userId: userId }
       });
 
+      // Delete images uploaded by user
+      await tx.image.deleteMany({
+        where: { userId: userId }
+      });
+
       // Delete user (if exists)
       await tx.user.deleteMany({
         where: { id: userId }
       });
     });
+
+    // Clean up image files
+    for (const image of userImages) {
+      try {
+        if (image.path && await fileExists(image.path)) {
+          await fs.unlink(image.path);
+          logger.info(`Deleted user image file: ${image.path}`);
+        }
+      } catch (fileError) {
+        logger.error('Error deleting user image file:', fileError);
+        // Continue anyway - database record is already deleted
+      }
+    }
 
     const embed = new EmbedBuilder()
       .setTitle('✅ User Data Deleted')

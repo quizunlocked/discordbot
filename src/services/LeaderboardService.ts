@@ -102,15 +102,15 @@ class LeaderboardService {
           bestTime: user.bestTime,
           rank: 0, // Will be set below
         }))
-        .sort((a, b) => b.totalScore - a.totalScore)
-        .slice(0, limit);
+        .sort((a, b) => b.totalScore - a.totalScore);
 
-      // Add ranks
+      // Add ranks BEFORE slicing
       leaderboard.forEach((entry, index) => {
         entry.rank = index + 1;
       });
 
-      return leaderboard;
+      // Apply limit after ranking is assigned
+      return leaderboard.slice(0, limit);
     } catch (error) {
       logger.error('Error getting leaderboard:', error);
       throw error;

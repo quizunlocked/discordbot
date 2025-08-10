@@ -146,6 +146,9 @@ async function initializeBot(): Promise<void> {
     // Seed quizzes if DB is empty
     await QuizService.seedQuizzesIfEmpty();
     
+    // Seed users with quiz attempts if DB is empty
+    await QuizService.seedUsersIfEmpty();
+    
     // Set client in services
     buttonCleanupService.setClient(client);
     quizService.setClient(client);

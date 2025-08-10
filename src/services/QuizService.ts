@@ -1113,6 +1113,133 @@ export class QuizService {
     }
     logger.info('Seeding complete.');
   }
+
+  /**
+   * Seed example users with quiz attempts if the User table is empty
+   */
+  public static async seedUsersIfEmpty() {
+    const userCount = await databaseService.prisma.user.count();
+    if (userCount > 0) {
+      logger.info('User table is not empty, skipping user seeding.');
+      return;
+    }
+    
+    logger.info('User table is empty, seeding example users with quiz attempts...');
+    
+    // Get all existing quizzes to create attempts for
+    const quizzes = await databaseService.prisma.quiz.findMany({
+      include: { questions: true }
+    });
+    
+    if (quizzes.length === 0) {
+      logger.warn('No quizzes found, cannot seed user attempts. Run quiz seeding first.');
+      return;
+    }
+    
+    // Sample usernames for variety
+    const sampleUsernames = [
+      'QuizMaster', 'BrainiacBob', 'SmartSarah', 'CleverChloe', 'WiseWill',
+      'GeniusGrace', 'SharpSharon', 'BrilliantBen', 'QuickQuinn', 'ThinkTank',
+      'MindBender', 'LogicLuke', 'ReasonRita', 'FactFinder', 'TriviaKing',
+      'PuzzlePro', 'KnowItAll', 'StudyBuddy', 'BookwormBella', 'DataDave'
+    ];
+    
+    // Create 20 users
+    for (let i = 0; i < 20; i++) {
+      const userId = `user_${i + 1}_${Date.now()}`;
+      const username = sampleUsernames[i]!; // We know this exists
+      
+      // Create user
+      await databaseService.prisma.user.create({
+        data: {
+          id: userId,
+          username: username,
+        }
+      });
+      
+      // Create quiz attempts for each quiz
+      for (const quiz of quizzes) {
+        const baseDate = new Date();
+        baseDate.setDate(baseDate.getDate() - Math.floor(Math.random() * 30)); // Random date within last 30 days
+        
+        // Calculate total possible points for this quiz
+        const totalPossiblePoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
+        
+        // Generate a varied score (30% to 95% of total possible points)
+        const scorePercentage = 0.3 + (Math.random() * 0.65); // 30% to 95%
+        const totalScore = Math.floor(totalPossiblePoints * scorePercentage);
+        
+        // Random completion time (2-10 minutes)
+        const totalTime = 120 + Math.floor(Math.random() * 480); // 2-10 minutes in seconds
+        
+        // Create quiz attempt
+        const quizAttempt = await databaseService.prisma.quizAttempt.create({
+          data: {
+            userId: userId,
+            quizId: quiz.id,
+            startedAt: baseDate,
+            completedAt: new Date(baseDate.getTime() + totalTime * 1000),
+            totalScore: totalScore,
+            totalTime: totalTime,
+          }
+        });
+        
+        // Create question attempts for each question
+        let scoreDistributed = 0;
+        for (let qIndex = 0; qIndex < quiz.questions.length; qIndex++) {
+          const question = quiz.questions[qIndex]!; // We know this exists
+          const isLastQuestion = qIndex === quiz.questions.length - 1;
+          
+          // Determine if this question was answered correctly
+          // Higher chance of correct answers for higher-scoring users
+          const correctProbability = Math.min(0.9, scorePercentage + 0.1);
+          const isCorrect = Math.random() < correctProbability;
+          
+          // Points earned for this question
+          let pointsEarned = 0;
+          if (isCorrect) {
+            if (isLastQuestion) {
+              // Give remaining points to last question to match total
+              pointsEarned = Math.max(0, totalScore - scoreDistributed);
+            } else {
+              pointsEarned = question.points;
+            }
+          }
+          scoreDistributed += pointsEarned;
+          
+          // Random time spent on question (10-60 seconds)
+          const timeSpent = 10 + Math.floor(Math.random() * 50);
+          
+          // Selected answer (correct if isCorrect, otherwise random wrong answer)
+          let selectedAnswer: number;
+          if (isCorrect) {
+            selectedAnswer = question.correctAnswer;
+          } else {
+            const options = JSON.parse(question.options);
+            do {
+              selectedAnswer = Math.floor(Math.random() * options.length);
+            } while (selectedAnswer === question.correctAnswer);
+          }
+          
+          await databaseService.prisma.questionAttempt.create({
+            data: {
+              quizAttemptId: quizAttempt.id,
+              questionId: question.id,
+              selectedAnswer: selectedAnswer,
+              isCorrect: isCorrect,
+              timeSpent: timeSpent,
+              pointsEarned: pointsEarned,
+              answeredAt: new Date(baseDate.getTime() + (qIndex * 30000)), // 30 sec intervals
+            }
+          });
+        }
+      }
+      
+      logger.info(`Seeded user: ${username} with ${quizzes.length} quiz attempts`);
+    }
+    
+    logger.info('User seeding complete.');
+  }
 }
 
 export const quizService = QuizService.getInstance(); 

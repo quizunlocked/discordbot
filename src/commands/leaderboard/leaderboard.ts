@@ -63,12 +63,12 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
     if (totalPages > 1) {
       row.addComponents(
         new ButtonBuilder()
-          .setCustomId(`leaderboard_${period}_${Math.max(1, page - 1)}`)
+          .setCustomId(`leaderboard_nav_${period}_${Math.max(1, page - 1)}`)
           .setLabel('◀️ Previous')
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(page <= 1),
         new ButtonBuilder()
-          .setCustomId(`leaderboard_${period}_${Math.min(totalPages, page + 1)}`)
+          .setCustomId(`leaderboard_nav_${period}_${Math.min(totalPages, page + 1)}`)
           .setLabel('Next ▶️')
           .setStyle(ButtonStyle.Secondary)
           .setDisabled(page >= totalPages)
@@ -80,7 +80,7 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
     PERIODS.forEach(p => {
       periodRow.addComponents(
         new ButtonBuilder()
-          .setCustomId(`leaderboard_${p}_1`)
+          .setCustomId(`leaderboard_period_${p}_1`)
           .setLabel(p.charAt(0).toUpperCase() + p.slice(1))
           .setStyle(p === period ? ButtonStyle.Primary : ButtonStyle.Secondary)
       );
