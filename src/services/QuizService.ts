@@ -780,6 +780,18 @@ export class QuizService {
       }
 
       for (const participant of participants) {
+        // Ensure user exists in database (upsert)
+        await databaseService.prisma.user.upsert({
+          where: { id: participant.userId },
+          update: {
+            username: participant.username, // Update username in case it changed
+          },
+          create: {
+            id: participant.userId,
+            username: participant.username,
+          },
+        });
+
         // Create quiz attempt
         const quizAttempt = await databaseService.prisma.quizAttempt.create({
           data: {
@@ -819,9 +831,10 @@ export class QuizService {
         }
       }
 
-      logger.info(`Saved ${participants.length} quiz attempts to database`);
+      logger.info(`Saved ${participants.length} quiz attempts to database for participants: ${participants.map(p => p.username).join(', ')}`);
     } catch (error) {
       logger.error('Error saving quiz attempts:', error);
+      throw error; // Re-throw to see the actual error
     }
   }
 
@@ -1146,7 +1159,7 @@ export class QuizService {
     
     // Create 20 users
     for (let i = 0; i < 20; i++) {
-      const userId = `user_${i + 1}_${Date.now()}`;
+      const userId = `user_${i + 1}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const username = sampleUsernames[i]!; // We know this exists
       
       // Create user

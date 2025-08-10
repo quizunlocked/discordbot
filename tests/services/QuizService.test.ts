@@ -244,4 +244,145 @@ describe('QuizService', () => {
       expect(result).toBeUndefined();
     });
   });
+
+  // REGRESSION TESTS FOR USER PERSISTENCE FIX ON 2025-08-10  
+  describe('User Persistence Regression Tests', () => {
+    let mockPrisma: any;
+
+    beforeEach(() => {
+      const { databaseService } = require('../../src/services/DatabaseService');
+      mockPrisma = databaseService.prisma;
+      
+      // Add user-related mocks that were missing from the original mock
+      mockPrisma.user = {
+        upsert: jest.fn(),
+        create: jest.fn(),
+        findUnique: jest.fn(),
+      };
+      mockPrisma.questionAttempt = {
+        createMany: jest.fn(),
+      };
+    });
+
+    describe('saveQuizAttempts', () => {
+      it('should create users before saving quiz attempts (foreign key fix)', async () => {
+        const service = require('../../src/services/QuizService').quizService;
+        const mockQuiz = {
+          id: 'quiz1',
+          questions: [
+            { id: 'q1', points: 10 },
+            { id: 'q2', points: 15 },
+          ],
+        };
+        
+        const mockParticipants = [
+          {
+            userId: 'discord_user_123',
+            username: 'TestUser1',
+            score: 25,
+            answers: new Map([
+              [0, { questionIndex: 0, selectedAnswer: 2, isCorrect: true, timeSpent: 15, pointsEarned: 10, answeredAt: new Date() }],
+              [1, { questionIndex: 1, selectedAnswer: 1, isCorrect: true, timeSpent: 20, pointsEarned: 15, answeredAt: new Date() }],
+            ]),
+          },
+          {
+            userId: 'discord_user_456', 
+            username: 'TestUser2',
+            score: 15,
+            answers: new Map([
+              [0, { questionIndex: 0, selectedAnswer: 1, isCorrect: false, timeSpent: 10, pointsEarned: 0, answeredAt: new Date() }],
+              [1, { questionIndex: 1, selectedAnswer: 1, isCorrect: true, timeSpent: 18, pointsEarned: 15, answeredAt: new Date() }],
+            ]),
+          },
+        ];
+
+        const mockSession = {
+          id: 'session123',
+          quizId: 'quiz1',
+          participants: new Map(),
+        };
+
+        // Mock successful database operations
+        mockPrisma.quiz.findUnique.mockResolvedValueOnce(mockQuiz);
+        mockPrisma.user.upsert.mockResolvedValue({ id: 'user1', username: 'TestUser1' });
+        mockPrisma.quizAttempt.create.mockResolvedValue({ id: 'attempt1' });
+        mockPrisma.questionAttempt.createMany.mockResolvedValueOnce({ count: 2 });
+
+        // Call the private method indirectly through reflection
+        await service['saveQuizAttempts'](mockSession, mockParticipants, 120);
+
+        // Verify users are created/updated before quiz attempts
+        expect(mockPrisma.user.upsert).toHaveBeenCalledTimes(2);
+        expect(mockPrisma.user.upsert).toHaveBeenCalledWith({
+          where: { id: 'discord_user_123' },
+          update: { username: 'TestUser1' },
+          create: { id: 'discord_user_123', username: 'TestUser1' },
+        });
+        expect(mockPrisma.user.upsert).toHaveBeenCalledWith({
+          where: { id: 'discord_user_456' },
+          update: { username: 'TestUser2' },
+          create: { id: 'discord_user_456', username: 'TestUser2' },
+        });
+
+        // Verify quiz attempts are created after users exist
+        expect(mockPrisma.quizAttempt.create).toHaveBeenCalledTimes(2);
+        expect(mockPrisma.questionAttempt.createMany).toHaveBeenCalledTimes(2);
+      });
+
+      it('should handle upsert properly when user already exists', async () => {
+        const service = require('../../src/services/QuizService').quizService;
+        const mockQuiz = { id: 'quiz1', questions: [{ id: 'q1', points: 10 }] };
+        
+        const mockParticipants = [{
+          userId: 'existing_user_123',
+          username: 'UpdatedUsername', // Username might have changed
+          score: 10,
+          answers: new Map([
+            [0, { questionIndex: 0, selectedAnswer: 2, isCorrect: true, timeSpent: 15, pointsEarned: 10, answeredAt: new Date() }],
+          ]),
+        }];
+
+        const mockSession = { id: 'session123', quizId: 'quiz1' };
+
+        mockPrisma.quiz.findUnique.mockResolvedValueOnce(mockQuiz);
+        mockPrisma.user.upsert.mockResolvedValueOnce({ id: 'existing_user_123', username: 'UpdatedUsername' });
+        mockPrisma.quizAttempt.create.mockResolvedValueOnce({ id: 'attempt1' });
+        mockPrisma.questionAttempt.createMany.mockResolvedValueOnce({ count: 1 });
+
+        await service['saveQuizAttempts'](mockSession, mockParticipants, 60);
+
+        // Should still call upsert (which will update the existing user)
+        expect(mockPrisma.user.upsert).toHaveBeenCalledWith({
+          where: { id: 'existing_user_123' },
+          update: { username: 'UpdatedUsername' },
+          create: { id: 'existing_user_123', username: 'UpdatedUsername' },
+        });
+      });
+
+      it('should not fail when participants have no answers', async () => {
+        const service = require('../../src/services/QuizService').quizService;
+        const mockQuiz = { id: 'quiz1', questions: [] };
+        
+        const mockParticipants = [{
+          userId: 'discord_user_789',
+          username: 'EmptyUser',
+          score: 0,
+          answers: new Map(), // No answers
+        }];
+
+        const mockSession = { id: 'session123', quizId: 'quiz1' };
+
+        mockPrisma.quiz.findUnique.mockResolvedValueOnce(mockQuiz);
+        mockPrisma.user.upsert.mockResolvedValueOnce({ id: 'discord_user_789', username: 'EmptyUser' });
+        mockPrisma.quizAttempt.create.mockResolvedValueOnce({ id: 'attempt1' });
+
+        await service['saveQuizAttempts'](mockSession, mockParticipants, 30);
+
+        // Should still create user and quiz attempt, but no question attempts
+        expect(mockPrisma.user.upsert).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.quizAttempt.create).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.questionAttempt.createMany).not.toHaveBeenCalled();
+      });
+    });
+  });
 }); 
