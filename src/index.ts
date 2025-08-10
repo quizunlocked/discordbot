@@ -40,7 +40,7 @@ async function loadCommands(): Promise<void> {
 
     for (const file of commandFiles) {
       const filePath = path.join(folderPath, file);
-      const command = require(filePath);
+      const command = await import(filePath);
       
       if ('data' in command && 'execute' in command) {
         client.commands.set(command.data.name, command);
@@ -66,7 +66,7 @@ async function loadEvents(): Promise<void> {
 
   for (const file of eventFiles) {
     const filePath = path.join(eventsPath, file);
-    const event = require(filePath);
+    const event = await import(filePath);
     
     if (event.once) {
       client.once(event.name, (...args) => event.execute(...args));

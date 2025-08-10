@@ -26,10 +26,13 @@ export function hasAdminPrivileges(interaction: CommandInteraction | ButtonInter
  * @param interaction - The command or button interaction
  * @returns true if user has admin privileges, false otherwise
  */
-export async function requireAdminPrivileges(interaction: CommandInteraction | ButtonInteraction): Promise<boolean> {
+export async function requireAdminPrivileges(
+  interaction: CommandInteraction | ButtonInteraction
+): Promise<boolean> {
   if (!hasAdminPrivileges(interaction)) {
-    const errorMessage = '❌ **Access Denied**\n\nThis command requires administrator privileges. Only server administrators can perform this action.';
-    
+    const errorMessage =
+      '❌ **Access Denied**\n\nThis command requires administrator privileges. Only server administrators can perform this action.';
+
     if (interaction.isCommand()) {
       // Check if the interaction has already been deferred
       if (interaction.deferred || interaction.replied) {
@@ -40,12 +43,14 @@ export async function requireAdminPrivileges(interaction: CommandInteraction | B
     } else if (interaction.isButton()) {
       await interaction.reply({ content: errorMessage, ephemeral: true });
     }
-    
+
     const commandName = interaction.isCommand() ? interaction.commandName : interaction.customId;
-    logger.warn(`User ${interaction.user.tag} attempted to use admin command without privileges: ${commandName}`);
+    logger.warn(
+      `User ${interaction.user.tag} attempted to use admin command without privileges: ${commandName}`
+    );
     return false;
   }
-  
+
   return true;
 }
 
@@ -56,12 +61,16 @@ export async function requireAdminPrivileges(interaction: CommandInteraction | B
  * @param isPrivate - Whether the quiz is private
  * @returns true if user can access the quiz, false otherwise
  */
-export function canAccessQuiz(userId: string, quizOwnerId: string | null, isPrivate: boolean): boolean {
+export function canAccessQuiz(
+  userId: string,
+  quizOwnerId: string | null,
+  isPrivate: boolean
+): boolean {
   // Public quizzes can be accessed by anyone
   if (!isPrivate) {
     return true;
   }
-  
+
   // Private quizzes can only be accessed by their owner
   return quizOwnerId === userId;
 }
@@ -83,12 +92,16 @@ export function isQuizOwner(userId: string, quizOwnerId: string | null): boolean
  * @param hasAdminPrivileges - Whether the user has admin privileges
  * @returns true if user can manage the quiz, false otherwise
  */
-export function canManageQuiz(userId: string, quizOwnerId: string | null, hasAdminPrivileges: boolean): boolean {
+export function canManageQuiz(
+  userId: string,
+  quizOwnerId: string | null,
+  hasAdminPrivileges: boolean
+): boolean {
   // Admins can manage any quiz
   if (hasAdminPrivileges) {
     return true;
   }
-  
+
   // Quiz owners can manage their own quizzes
   return isQuizOwner(userId, quizOwnerId);
-} 
+}

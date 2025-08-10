@@ -2,21 +2,24 @@ export const groupBy = <T, K extends string | number>(
   array: T[],
   keyFn: (item: T) => K
 ): Record<K, T[]> => {
-  return array.reduce((acc, item) => {
-    const key = keyFn(item);
-    (acc[key] = acc[key] || []).push(item);
-    return acc;
-  }, {} as Record<K, T[]>);
+  return array.reduce(
+    (acc, item) => {
+      const key = keyFn(item);
+      (acc[key] = acc[key] || []).push(item);
+      return acc;
+    },
+    {} as Record<K, T[]>
+  );
 };
 
-export const sumBy = <T>(array: T[], fn: (item: T) => number): number => 
+export const sumBy = <T>(array: T[], fn: (item: T) => number): number =>
   array.reduce((sum, item) => sum + fn(item), 0);
 
-export const minBy = <T>(array: T[], fn: (item: T) => number): T | undefined => 
-  array.reduce((min, item) => fn(item) < fn(min) ? item : min);
+export const minBy = <T>(array: T[], fn: (item: T) => number): T | undefined =>
+  array.reduce((min, item) => (fn(item) < fn(min) ? item : min));
 
-export const maxBy = <T>(array: T[], fn: (item: T) => number): T | undefined => 
-  array.reduce((max, item) => fn(item) > fn(max) ? item : max);
+export const maxBy = <T>(array: T[], fn: (item: T) => number): T | undefined =>
+  array.reduce((max, item) => (fn(item) > fn(max) ? item : max));
 
 export const chunk = <T>(array: T[], size: number): T[][] => {
   const chunks: T[][] = [];
@@ -52,8 +55,11 @@ export const mapToObject = <T, K extends string | number, V>(
   keyFn: (item: T) => K,
   valueFn: (item: T) => V
 ): Record<K, V> => {
-  return array.reduce((acc, item) => {
-    acc[keyFn(item)] = valueFn(item);
-    return acc;
-  }, {} as Record<K, V>);
+  return array.reduce(
+    (acc, item) => {
+      acc[keyFn(item)] = valueFn(item);
+      return acc;
+    },
+    {} as Record<K, V>
+  );
 };

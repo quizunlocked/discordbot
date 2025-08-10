@@ -149,4 +149,4 @@ export interface Score {
   totalQuizzes: number;
   averageScore: number;
   bestTime?: number;
-} 
+}

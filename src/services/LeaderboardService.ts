@@ -17,11 +17,14 @@ class LeaderboardService {
   /**
    * Get leaderboard for a specific period
    */
-  public async getLeaderboard(period: LeaderboardPeriod, limit: number = 10): Promise<LeaderboardEntry[]> {
+  public async getLeaderboard(
+    period: LeaderboardPeriod,
+    limit: number = 10
+  ): Promise<LeaderboardEntry[]> {
     try {
       const now = new Date();
       let startDate: Date;
-      let endDate: Date = now;
+      const endDate: Date = now;
 
       // Calculate date range based on period
       switch (period) {
@@ -59,37 +62,46 @@ class LeaderboardService {
       });
 
       // Aggregate scores by user using functional reduce
-      const userScores = attempts.reduce((acc: any, attempt: any) => {
-        const existing = acc.get(attempt.userId);
-        if (existing) {
-          existing.totalScore += attempt.totalScore;
-          existing.totalQuizzes += 1;
-          existing.totalTime += attempt.totalTime || 0;
-          if (attempt.totalTime && (!existing.bestTime || attempt.totalTime < existing.bestTime)) {
-            existing.bestTime = attempt.totalTime;
+      const userScores = attempts.reduce(
+        (acc: any, attempt: any) => {
+          const existing = acc.get(attempt.userId);
+          if (existing) {
+            existing.totalScore += attempt.totalScore;
+            existing.totalQuizzes += 1;
+            existing.totalTime += attempt.totalTime || 0;
+            if (
+              attempt.totalTime &&
+              (!existing.bestTime || attempt.totalTime < existing.bestTime)
+            ) {
+              existing.bestTime = attempt.totalTime;
+            }
+            existing.attempts.push(attempt);
+          } else {
+            acc.set(attempt.userId, {
+              userId: attempt.userId,
+              username: attempt.user.username,
+              totalScore: attempt.totalScore,
+              totalQuizzes: 1,
+              totalTime: attempt.totalTime || 0,
+              bestTime: attempt.totalTime || undefined,
+              attempts: [attempt],
+            });
           }
-          existing.attempts.push(attempt);
-        } else {
-          acc.set(attempt.userId, {
-            userId: attempt.userId,
-            username: attempt.user.username,
-            totalScore: attempt.totalScore,
-            totalQuizzes: 1,
-            totalTime: attempt.totalTime || 0,
-            bestTime: attempt.totalTime || undefined,
-            attempts: [attempt],
-          });
-        }
-        return acc;
-      }, new Map<string, {
-        userId: string;
-        username: string;
-        totalScore: number;
-        totalQuizzes: number;
-        totalTime: number;
-        bestTime: number | undefined;
-        attempts: any[];
-      }>());
+          return acc;
+        },
+        new Map<
+          string,
+          {
+            userId: string;
+            username: string;
+            totalScore: number;
+            totalQuizzes: number;
+            totalTime: number;
+            bestTime: number | undefined;
+            attempts: any[];
+          }
+        >()
+      );
 
       // Convert to array and sort by total score
       const leaderboard = Array.from(userScores.values())
@@ -157,9 +169,10 @@ class LeaderboardService {
             totalScore: existingScore.totalScore + score,
             totalQuizzes: existingScore.totalQuizzes + 1,
             averageScore: (existingScore.totalScore + score) / (existingScore.totalQuizzes + 1),
-            bestTime: quizTime && (!existingScore.bestTime || quizTime < existingScore.bestTime)
-              ? quizTime
-              : existingScore.bestTime,
+            bestTime:
+              quizTime && (!existingScore.bestTime || quizTime < existingScore.bestTime)
+                ? quizTime
+                : existingScore.bestTime,
           },
         });
       } else {
@@ -213,9 +226,18 @@ class LeaderboardService {
     }
 
     const leaderboardText = entries
-      .map((entry) => {
-        const medal = entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : `${entry.rank}.`;
-        const timeText = entry.bestTime ? ` (Best: ${Math.floor(entry.bestTime / 60)}m ${entry.bestTime % 60}s)` : '';
+      .map(entry => {
+        const medal =
+          entry.rank === 1
+            ? '🥇'
+            : entry.rank === 2
+              ? '🥈'
+              : entry.rank === 3
+                ? '🥉'
+                : `${entry.rank}.`;
+        const timeText = entry.bestTime
+          ? ` (Best: ${Math.floor(entry.bestTime / 60)}m ${entry.bestTime % 60}s)`
+          : '';
         return `${medal} **${entry.username}** - ${entry.totalScore} pts (${entry.averageScore} avg)${timeText}`;
       })
       .join('\n');
@@ -261,7 +283,7 @@ class LeaderboardService {
     d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + 4 - (d.getDay() || 7));
     const yearStart = new Date(d.getFullYear(), 0, 1);
-    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   }
 
   /**
@@ -286,7 +308,7 @@ class LeaderboardService {
           by: ['userId'],
           _sum: { totalScore: true },
           orderBy: { _sum: { totalScore: 'desc' } },
-        })
+        }),
       ]);
 
       if (attempts.length === 0) {
@@ -300,7 +322,6 @@ class LeaderboardService {
         attempts.filter((attempt: any) => attempt.totalTime),
         (attempt: any) => attempt.totalTime!
       )?.totalTime;
-
 
       const rank = allUsers.findIndex((user: any) => user.userId === userId) + 1;
 
@@ -318,4 +339,4 @@ class LeaderboardService {
   }
 }
 
-export const leaderboardService = LeaderboardService.getInstance(); 
+export const leaderboardService = LeaderboardService.getInstance();

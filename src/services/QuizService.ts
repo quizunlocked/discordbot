@@ -1,23 +1,19 @@
-import { 
-  TextChannel, 
-  ButtonBuilder, 
-  ButtonStyle, 
-  ActionRowBuilder, 
+import {
+  TextChannel,
+  ButtonBuilder,
+  ButtonStyle,
+  ActionRowBuilder,
   EmbedBuilder,
   ButtonInteraction,
   Client,
-  AttachmentBuilder
+  AttachmentBuilder,
 } from 'discord.js';
 import { databaseService } from './DatabaseService';
 import { leaderboardService } from './LeaderboardService';
 import { buttonCleanupService } from './ButtonCleanupService';
 import { logger } from '@/utils/logger';
 import { config } from '@/utils/config';
-import { 
-  QuizSession, 
-  ParticipantData, 
-  QuizConfig
-} from '@/types';
+import { QuizSession, ParticipantData, QuizConfig } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -57,7 +53,7 @@ export class QuizService {
     userId?: string
   ): Promise<void> {
     const sessionId = uuidv4();
-    
+
     const session: QuizSession = {
       id: sessionId,
       quizId,
@@ -72,24 +68,24 @@ export class QuizService {
     };
 
     this.activeSessions.set(sessionId, session);
-    
+
     // Save quiz to database only if requested
     if (saveToDatabase) {
       await this.saveQuizToDatabase(quizConfig, quizId, isPrivate, userId);
     }
-    
+
     // For private quizzes, start immediately without join phase
     if (isPrivate) {
       if (!userId) {
         throw new Error('User ID is required for private quizzes');
       }
-      
+
       // Get the actual user who started the quiz
       const user = await channel.client.users.fetch(userId).catch(() => null);
       if (!user) {
         throw new Error(`Could not fetch user ${userId} for private quiz`);
       }
-      
+
       // Add the quiz creator as the only participant
       const participant: ParticipantData = {
         userId: user.id,
@@ -100,19 +96,23 @@ export class QuizService {
         startTime: new Date(),
       };
       session.participants.set(participant.userId, participant);
-      
+
       // Start questions immediately
       await this.startQuizQuestions(session, channel);
       return;
     }
-    
+
     // Send welcome message with join button for public quizzes
     const welcomeEmbed = new EmbedBuilder()
       .setTitle(`🎯 ${quizConfig.title}`)
       .setDescription(quizConfig.description || 'Get ready to test your knowledge!')
       .addFields(
         { name: 'Questions', value: quizConfig.questions.length.toString(), inline: true },
-        { name: 'Time Limit', value: `${config.quiz.defaultQuestionTimeout}s per question`, inline: true },
+        {
+          name: 'Time Limit',
+          value: `${config.quiz.defaultQuestionTimeout}s per question`,
+          inline: true,
+        },
         { name: 'Participants', value: '0', inline: true },
         { name: 'Waiting Time', value: `${waitTime}s`, inline: true }
       )
@@ -138,18 +138,20 @@ export class QuizService {
     });
 
     session.messageId = message.id;
-    
+
     // Schedule button cleanup for quiz join message
     buttonCleanupService.scheduleQuizCleanup(message.id, channel.id, waitTime + 60); // Extra 60s buffer
-    
+
     // Set waiting timeout
     const waitingTimeoutId = setTimeout(() => {
       this.startQuizQuestions(session, channel);
     }, waitTime * 1000);
 
     this.waitingTimeouts.set(sessionId, waitingTimeoutId);
-    
-    logger.info(`Quiz session ${sessionId} started in channel ${channel.id} with ${waitTime}s wait time`);
+
+    logger.info(
+      `Quiz session ${sessionId} started in channel ${channel.id} with ${waitTime}s wait time`
+    );
   }
 
   /**
@@ -158,9 +160,12 @@ export class QuizService {
   public async handleJoin(interaction: ButtonInteraction): Promise<void> {
     const sessionId = interaction.customId.replace('quiz_join_', '');
     const session = this.activeSessions.get(sessionId);
-    
+
     if (!session || !session.isActive || !session.isWaiting) {
-      await interaction.reply({ content: 'Quiz session not found or not accepting participants.', ephemeral: true });
+      await interaction.reply({
+        content: 'Quiz session not found or not accepting participants.',
+        ephemeral: true,
+      });
       return;
     }
 
@@ -188,7 +193,7 @@ export class QuizService {
     await this.updateWaitingMessage(session, interaction.channel as TextChannel);
 
     await interaction.reply({ content: '✅ You have joined the quiz!', ephemeral: true });
-    
+
     logger.info(`User ${username} joined quiz session ${sessionId}`);
   }
 
@@ -198,9 +203,12 @@ export class QuizService {
   public async handleManualStart(interaction: ButtonInteraction): Promise<void> {
     const sessionId = interaction.customId.replace('quiz_start_', '');
     const session = this.activeSessions.get(sessionId);
-    
+
     if (!session || !session.isActive || !session.isWaiting) {
-      await interaction.reply({ content: 'Quiz session not found or already started.', ephemeral: true });
+      await interaction.reply({
+        content: 'Quiz session not found or already started.',
+        ephemeral: true,
+      });
       return;
     }
 
@@ -212,7 +220,7 @@ export class QuizService {
     }
 
     await interaction.deferUpdate();
-    
+
     // Start the quiz questions
     await this.startQuizQuestions(session, interaction.channel as TextChannel);
   }
@@ -224,7 +232,7 @@ export class QuizService {
     if (!session.isActive) return;
 
     await channel.send('⏰ **Total quiz time limit reached!** The quiz will now end.');
-    
+
     // End the quiz immediately
     await this.endQuiz(session, channel);
   }
@@ -245,13 +253,13 @@ export class QuizService {
     // Get quiz data from database
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: session.quizId },
-      include: { 
+      include: {
         questions: {
           include: {
             image: true,
-            hints: true
-          }
-        }
+            hints: true,
+          },
+        },
       },
     });
 
@@ -262,13 +270,18 @@ export class QuizService {
 
     // Set total quiz timeout if timeLimit is specified
     if ((quiz as any).timeLimit) {
-      const totalTimeoutId = setTimeout(() => {
-        this.handleTotalQuizTimeout(session, channel);
-      }, (quiz as any).timeLimit * 1000);
+      const totalTimeoutId = setTimeout(
+        () => {
+          this.handleTotalQuizTimeout(session, channel);
+        },
+        (quiz as any).timeLimit * 1000
+      );
 
       this.totalQuizTimeouts.set(session.id, totalTimeoutId);
-      
-      logger.info(`Total quiz timeout set for ${(quiz as any).timeLimit}s for session ${session.id}`);
+
+      logger.info(
+        `Total quiz timeout set for ${(quiz as any).timeLimit}s for session ${session.id}`
+      );
     }
 
     // Start the first question
@@ -284,11 +297,15 @@ export class QuizService {
     try {
       const message = await channel.messages.fetch(session.messageId);
       const embed = message.embeds[0];
-      
+
       if (embed) {
         const newEmbed = EmbedBuilder.from(embed);
-        newEmbed.spliceFields(2, 1, { name: 'Participants', value: session.participants.size.toString(), inline: true });
-        
+        newEmbed.spliceFields(2, 1, {
+          name: 'Participants',
+          value: session.participants.size.toString(),
+          inline: true,
+        });
+
         await message.edit({ embeds: [newEmbed] });
       }
     } catch (error) {
@@ -308,10 +325,10 @@ export class QuizService {
 
     const question = questions[session.currentQuestionIndex];
     const options = JSON.parse(question.options);
-    
+
     // Use question's individual time limit or fall back to default
     const questionTimeLimit = question.timeLimit || config.quiz.defaultQuestionTimeout;
-    
+
     const embed = new EmbedBuilder()
       .setTitle(`Question ${session.currentQuestionIndex + 1} of ${questions.length}`)
       .setDescription(question.questionText)
@@ -329,12 +346,14 @@ export class QuizService {
       try {
         // Check if image file exists
         await fs.access(imagePath);
-        
+
         // For public quizzes, we can use attachments
         if (!session.isPrivate) {
-          embed.setImage(`attachment://question-image.${path.extname(question.image.path).slice(1)}`);
+          embed.setImage(
+            `attachment://question-image.${path.extname(question.image.path).slice(1)}`
+          );
         }
-        
+
         // Add alt text if available
         if (question.image.altText) {
           embed.setFooter({ text: `Image: ${question.image.altText}` });
@@ -368,7 +387,9 @@ export class QuizService {
 
       // Add hint buttons in a separate row (limit to 5 per row as per Discord limits)
       for (let i = 0; i < hintButtons.length; i += 5) {
-        const hintRow = new ActionRowBuilder<ButtonBuilder>().addComponents(hintButtons.slice(i, i + 5));
+        const hintRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          hintButtons.slice(i, i + 5)
+        );
         rows.push(hintRow);
       }
     }
@@ -386,11 +407,11 @@ export class QuizService {
         await fs.access(imagePath);
         const imageBuffer = await fs.readFile(imagePath);
         const imageExtension = path.extname(question.image.path).slice(1);
-        
+
         messageOptions.files = [
-          new AttachmentBuilder(imageBuffer, { 
-            name: `question-image.${imageExtension}` 
-          })
+          new AttachmentBuilder(imageBuffer, {
+            name: `question-image.${imageExtension}`,
+          }),
         ];
       } catch (error) {
         logger.warn(`Could not attach image for question ${question.id}: ${error}`);
@@ -426,7 +447,11 @@ export class QuizService {
         // For private quizzes, we don't need to schedule cleanup since DM messages can't be edited by bots after user interaction
         // The message buttons will be automatically disabled after the question timeout
       } else {
-        buttonCleanupService.scheduleQuestionCleanup(message.id, channel.id, questionTimeLimit + 10);
+        buttonCleanupService.scheduleQuestionCleanup(
+          message.id,
+          channel.id,
+          questionTimeLimit + 10
+        );
       }
     }
 
@@ -455,15 +480,21 @@ export class QuizService {
     }
 
     const session = this.activeSessions.get(sessionId);
-    
+
     if (!session || !session.isActive || session.isWaiting) {
-      await interaction.reply({ content: 'Quiz session not found or not accepting answers.', ephemeral: true });
+      await interaction.reply({
+        content: 'Quiz session not found or not accepting answers.',
+        ephemeral: true,
+      });
       return;
     }
 
     const questionIdx = parseInt(questionIndex);
     if (questionIdx !== session.currentQuestionIndex) {
-      await interaction.reply({ content: 'This question has already been answered.', ephemeral: true });
+      await interaction.reply({
+        content: 'This question has already been answered.',
+        ephemeral: true,
+      });
       return;
     }
 
@@ -473,26 +504,32 @@ export class QuizService {
     // Check if user is a participant
     const participant = session.participants.get(userId);
     if (!participant) {
-      await interaction.reply({ content: 'You are not a participant in this quiz.', ephemeral: true });
+      await interaction.reply({
+        content: 'You are not a participant in this quiz.',
+        ephemeral: true,
+      });
       return;
     }
 
     // Check if user already answered this question
     if (participant.answers.has(questionIdx)) {
-      await interaction.reply({ content: 'You have already answered this question.', ephemeral: true });
+      await interaction.reply({
+        content: 'You have already answered this question.',
+        ephemeral: true,
+      });
       return;
     }
 
     // Get question data
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: session.quizId },
-      include: { 
+      include: {
         questions: {
           include: {
             image: true,
-            hints: true
-          }
-        }
+            hints: true,
+          },
+        },
       },
     });
 
@@ -508,14 +545,20 @@ export class QuizService {
     }
 
     const isCorrect = answerIdx === question.correctAnswer;
-    
+
     // Calculate points based on question start time, not quiz start time
-    const timeSpent = session.questionStartTime 
+    const timeSpent = session.questionStartTime
       ? Math.floor((Date.now() - session.questionStartTime.getTime()) / 1000)
       : 0;
     const basePoints = isCorrect ? question.points : 0;
-    const speedBonus = isCorrect ? Math.floor(basePoints * config.quiz.speedBonusMultiplier * (1 - timeSpent / (question.timeLimit || config.quiz.defaultQuestionTimeout))) : 0;
-    
+    const speedBonus = isCorrect
+      ? Math.floor(
+          basePoints *
+            config.quiz.speedBonusMultiplier *
+            (1 - timeSpent / (question.timeLimit || config.quiz.defaultQuestionTimeout))
+        )
+      : 0;
+
     // Update participant
     participant.score += basePoints + speedBonus;
     participant.streak = isCorrect ? participant.streak + 1 : 0;
@@ -544,17 +587,17 @@ export class QuizService {
     if (!session.isActive || session.isQuestionComplete) return;
 
     session.isQuestionComplete = true;
-    
+
     // Get the current question
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: session.quizId },
-      include: { 
+      include: {
         questions: {
           include: {
             image: true,
-            hints: true
-          }
-        }
+            hints: true,
+          },
+        },
       },
     });
 
@@ -593,7 +636,7 @@ export class QuizService {
       // Get the last message in the channel (should be the question message)
       const messages = await channel.messages.fetch({ limit: 1 });
       lastMessage = messages.first();
-      
+
       if (lastMessage && lastMessage.components.length > 0) {
         // Remove buttons from the question message
         await buttonCleanupService.removeButtons(lastMessage.id, channel.id, 'question');
@@ -604,12 +647,20 @@ export class QuizService {
     const correctAnswerLetter = String.fromCharCode(65 + question.correctAnswer);
 
     const embed = new EmbedBuilder()
-      .setTitle('⏰ Time\'s Up!')
+      .setTitle("⏰ Time's Up!")
       .setDescription(`**Correct Answer:** ${correctAnswerLetter}. ${correctAnswer}`)
       .addFields(
         { name: 'Points Available', value: question.points.toString(), inline: true },
-        { name: 'Correct Answers', value: this.getCorrectAnswersCount(session, session.currentQuestionIndex).toString(), inline: true },
-        { name: 'Total Answers', value: this.getTotalAnswersCount(session, session.currentQuestionIndex).toString(), inline: true }
+        {
+          name: 'Correct Answers',
+          value: this.getCorrectAnswersCount(session, session.currentQuestionIndex).toString(),
+          inline: true,
+        },
+        {
+          name: 'Total Answers',
+          value: this.getTotalAnswersCount(session, session.currentQuestionIndex).toString(),
+          inline: true,
+        }
       )
       .setColor('#ff0000')
       .setTimestamp();
@@ -635,13 +686,13 @@ export class QuizService {
     // Get quiz data for next question check
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: session.quizId },
-      include: { 
+      include: {
         questions: {
           include: {
             image: true,
-            hints: true
-          }
-        }
+            hints: true,
+          },
+        },
       },
     });
 
@@ -682,7 +733,7 @@ export class QuizService {
       // Calculate final scores and times
       const participants = Array.from(session.participants.values());
       const endTime = new Date();
-      
+
       // Sort participants by score (descending), then by time (ascending)
       participants.sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
@@ -703,15 +754,22 @@ export class QuizService {
         const totalTime = Math.floor((endTime.getTime() - session.startTime.getTime()) / 1000);
         embed.addFields(
           { name: '📊 Final Results', value: 'Here are the final standings:', inline: false },
-          { name: '⏱️ Total Time', value: `${Math.floor(totalTime / 60)}m ${totalTime % 60}s`, inline: true },
+          {
+            name: '⏱️ Total Time',
+            value: `${Math.floor(totalTime / 60)}m ${totalTime % 60}s`,
+            inline: true,
+          },
           { name: '👥 Participants', value: participants.length.toString(), inline: true }
         );
 
         // Add participant results
         const resultsText = participants
           .map((participant, index) => {
-            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-            const participantTime = Math.floor((endTime.getTime() - participant.startTime.getTime()) / 1000);
+            const medal =
+              index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
+            const participantTime = Math.floor(
+              (endTime.getTime() - participant.startTime.getTime()) / 1000
+            );
             const timeText = `${Math.floor(participantTime / 60)}m ${participantTime % 60}s`;
             return `${medal} **${participant.username}** - ${participant.score} pts (${timeText})`;
           })
@@ -746,7 +804,6 @@ export class QuizService {
       // Clean up session
       this.activeSessions.delete(session.id);
       logger.info(`Quiz ${session.id} ended with ${participants.length} participants`);
-
     } catch (error) {
       logger.error('Error ending quiz:', error);
     }
@@ -764,13 +821,13 @@ export class QuizService {
       // Get quiz data to access actual question IDs
       const quiz = await databaseService.prisma.quiz.findUnique({
         where: { id: session.quizId },
-        include: { 
+        include: {
           questions: {
             include: {
               image: true,
-              hints: true
-            }
-          }
+              hints: true,
+            },
+          },
         },
       });
 
@@ -808,7 +865,9 @@ export class QuizService {
           .map(answer => {
             const question = quiz.questions[answer.questionIndex];
             if (!question) {
-              logger.warn(`Question at index ${answer.questionIndex} not found for participant ${participant.userId}`);
+              logger.warn(
+                `Question at index ${answer.questionIndex} not found for participant ${participant.userId}`
+              );
               return null;
             }
 
@@ -831,7 +890,9 @@ export class QuizService {
         }
       }
 
-      logger.info(`Saved ${participants.length} quiz attempts to database for participants: ${participants.map(p => p.username).join(', ')}`);
+      logger.info(
+        `Saved ${participants.length} quiz attempts to database for participants: ${participants.map(p => p.username).join(', ')}`
+      );
     } catch (error) {
       logger.error('Error saving quiz attempts:', error);
       throw error; // Re-throw to see the actual error
@@ -841,21 +902,41 @@ export class QuizService {
   /**
    * Update leaderboard scores
    */
-  private async updateLeaderboardScores(
-    participants: ParticipantData[]
-  ): Promise<void> {
+  private async updateLeaderboardScores(participants: ParticipantData[]): Promise<void> {
     try {
       const endTime = new Date();
-      
+
       for (const participant of participants) {
-        const participantTime = Math.floor((endTime.getTime() - participant.startTime.getTime()) / 1000);
-        
+        const participantTime = Math.floor(
+          (endTime.getTime() - participant.startTime.getTime()) / 1000
+        );
+
         // Update scores for all periods
         await Promise.all([
-          leaderboardService.updateScore(participant.userId, 'weekly', participant.score, participantTime),
-          leaderboardService.updateScore(participant.userId, 'monthly', participant.score, participantTime),
-          leaderboardService.updateScore(participant.userId, 'yearly', participant.score, participantTime),
-          leaderboardService.updateScore(participant.userId, 'overall', participant.score, participantTime),
+          leaderboardService.updateScore(
+            participant.userId,
+            'weekly',
+            participant.score,
+            participantTime
+          ),
+          leaderboardService.updateScore(
+            participant.userId,
+            'monthly',
+            participant.score,
+            participantTime
+          ),
+          leaderboardService.updateScore(
+            participant.userId,
+            'yearly',
+            participant.score,
+            participantTime
+          ),
+          leaderboardService.updateScore(
+            participant.userId,
+            'overall',
+            participant.score,
+            participantTime
+          ),
         ]);
       }
 
@@ -868,7 +949,12 @@ export class QuizService {
   /**
    * Save quiz to database
    */
-  private async saveQuizToDatabase(quizConfig: QuizConfig, quizId: string, isPrivate: boolean, userId?: string): Promise<void> {
+  private async saveQuizToDatabase(
+    quizConfig: QuizConfig,
+    quizId: string,
+    isPrivate: boolean,
+    userId?: string
+  ): Promise<void> {
     try {
       await databaseService.prisma.quiz.create({
         data: {
@@ -907,8 +993,8 @@ export class QuizService {
    * Get count of total answers for a question
    */
   private getTotalAnswersCount(session: QuizSession, questionIndex: number): number {
-    return Array.from(session.participants.values()).filter(
-      participant => participant.answers.has(questionIndex)
+    return Array.from(session.participants.values()).filter(participant =>
+      participant.answers.has(questionIndex)
     ).length;
   }
 
@@ -954,7 +1040,7 @@ export class QuizService {
 
     // Remove from active sessions
     this.activeSessions.delete(sessionId);
-    
+
     logger.info(`Quiz session ${sessionId} stopped by administrator`);
   }
 
@@ -969,7 +1055,7 @@ export class QuizService {
 
     try {
       const channel = await this.client.channels.fetch(channelId);
-      return channel?.isTextBased() ? channel as TextChannel : null;
+      return channel?.isTextBased() ? (channel as TextChannel) : null;
     } catch (error) {
       logger.error(`Error fetching channel ${channelId}:`, error);
       return null;
@@ -1010,15 +1096,21 @@ export class QuizService {
     }
 
     const session = this.activeSessions.get(sessionId);
-    
+
     if (!session || !session.isActive || session.isWaiting) {
-      await interaction.reply({ content: 'Quiz session not found or not active.', ephemeral: true });
+      await interaction.reply({
+        content: 'Quiz session not found or not active.',
+        ephemeral: true,
+      });
       return;
     }
 
     const questionIdx = parseInt(questionIndex);
     if (questionIdx !== session.currentQuestionIndex) {
-      await interaction.reply({ content: 'This hint is for a previous question.', ephemeral: true });
+      await interaction.reply({
+        content: 'This hint is for a previous question.',
+        ephemeral: true,
+      });
       return;
     }
 
@@ -1037,12 +1129,12 @@ export class QuizService {
       // Verify the hint belongs to the current question
       const quiz = await databaseService.prisma.quiz.findUnique({
         where: { id: session.quizId },
-        include: { 
+        include: {
           questions: {
             include: {
-              hints: true
-            }
-          }
+              hints: true,
+            },
+          },
         },
       });
 
@@ -1067,13 +1159,14 @@ export class QuizService {
 
       await interaction.reply({ embeds: [embed], ephemeral: true });
 
-      logger.info(`User ${interaction.user.tag} viewed hint "${hint.title}" for question ${questionIdx + 1} in quiz ${session.quizId}`);
-
+      logger.info(
+        `User ${interaction.user.tag} viewed hint "${hint.title}" for question ${questionIdx + 1} in quiz ${session.quizId}`
+      );
     } catch (error) {
       logger.error('Error handling hint interaction:', error);
-      await interaction.reply({ 
-        content: '❌ An error occurred while loading the hint.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: '❌ An error occurred while loading the hint.',
+        ephemeral: true,
       });
     }
   }
@@ -1098,9 +1191,9 @@ export class QuizService {
       }
     } catch (error) {
       logger.error('Error handling quiz button interaction:', error);
-      await interaction.reply({ 
-        content: '❌ An error occurred while processing your request.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: '❌ An error occurred while processing your request.',
+        ephemeral: true,
       });
     }
   }
@@ -1115,12 +1208,10 @@ export class QuizService {
       return;
     }
     logger.info('Quiz table is empty, seeding example quizzes...');
-    const fs = require('fs');
-    const path = require('path');
     const dataPath = path.join(process.cwd(), 'data', 'sample-questions.json');
-    const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+    const data = JSON.parse(await fs.readFile(dataPath, 'utf8'));
     for (const quiz of data.quizzes) {
-      const quizId = require('uuid').v4();
+      const quizId = uuidv4();
       await QuizService.getInstance().saveQuizToDatabase(quiz, quizId, false);
       logger.info(`Seeded quiz: ${quiz.title}`);
     }
@@ -1136,55 +1227,71 @@ export class QuizService {
       logger.info('User table is not empty, skipping user seeding.');
       return;
     }
-    
+
     logger.info('User table is empty, seeding example users with quiz attempts...');
-    
+
     // Get all existing quizzes to create attempts for
     const quizzes = await databaseService.prisma.quiz.findMany({
-      include: { questions: true }
+      include: { questions: true },
     });
-    
+
     if (quizzes.length === 0) {
       logger.warn('No quizzes found, cannot seed user attempts. Run quiz seeding first.');
       return;
     }
-    
+
     // Sample usernames for variety
     const sampleUsernames = [
-      'QuizMaster', 'BrainiacBob', 'SmartSarah', 'CleverChloe', 'WiseWill',
-      'GeniusGrace', 'SharpSharon', 'BrilliantBen', 'QuickQuinn', 'ThinkTank',
-      'MindBender', 'LogicLuke', 'ReasonRita', 'FactFinder', 'TriviaKing',
-      'PuzzlePro', 'KnowItAll', 'StudyBuddy', 'BookwormBella', 'DataDave'
+      'QuizMaster',
+      'BrainiacBob',
+      'SmartSarah',
+      'CleverChloe',
+      'WiseWill',
+      'GeniusGrace',
+      'SharpSharon',
+      'BrilliantBen',
+      'QuickQuinn',
+      'ThinkTank',
+      'MindBender',
+      'LogicLuke',
+      'ReasonRita',
+      'FactFinder',
+      'TriviaKing',
+      'PuzzlePro',
+      'KnowItAll',
+      'StudyBuddy',
+      'BookwormBella',
+      'DataDave',
     ];
-    
+
     // Create 20 users
     for (let i = 0; i < 20; i++) {
       const userId = `user_${i + 1}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const username = sampleUsernames[i]!; // We know this exists
-      
+
       // Create user
       await databaseService.prisma.user.create({
         data: {
           id: userId,
           username: username,
-        }
+        },
       });
-      
+
       // Create quiz attempts for each quiz
       for (const quiz of quizzes) {
         const baseDate = new Date();
         baseDate.setDate(baseDate.getDate() - Math.floor(Math.random() * 30)); // Random date within last 30 days
-        
+
         // Calculate total possible points for this quiz
         const totalPossiblePoints = quiz.questions.reduce((sum, q) => sum + q.points, 0);
-        
+
         // Generate a varied score (30% to 95% of total possible points)
-        const scorePercentage = 0.3 + (Math.random() * 0.65); // 30% to 95%
+        const scorePercentage = 0.3 + Math.random() * 0.65; // 30% to 95%
         const totalScore = Math.floor(totalPossiblePoints * scorePercentage);
-        
+
         // Random completion time (2-10 minutes)
         const totalTime = 120 + Math.floor(Math.random() * 480); // 2-10 minutes in seconds
-        
+
         // Create quiz attempt
         const quizAttempt = await databaseService.prisma.quizAttempt.create({
           data: {
@@ -1194,20 +1301,20 @@ export class QuizService {
             completedAt: new Date(baseDate.getTime() + totalTime * 1000),
             totalScore: totalScore,
             totalTime: totalTime,
-          }
+          },
         });
-        
+
         // Create question attempts for each question
         let scoreDistributed = 0;
         for (let qIndex = 0; qIndex < quiz.questions.length; qIndex++) {
           const question = quiz.questions[qIndex]!; // We know this exists
           const isLastQuestion = qIndex === quiz.questions.length - 1;
-          
+
           // Determine if this question was answered correctly
           // Higher chance of correct answers for higher-scoring users
           const correctProbability = Math.min(0.9, scorePercentage + 0.1);
           const isCorrect = Math.random() < correctProbability;
-          
+
           // Points earned for this question
           let pointsEarned = 0;
           if (isCorrect) {
@@ -1219,10 +1326,10 @@ export class QuizService {
             }
           }
           scoreDistributed += pointsEarned;
-          
+
           // Random time spent on question (10-60 seconds)
           const timeSpent = 10 + Math.floor(Math.random() * 50);
-          
+
           // Selected answer (correct if isCorrect, otherwise random wrong answer)
           let selectedAnswer: number;
           if (isCorrect) {
@@ -1233,7 +1340,7 @@ export class QuizService {
               selectedAnswer = Math.floor(Math.random() * options.length);
             } while (selectedAnswer === question.correctAnswer);
           }
-          
+
           await databaseService.prisma.questionAttempt.create({
             data: {
               quizAttemptId: quizAttempt.id,
@@ -1242,17 +1349,17 @@ export class QuizService {
               isCorrect: isCorrect,
               timeSpent: timeSpent,
               pointsEarned: pointsEarned,
-              answeredAt: new Date(baseDate.getTime() + (qIndex * 30000)), // 30 sec intervals
-            }
+              answeredAt: new Date(baseDate.getTime() + qIndex * 30000), // 30 sec intervals
+            },
           });
         }
       }
-      
+
       logger.info(`Seeded user: ${username} with ${quizzes.length} quiz attempts`);
     }
-    
+
     logger.info('User seeding complete.');
   }
 }
 
-export const quizService = QuizService.getInstance(); 
+export const quizService = QuizService.getInstance();

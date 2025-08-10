@@ -1,4 +1,13 @@
-import { Events, Interaction, ButtonInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalSubmitInteraction } from 'discord.js';
+import {
+  Events,
+  Interaction,
+  ButtonInteraction,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  EmbedBuilder,
+  ModalSubmitInteraction,
+} from 'discord.js';
 import { logger } from '@/utils/logger';
 import { quizService } from '@/services/QuizService';
 import { leaderboardService } from '@/services/LeaderboardService';
@@ -28,13 +37,19 @@ export async function execute(interaction: Interaction): Promise<void> {
     }
   } catch (error) {
     logger.error('Error handling interaction:', error);
-    
+
     if (interaction.isRepliable()) {
       try {
         if (interaction.replied || interaction.deferred) {
-          await interaction.followUp({ content: 'There was an error while processing your request.', ephemeral: true });
+          await interaction.followUp({
+            content: 'There was an error while processing your request.',
+            ephemeral: true,
+          });
         } else {
-          await interaction.reply({ content: 'There was an error while processing your request.', ephemeral: true });
+          await interaction.reply({
+            content: 'There was an error while processing your request.',
+            ephemeral: true,
+          });
         }
       } catch (replyError) {
         logger.error('Error sending error response:', replyError);
@@ -48,7 +63,11 @@ async function handleButtonInteraction(interaction: ButtonInteraction): Promise<
 
   try {
     // Handle quiz management buttons (delete, edit, toggle status)
-    if (customId.startsWith('quiz_delete_') || customId.startsWith('quiz_edit_') || customId.startsWith('quiz_toggle_')) {
+    if (
+      customId.startsWith('quiz_delete_') ||
+      customId.startsWith('quiz_edit_') ||
+      customId.startsWith('quiz_toggle_')
+    ) {
       await handleQuizManagementButton(interaction);
       return;
     }
@@ -86,9 +105,9 @@ async function handleButtonInteraction(interaction: ButtonInteraction): Promise<
     logger.warn(`Unknown button interaction: ${customId}`);
   } catch (error) {
     logger.error('Error handling button interaction:', error);
-    await interaction.reply({ 
-      content: '❌ An error occurred while processing your request.', 
-      ephemeral: true 
+    await interaction.reply({
+      content: '❌ An error occurred while processing your request.',
+      ephemeral: true,
     });
   }
 }
@@ -106,9 +125,9 @@ async function handleLeaderboardButton(interaction: ButtonInteraction): Promise<
       await interaction.reply({ content: '❌ Invalid leaderboard button.', ephemeral: true });
       return;
     }
-    
+
     const page = parseInt(pageStr, 10);
-    
+
     if (isNaN(page) || page < 1) {
       await interaction.reply({ content: '❌ Invalid page number.', ephemeral: true });
       return;
@@ -124,11 +143,16 @@ async function handleLeaderboardButton(interaction: ButtonInteraction): Promise<
     const pageEntries = entries.slice(startIndex, startIndex + ENTRIES_PER_PAGE);
 
     // Create embed
-    const embed = leaderboardService.createLeaderboardEmbed(period as any, pageEntries, page, totalPages);
+    const embed = leaderboardService.createLeaderboardEmbed(
+      period as any,
+      pageEntries,
+      page,
+      totalPages
+    );
 
     // Create navigation buttons
     const row = new ActionRowBuilder<ButtonBuilder>();
-    
+
     if (totalPages > 1) {
       row.addComponents(
         new ButtonBuilder()
@@ -165,12 +189,11 @@ async function handleLeaderboardButton(interaction: ButtonInteraction): Promise<
 
     // Schedule button cleanup for leaderboard (30 seconds)
     buttonCleanupService.scheduleLeaderboardCleanup(reply.id, interaction.channelId, 30);
-
   } catch (error) {
     logger.error('Error handling leaderboard button:', error);
-    await interaction.followUp({ 
-      content: '❌ An error occurred while updating the leaderboard.', 
-      ephemeral: true 
+    await interaction.followUp({
+      content: '❌ An error occurred while updating the leaderboard.',
+      ephemeral: true,
     });
   }
 }
@@ -184,7 +207,7 @@ async function handleAdminButton(interaction: ButtonInteraction): Promise<void> 
     }
 
     const [, action, target, actionType, userId] = parts;
-    
+
     if (action === 'clear' && target === 'user' && actionType && userId) {
       await handleUserDataDeletion(interaction, userId, actionType === 'confirm');
       return;
@@ -193,18 +216,22 @@ async function handleAdminButton(interaction: ButtonInteraction): Promise<void> 
     await interaction.reply({ content: '❌ Unknown admin action.', ephemeral: true });
   } catch (error) {
     logger.error('Error handling admin button:', error);
-    await interaction.reply({ 
-      content: '❌ An error occurred while processing the admin action.', 
-      ephemeral: true 
+    await interaction.reply({
+      content: '❌ An error occurred while processing the admin action.',
+      ephemeral: true,
     });
   }
 }
 
-async function handleUserDataDeletion(interaction: ButtonInteraction, userId: string, confirmed: boolean): Promise<void> {
+async function handleUserDataDeletion(
+  interaction: ButtonInteraction,
+  userId: string,
+  confirmed: boolean
+): Promise<void> {
   try {
     // Check admin privileges for destructive action
     if (!(await requireAdminPrivileges(interaction))) return;
-    
+
     if (!confirmed) {
       const embed = new EmbedBuilder()
         .setTitle('❌ User Data Deletion Cancelled')
@@ -212,9 +239,9 @@ async function handleUserDataDeletion(interaction: ButtonInteraction, userId: st
         .setColor('#ff9900')
         .setTimestamp();
 
-      await interaction.update({ 
-        embeds: [embed], 
-        components: [] 
+      await interaction.update({
+        embeds: [embed],
+        components: [],
       });
       return;
     }
@@ -226,7 +253,7 @@ async function handleUserDataDeletion(interaction: ButtonInteraction, userId: st
     // Get user's images for file cleanup
     const userImages = await databaseService.prisma.image.findMany({
       where: { userId: userId },
-      select: { path: true }
+      select: { path: true },
     });
 
     // Delete user data
@@ -235,36 +262,36 @@ async function handleUserDataDeletion(interaction: ButtonInteraction, userId: st
       await tx.questionAttempt.deleteMany({
         where: {
           quizAttempt: {
-            userId: userId
-          }
-        }
+            userId: userId,
+          },
+        },
       });
 
       // Delete quiz attempts
       await tx.quizAttempt.deleteMany({
-        where: { userId: userId }
+        where: { userId: userId },
       });
 
       // Delete scores
       await tx.score.deleteMany({
-        where: { userId: userId }
+        where: { userId: userId },
       });
 
       // Delete images uploaded by user
       await tx.image.deleteMany({
-        where: { userId: userId }
+        where: { userId: userId },
       });
 
       // Delete user (if exists)
       await tx.user.deleteMany({
-        where: { id: userId }
+        where: { id: userId },
       });
     });
 
     // Clean up image files
     for (const image of userImages) {
       try {
-        if (image.path && await fileExists(image.path)) {
+        if (image.path && (await fileExists(image.path))) {
           await fs.unlink(image.path);
           logger.info(`Deleted user image file: ${image.path}`);
         }
@@ -280,19 +307,18 @@ async function handleUserDataDeletion(interaction: ButtonInteraction, userId: st
       .setColor('#00ff00')
       .setTimestamp();
 
-    await interaction.update({ 
-      embeds: [embed], 
-      components: [] 
+    await interaction.update({
+      embeds: [embed],
+      components: [],
     });
 
     logger.info(`User data deleted for ${username} (${userId}) by ${interaction.user.tag}`);
-
   } catch (error) {
     logger.error('Error deleting user data:', error);
-    await interaction.update({ 
+    await interaction.update({
       content: '❌ Error deleting user data. Please try again.',
       embeds: [],
-      components: []
+      components: [],
     });
   }
 }
@@ -314,9 +340,9 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction): Promise<v
     await interaction.reply({ content: '❌ Unknown modal submission.', ephemeral: true });
   } catch (error) {
     logger.error('Error handling modal submit:', error);
-    await interaction.reply({ 
-      content: '❌ An error occurred while processing the form.', 
-      ephemeral: true 
+    await interaction.reply({
+      content: '❌ An error occurred while processing the form.',
+      ephemeral: true,
     });
   }
 }
@@ -332,24 +358,24 @@ async function handleQuizCreationModal(interaction: ModalSubmitInteraction): Pro
     const questionCount = parseInt(questionCountStr, 10);
 
     if (isNaN(questionCount) || questionCount < 1 || questionCount > 50) {
-      await interaction.reply({ 
-        content: '❌ Invalid question count. Please enter a number between 1 and 50.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: '❌ Invalid question count. Please enter a number between 1 and 50.',
+        ephemeral: true,
       });
       return;
     }
 
     if (timeLimit && (isNaN(timeLimit) || timeLimit < 60 || timeLimit > 3600)) {
-      await interaction.reply({ 
-        content: '❌ Invalid time limit. Please enter a number between 60 and 3600 seconds.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: '❌ Invalid time limit. Please enter a number between 60 and 3600 seconds.',
+        ephemeral: true,
       });
       return;
     }
 
     // Create the quiz in database
     const quizId = `quiz_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     await databaseService.prisma.quiz.create({
       data: {
         id: quizId,
@@ -379,19 +405,18 @@ async function handleQuizCreationModal(interaction: ModalSubmitInteraction): Pro
       embed.addFields({ name: 'Time Limit', value: `${timeLimit}s`, inline: false });
     }
 
-    await interaction.reply({ 
-      embeds: [embed], 
+    await interaction.reply({
+      embeds: [embed],
       content: `Next step: Add ${questionCount} questions to your quiz using \`/admin add-questions ${quizId}\``,
-      ephemeral: true 
+      ephemeral: true,
     });
 
     logger.info(`Quiz "${title}" created by ${interaction.user.tag} with ID ${quizId}`);
-
   } catch (error) {
     logger.error('Error creating quiz from modal:', error);
-    await interaction.reply({ 
-      content: '❌ Error creating quiz. Please try again.', 
-      ephemeral: true 
+    await interaction.reply({
+      content: '❌ Error creating quiz. Please try again.',
+      ephemeral: true,
     });
   }
 }
@@ -399,7 +424,7 @@ async function handleQuizCreationModal(interaction: ModalSubmitInteraction): Pro
 async function handleDashboardButton(interaction: ButtonInteraction): Promise<void> {
   try {
     const action = interaction.customId.replace('dashboard_', '');
-    
+
     switch (action) {
       case 'status':
         await handleDashboardStatus(interaction);
@@ -424,9 +449,9 @@ async function handleDashboardButton(interaction: ButtonInteraction): Promise<vo
     }
   } catch (error) {
     logger.error('Error handling dashboard button:', error);
-    await interaction.reply({ 
-      content: '❌ An error occurred while processing the dashboard action.', 
-      ephemeral: true 
+    await interaction.reply({
+      content: '❌ An error occurred while processing the dashboard action.',
+      ephemeral: true,
     });
   }
 }
@@ -460,7 +485,6 @@ async function handleDashboardStatus(interaction: ButtonInteraction): Promise<vo
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-    
   } catch (error) {
     logger.error('Error checking status:', error);
     await interaction.editReply('❌ Error checking bot status.');
@@ -476,11 +500,11 @@ async function handleDashboardQuizzes(interaction: ButtonInteraction): Promise<v
         _count: {
           select: {
             questions: true,
-            attempts: true
-          }
-        }
+            attempts: true,
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     if (quizzes.length === 0) {
@@ -491,15 +515,18 @@ async function handleDashboardQuizzes(interaction: ButtonInteraction): Promise<v
     const embed = new EmbedBuilder()
       .setTitle('📚 Quiz Management')
       .setColor('#0099ff')
-      .setDescription(quizzes.map((quiz: any) => {
-        const status = quiz.isActive ? '🟢 Active' : '🔴 Inactive';
-        return `**${quiz.title}** (${quiz.id})\n${status} • ${quiz._count.questions} questions • ${quiz._count.attempts} attempts`;
-      }).join('\n\n'))
+      .setDescription(
+        quizzes
+          .map((quiz: any) => {
+            const status = quiz.isActive ? '🟢 Active' : '🔴 Inactive';
+            return `**${quiz.title}** (${quiz.id})\n${status} • ${quiz._count.questions} questions • ${quiz._count.attempts} attempts`;
+          })
+          .join('\n\n')
+      )
       .setFooter({ text: 'Showing all quizzes (active and inactive)' })
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-    
   } catch (error) {
     logger.error('Error listing quizzes:', error);
     await interaction.editReply('❌ Error listing quizzes.');
@@ -515,12 +542,12 @@ async function handleDashboardUsers(interaction: ButtonInteraction): Promise<voi
         _count: {
           select: {
             quizAttempts: true,
-            scores: true
-          }
-        }
+            scores: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
-      take: 10
+      take: 10,
     });
 
     if (users.length === 0) {
@@ -531,13 +558,17 @@ async function handleDashboardUsers(interaction: ButtonInteraction): Promise<voi
     const embed = new EmbedBuilder()
       .setTitle('👥 User Management')
       .setColor('#0099ff')
-      .setDescription(users.map((user: any) => 
-        `**${user.username}**\n${user._count.quizAttempts} attempts • ${user._count.scores} score records`
-      ).join('\n\n'))
+      .setDescription(
+        users
+          .map(
+            (user: any) =>
+              `**${user.username}**\n${user._count.quizAttempts} attempts • ${user._count.scores} score records`
+          )
+          .join('\n\n')
+      )
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-    
   } catch (error) {
     logger.error('Error listing users:', error);
     await interaction.editReply('❌ Error listing users.');
@@ -549,18 +580,12 @@ async function handleDashboardDatabase(interaction: ButtonInteraction): Promise<
     await interaction.deferUpdate();
 
     // Get database statistics
-    const [
-      userCount,
-      quizCount,
-      questionCount,
-      attemptCount,
-      scoreCount
-    ] = await Promise.all([
+    const [userCount, quizCount, questionCount, attemptCount, scoreCount] = await Promise.all([
       databaseService.prisma.user.count(),
       databaseService.prisma.quiz.count(),
       databaseService.prisma.question.count(),
       databaseService.prisma.quizAttempt.count(),
-      databaseService.prisma.score.count()
+      databaseService.prisma.score.count(),
     ]);
 
     // Get recent activity
@@ -569,8 +594,8 @@ async function handleDashboardDatabase(interaction: ButtonInteraction): Promise<
       orderBy: { startedAt: 'desc' },
       include: {
         user: true,
-        quiz: true
-      }
+        quiz: true,
+      },
     });
 
     const embed = new EmbedBuilder()
@@ -586,19 +611,18 @@ async function handleDashboardDatabase(interaction: ButtonInteraction): Promise<
       .setTimestamp();
 
     if (recentAttempts.length > 0) {
-      const recentActivity = recentAttempts.map((a: any) => 
-        `${a.user.username}: ${a.quiz.title} (${a.totalScore} pts)`
-      ).join('\n');
-      
-      embed.addFields({ 
-        name: 'Recent Activity', 
+      const recentActivity = recentAttempts
+        .map((a: any) => `${a.user.username}: ${a.quiz.title} (${a.totalScore} pts)`)
+        .join('\n');
+
+      embed.addFields({
+        name: 'Recent Activity',
         value: recentActivity,
-        inline: false 
+        inline: false,
       });
     }
 
     await interaction.editReply({ embeds: [embed] });
-    
   } catch (error) {
     logger.error('Error getting database stats:', error);
     await interaction.editReply('❌ Error getting database statistics.');
@@ -607,9 +631,9 @@ async function handleDashboardDatabase(interaction: ButtonInteraction): Promise<
 
 async function handleDashboardCreateQuiz(interaction: ButtonInteraction): Promise<void> {
   try {
-    await interaction.reply({ 
-      content: 'Use `/quiz-manager create` to create a new quiz with an interactive form.', 
-      ephemeral: true 
+    await interaction.reply({
+      content: 'Use `/quiz-manager create` to create a new quiz with an interactive form.',
+      ephemeral: true,
     });
   } catch (error) {
     logger.error('Error handling create quiz:', error);
@@ -620,9 +644,12 @@ async function handleDashboardCreateQuiz(interaction: ButtonInteraction): Promis
 async function handleDashboardStopQuiz(interaction: ButtonInteraction): Promise<void> {
   try {
     const activeSession = quizService.getActiveSessionByChannel(interaction.channelId);
-    
+
     if (!activeSession) {
-      await interaction.reply({ content: '❌ No active quiz found in this channel.', ephemeral: true });
+      await interaction.reply({
+        content: '❌ No active quiz found in this channel.',
+        ephemeral: true,
+      });
       return;
     }
 
@@ -635,7 +662,6 @@ async function handleDashboardStopQuiz(interaction: ButtonInteraction): Promise<
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed], ephemeral: true });
-    
   } catch (error) {
     logger.error('Error stopping active quiz:', error);
     await interaction.reply({ content: '❌ Error stopping active quiz.', ephemeral: true });
@@ -662,12 +688,15 @@ function formatUptime(seconds: number): string {
 async function handleQuizManagementButton(interaction: ButtonInteraction): Promise<void> {
   try {
     const { customId } = interaction;
-    
+
     if (customId.startsWith('quiz_delete_confirm_')) {
       await handleQuizDeleteConfirm(interaction);
     } else if (customId.startsWith('quiz_delete_all_confirm')) {
       await handleQuizDeleteAllConfirm(interaction);
-    } else if (customId.startsWith('quiz_delete_cancel_') || customId.startsWith('quiz_delete_all_cancel')) {
+    } else if (
+      customId.startsWith('quiz_delete_cancel_') ||
+      customId.startsWith('quiz_delete_all_cancel')
+    ) {
       await handleQuizDeleteCancel(interaction);
     } else if (customId.startsWith('quiz_toggle_status_')) {
       await handleQuizToggleStatus(interaction);
@@ -680,9 +709,9 @@ async function handleQuizManagementButton(interaction: ButtonInteraction): Promi
     }
   } catch (error) {
     logger.error('Error handling quiz management button:', error);
-    await interaction.reply({ 
-      content: '❌ An error occurred while processing the quiz management action.', 
-      ephemeral: true 
+    await interaction.reply({
+      content: '❌ An error occurred while processing the quiz management action.',
+      ephemeral: true,
     });
   }
 }
@@ -691,9 +720,9 @@ async function handleQuizDeleteConfirm(interaction: ButtonInteraction): Promise<
   try {
     // Check admin privileges for destructive action
     if (!(await requireAdminPrivileges(interaction))) return;
-    
+
     const quizId = interaction.customId.replace('quiz_delete_confirm_', '');
-    
+
     // Get quiz info before deletion
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: quizId },
@@ -701,10 +730,10 @@ async function handleQuizDeleteConfirm(interaction: ButtonInteraction): Promise<
         _count: {
           select: {
             questions: true,
-            attempts: true
-          }
-        }
-      }
+            attempts: true,
+          },
+        },
+      },
     });
 
     if (!quiz) {
@@ -718,24 +747,24 @@ async function handleQuizDeleteConfirm(interaction: ButtonInteraction): Promise<
       await tx.questionAttempt.deleteMany({
         where: {
           question: {
-            quizId: quizId
-          }
-        }
+            quizId: quizId,
+          },
+        },
       });
 
       // Delete quiz attempts
       await tx.quizAttempt.deleteMany({
-        where: { quizId: quizId }
+        where: { quizId: quizId },
       });
 
       // Delete questions
       await tx.question.deleteMany({
-        where: { quizId: quizId }
+        where: { quizId: quizId },
       });
 
       // Delete the quiz
       await tx.quiz.delete({
-        where: { id: quizId }
+        where: { id: quizId },
       });
     });
 
@@ -749,19 +778,18 @@ async function handleQuizDeleteConfirm(interaction: ButtonInteraction): Promise<
       .setColor('#00ff00')
       .setTimestamp();
 
-    await interaction.update({ 
-      embeds: [embed], 
-      components: [] 
+    await interaction.update({
+      embeds: [embed],
+      components: [],
     });
 
     logger.info(`Quiz "${quiz.title}" (${quizId}) deleted by ${interaction.user.tag}`);
-
   } catch (error) {
     logger.error('Error deleting quiz:', error);
     try {
-      await interaction.followUp({ 
-        content: '❌ Error deleting quiz. Please try again.', 
-        ephemeral: true 
+      await interaction.followUp({
+        content: '❌ Error deleting quiz. Please try again.',
+        ephemeral: true,
       });
     } catch (followUpError) {
       logger.error('Error sending followUp message:', followUpError);
@@ -777,18 +805,17 @@ async function handleQuizDeleteCancel(interaction: ButtonInteraction): Promise<v
       .setColor('#ff9900')
       .setTimestamp();
 
-    await interaction.update({ 
-      embeds: [embed], 
-      components: [] 
+    await interaction.update({
+      embeds: [embed],
+      components: [],
     });
-
   } catch (error) {
     logger.error('Error cancelling quiz deletion:', error);
     // For button interactions, we should use followUp if the interaction was already responded to
     try {
-      await interaction.followUp({ 
-        content: '❌ Error cancelling quiz deletion.', 
-        ephemeral: true 
+      await interaction.followUp({
+        content: '❌ Error cancelling quiz deletion.',
+        ephemeral: true,
       });
     } catch (followUpError) {
       logger.error('Error sending followUp message:', followUpError);
@@ -800,17 +827,17 @@ async function handleQuizDeleteAllConfirm(interaction: ButtonInteraction): Promi
   try {
     // Check admin privileges for destructive action
     if (!(await requireAdminPrivileges(interaction))) return;
-    
+
     // Get quiz statistics before deletion
     const quizStats = await databaseService.prisma.quiz.findMany({
       include: {
         _count: {
           select: {
             attempts: true,
-            questions: true
-          }
-        }
-      }
+            questions: true,
+          },
+        },
+      },
     });
 
     if (quizStats.length === 0) {
@@ -819,8 +846,14 @@ async function handleQuizDeleteAllConfirm(interaction: ButtonInteraction): Promi
     }
 
     const totalQuizzes = quizStats.length;
-    const totalQuestions = quizStats.reduce((sum: number, quiz: any) => sum + quiz._count.questions, 0);
-    const totalAttempts = quizStats.reduce((sum: number, quiz: any) => sum + quiz._count.attempts, 0);
+    const totalQuestions = quizStats.reduce(
+      (sum: number, quiz: any) => sum + quiz._count.questions,
+      0
+    );
+    const totalAttempts = quizStats.reduce(
+      (sum: number, quiz: any) => sum + quiz._count.attempts,
+      0
+    );
 
     // Delete all quizzes and related data
     await databaseService.prisma.$transaction(async (tx: any) => {
@@ -848,19 +881,18 @@ async function handleQuizDeleteAllConfirm(interaction: ButtonInteraction): Promi
       .setColor('#00ff00')
       .setTimestamp();
 
-    await interaction.update({ 
-      embeds: [embed], 
-      components: [] 
+    await interaction.update({
+      embeds: [embed],
+      components: [],
     });
 
     logger.info(`All ${totalQuizzes} quizzes deleted by ${interaction.user.tag}`);
-
   } catch (error) {
     logger.error('Error deleting all quizzes:', error);
     try {
-      await interaction.followUp({ 
-        content: '❌ Error deleting all quizzes. Please try again.', 
-        ephemeral: true 
+      await interaction.followUp({
+        content: '❌ Error deleting all quizzes. Please try again.',
+        ephemeral: true,
       });
     } catch (followUpError) {
       logger.error('Error sending followUp message:', followUpError);
@@ -871,10 +903,10 @@ async function handleQuizDeleteAllConfirm(interaction: ButtonInteraction): Promi
 async function handleQuizToggleStatus(interaction: ButtonInteraction): Promise<void> {
   try {
     const quizId = interaction.customId.replace('quiz_toggle_status_', '');
-    
+
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: quizId },
-      include: { questions: true }
+      include: { questions: true },
     });
 
     if (!quiz) {
@@ -884,10 +916,10 @@ async function handleQuizToggleStatus(interaction: ButtonInteraction): Promise<v
 
     // Toggle the status
     const newStatus = !quiz.isActive;
-    
+
     await databaseService.prisma.quiz.update({
       where: { id: quizId },
-      data: { isActive: newStatus }
+      data: { isActive: newStatus },
     });
 
     const embed = new EmbedBuilder()
@@ -900,19 +932,20 @@ async function handleQuizToggleStatus(interaction: ButtonInteraction): Promise<v
       .setColor(newStatus ? '#00ff00' : '#ff0000')
       .setTimestamp();
 
-    await interaction.update({ 
-      embeds: [embed], 
-      components: [] 
+    await interaction.update({
+      embeds: [embed],
+      components: [],
     });
 
-    logger.info(`Quiz "${quiz.title}" (${quizId}) ${newStatus ? 'activated' : 'deactivated'} by ${interaction.user.tag}`);
-
+    logger.info(
+      `Quiz "${quiz.title}" (${quizId}) ${newStatus ? 'activated' : 'deactivated'} by ${interaction.user.tag}`
+    );
   } catch (error) {
     logger.error('Error toggling quiz status:', error);
     try {
-      await interaction.followUp({ 
-        content: '❌ Error updating quiz status. Please try again.', 
-        ephemeral: true 
+      await interaction.followUp({
+        content: '❌ Error updating quiz status. Please try again.',
+        ephemeral: true,
       });
     } catch (followUpError) {
       logger.error('Error sending followUp message:', followUpError);
@@ -923,10 +956,10 @@ async function handleQuizToggleStatus(interaction: ButtonInteraction): Promise<v
 async function handleQuizTogglePrivate(interaction: ButtonInteraction): Promise<void> {
   try {
     const quizId = interaction.customId.replace('quiz_toggle_private_', '');
-    
+
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: quizId },
-      include: { questions: true }
+      include: { questions: true },
     });
 
     if (!quiz) {
@@ -936,15 +969,15 @@ async function handleQuizTogglePrivate(interaction: ButtonInteraction): Promise<
 
     // Check if user can manage this quiz
     const userCanManage = canManageQuiz(
-      interaction.user.id, 
-      (quiz as any).quizOwnerId, 
+      interaction.user.id,
+      (quiz as any).quizOwnerId,
       hasAdminPrivileges(interaction)
     );
 
     if (!userCanManage) {
-      await interaction.reply({ 
-        content: '❌ You can only modify quizzes you own or have admin privileges for.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: '❌ You can only modify quizzes you own or have admin privileges for.',
+        ephemeral: true,
       });
       return;
     }
@@ -952,10 +985,10 @@ async function handleQuizTogglePrivate(interaction: ButtonInteraction): Promise<
     // Toggle the private status
     const currentPrivate = (quiz as any).private || false;
     const newPrivate = !currentPrivate;
-    
+
     await databaseService.prisma.quiz.update({
       where: { id: quizId },
-      data: { private: newPrivate } as any
+      data: { private: newPrivate } as any,
     });
 
     const embed = new EmbedBuilder()
@@ -969,19 +1002,20 @@ async function handleQuizTogglePrivate(interaction: ButtonInteraction): Promise<
       .setColor(newPrivate ? '#ff9900' : '#00ff00')
       .setTimestamp();
 
-    await interaction.update({ 
-      embeds: [embed], 
-      components: [] 
+    await interaction.update({
+      embeds: [embed],
+      components: [],
     });
 
-    logger.info(`Quiz "${quiz.title}" (${quizId}) privacy ${newPrivate ? 'set to private' : 'set to public'} by ${interaction.user.tag}`);
-
+    logger.info(
+      `Quiz "${quiz.title}" (${quizId}) privacy ${newPrivate ? 'set to private' : 'set to public'} by ${interaction.user.tag}`
+    );
   } catch (error) {
     logger.error('Error toggling quiz privacy:', error);
     try {
-      await interaction.followUp({ 
-        content: '❌ Error updating quiz privacy. Please try again.', 
-        ephemeral: true 
+      await interaction.followUp({
+        content: '❌ Error updating quiz privacy. Please try again.',
+        ephemeral: true,
       });
     } catch (followUpError) {
       logger.error('Error sending followUp message:', followUpError);
@@ -993,16 +1027,15 @@ async function handleQuizEdit(interaction: ButtonInteraction): Promise<void> {
   try {
     // For now, just acknowledge the edit request
     // TODO: Implement modal for editing quiz properties
-    await interaction.reply({ 
-      content: '📝 Quiz editing feature coming soon!', 
-      ephemeral: true 
+    await interaction.reply({
+      content: '📝 Quiz editing feature coming soon!',
+      ephemeral: true,
     });
-
   } catch (error) {
     logger.error('Error handling quiz edit:', error);
-    await interaction.reply({ 
-      content: '❌ Error handling quiz edit request.', 
-      ephemeral: true 
+    await interaction.reply({
+      content: '❌ Error handling quiz edit request.',
+      ephemeral: true,
     });
   }
 }
@@ -1011,7 +1044,7 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
   try {
     // Extract quiz ID from the custom ID
     const quizId = interaction.customId.replace('add_question_modal_', '');
-    
+
     // Extract form data
     const questionText = interaction.fields.getTextInputValue('question_text');
     const optionsText = interaction.fields.getTextInputValue('question_options');
@@ -1020,20 +1053,23 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
     const pointsStr = interaction.fields.getTextInputValue('points') || '';
 
     // Validate and parse options
-    const options = optionsText.split('\n').map(opt => opt.trim()).filter(opt => opt.length > 0);
-    
+    const options = optionsText
+      .split('\n')
+      .map(opt => opt.trim())
+      .filter(opt => opt.length > 0);
+
     if (options.length < 2) {
-      await interaction.reply({ 
-        content: '❌ Please provide at least 2 answer options.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: '❌ Please provide at least 2 answer options.',
+        ephemeral: true,
       });
       return;
     }
 
     if (options.length > 10) {
-      await interaction.reply({ 
-        content: '❌ Maximum 10 answer options allowed.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: '❌ Maximum 10 answer options allowed.',
+        ephemeral: true,
       });
       return;
     }
@@ -1041,9 +1077,9 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
     // Validate correct answer index
     const correctAnswer = parseInt(correctAnswerStr, 10);
     if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= options.length) {
-      await interaction.reply({ 
-        content: `❌ Invalid correct answer index. Please enter a number between 0 and ${options.length - 1}.`, 
-        ephemeral: true 
+      await interaction.reply({
+        content: `❌ Invalid correct answer index. Please enter a number between 0 and ${options.length - 1}.`,
+        ephemeral: true,
       });
       return;
     }
@@ -1053,9 +1089,9 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
     if (timeLimitStr) {
       timeLimit = parseInt(timeLimitStr, 10);
       if (isNaN(timeLimit) || timeLimit < 5 || timeLimit > 300) {
-        await interaction.reply({ 
-          content: '❌ Invalid time limit. Please enter a number between 5 and 300 seconds.', 
-          ephemeral: true 
+        await interaction.reply({
+          content: '❌ Invalid time limit. Please enter a number between 5 and 300 seconds.',
+          ephemeral: true,
         });
         return;
       }
@@ -1065,9 +1101,9 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
     if (pointsStr) {
       points = parseInt(pointsStr, 10);
       if (isNaN(points) || points < 1 || points > 100) {
-        await interaction.reply({ 
-          content: '❌ Invalid points. Please enter a number between 1 and 100.', 
-          ephemeral: true 
+        await interaction.reply({
+          content: '❌ Invalid points. Please enter a number between 1 and 100.',
+          ephemeral: true,
         });
         return;
       }
@@ -1076,7 +1112,7 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
     // Check if quiz exists and user has permission
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: quizId },
-      include: { questions: true }
+      include: { questions: true },
     });
 
     if (!quiz) {
@@ -1086,15 +1122,16 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
 
     // Check if user can manage this quiz
     const userCanManage = canManageQuiz(
-      interaction.user.id, 
-      (quiz as any).quizOwnerId, 
-      interaction.guild?.members.cache.get(interaction.user.id)?.permissions.has('Administrator') || false
+      interaction.user.id,
+      (quiz as any).quizOwnerId,
+      interaction.guild?.members.cache.get(interaction.user.id)?.permissions.has('Administrator') ||
+        false
     );
 
     if (!userCanManage) {
-      await interaction.reply({ 
-        content: '❌ You can only add questions to quizzes you own or have admin privileges for.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: '❌ You can only add questions to quizzes you own or have admin privileges for.',
+        ephemeral: true,
       });
       return;
     }
@@ -1107,8 +1144,8 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
         options: JSON.stringify(options),
         correctAnswer,
         timeLimit,
-        points
-      }
+        points,
+      },
     });
 
     // Create success embed
@@ -1116,9 +1153,24 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
       .setTitle('✅ Question Added Successfully')
       .setDescription(`Question added to **${quiz.title}**`)
       .addFields(
-        { name: 'Question', value: questionText.length > 100 ? questionText.substring(0, 100) + '...' : questionText, inline: false },
-        { name: 'Options', value: options.map((opt, i) => `${i}: ${opt}`).join('\n').substring(0, 1000), inline: false },
-        { name: 'Correct Answer', value: `${correctAnswer}: ${options[correctAnswer]}`, inline: true },
+        {
+          name: 'Question',
+          value: questionText.length > 100 ? questionText.substring(0, 100) + '...' : questionText,
+          inline: false,
+        },
+        {
+          name: 'Options',
+          value: options
+            .map((opt, i) => `${i}: ${opt}`)
+            .join('\n')
+            .substring(0, 1000),
+          inline: false,
+        },
+        {
+          name: 'Correct Answer',
+          value: `${correctAnswer}: ${options[correctAnswer]}`,
+          inline: true,
+        },
         { name: 'Points', value: points.toString(), inline: true }
       )
       .setColor('#00ff00')
@@ -1128,24 +1180,23 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
       embed.addFields({ name: 'Time Limit', value: `${timeLimit}s`, inline: true });
     }
 
-    embed.addFields({ 
-      name: 'Quiz Status', 
-      value: `${quiz.questions.length + 1} questions total`, 
-      inline: false 
+    embed.addFields({
+      name: 'Quiz Status',
+      value: `${quiz.questions.length + 1} questions total`,
+      inline: false,
     });
 
-    await interaction.reply({ 
-      embeds: [embed], 
-      ephemeral: true 
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true,
     });
 
     logger.info(`Question added to quiz "${quiz.title}" (${quizId}) by ${interaction.user.tag}`);
-
   } catch (error) {
     logger.error('Error adding question from modal:', error);
-    await interaction.reply({ 
-      content: '❌ Error adding question. Please try again.', 
-      ephemeral: true 
+    await interaction.reply({
+      content: '❌ Error adding question. Please try again.',
+      ephemeral: true,
     });
   }
 }
@@ -1153,7 +1204,7 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
 async function handleImageButton(interaction: ButtonInteraction): Promise<void> {
   try {
     const { customId } = interaction;
-    
+
     if (customId.startsWith('image_delete_confirm_')) {
       await handleImageDeleteConfirm(interaction);
     } else if (customId.startsWith('image_delete_cancel_')) {
@@ -1163,9 +1214,9 @@ async function handleImageButton(interaction: ButtonInteraction): Promise<void> 
     }
   } catch (error) {
     logger.error('Error handling image button:', error);
-    await interaction.reply({ 
-      content: '❌ An error occurred while processing the image action.', 
-      ephemeral: true 
+    await interaction.reply({
+      content: '❌ An error occurred while processing the image action.',
+      ephemeral: true,
     });
   }
 }
@@ -1174,9 +1225,9 @@ async function handleImageDeleteConfirm(interaction: ButtonInteraction): Promise
   try {
     // Check admin privileges for destructive action
     if (!(await requireAdminPrivileges(interaction))) return;
-    
+
     const imageId = interaction.customId.replace('image_delete_confirm_', '');
-    
+
     // Get image info before deletion
     const image = await databaseService.prisma.image.findUnique({
       where: { id: imageId },
@@ -1184,10 +1235,10 @@ async function handleImageDeleteConfirm(interaction: ButtonInteraction): Promise
         user: true,
         questions: {
           include: {
-            quiz: true
-          }
-        }
-      }
+            quiz: true,
+          },
+        },
+      },
     });
 
     if (!image) {
@@ -1196,22 +1247,22 @@ async function handleImageDeleteConfirm(interaction: ButtonInteraction): Promise
     }
 
     // Delete the image and update related questions
-    await databaseService.prisma.$transaction(async (tx) => {
+    await databaseService.prisma.$transaction(async tx => {
       // Remove image reference from questions
       await tx.question.updateMany({
         where: { imageId: imageId },
-        data: { imageId: null }
+        data: { imageId: null },
       });
 
       // Delete the image record
       await tx.image.delete({
-        where: { id: imageId }
+        where: { id: imageId },
       });
     });
 
     // Delete the actual file
     try {
-      if (image.path && await fileExists(image.path)) {
+      if (image.path && (await fileExists(image.path))) {
         await fs.unlink(image.path);
         logger.info(`Image file deleted: ${image.path}`);
       }
@@ -1235,19 +1286,18 @@ async function handleImageDeleteConfirm(interaction: ButtonInteraction): Promise
       embed.addFields({ name: 'Title', value: image.title, inline: true });
     }
 
-    await interaction.update({ 
-      embeds: [embed], 
-      components: [] 
+    await interaction.update({
+      embeds: [embed],
+      components: [],
     });
 
     logger.info(`Image ${imageId} deleted by ${interaction.user.tag}`);
-
   } catch (error) {
     logger.error('Error deleting image:', error);
     try {
-      await interaction.followUp({ 
-        content: '❌ Error deleting image. Please try again.', 
-        ephemeral: true 
+      await interaction.followUp({
+        content: '❌ Error deleting image. Please try again.',
+        ephemeral: true,
       });
     } catch (followUpError) {
       logger.error('Error sending followUp message:', followUpError);
@@ -1263,17 +1313,16 @@ async function handleImageDeleteCancel(interaction: ButtonInteraction): Promise<
       .setColor('#ff9900')
       .setTimestamp();
 
-    await interaction.update({ 
-      embeds: [embed], 
-      components: [] 
+    await interaction.update({
+      embeds: [embed],
+      components: [],
     });
-
   } catch (error) {
     logger.error('Error cancelling image deletion:', error);
     try {
-      await interaction.followUp({ 
-        content: '❌ Error cancelling image deletion.', 
-        ephemeral: true 
+      await interaction.followUp({
+        content: '❌ Error cancelling image deletion.',
+        ephemeral: true,
       });
     } catch (followUpError) {
       logger.error('Error sending followUp message:', followUpError);
@@ -1288,4 +1337,4 @@ async function fileExists(filePath: string): Promise<boolean> {
   } catch {
     return false;
   }
-} 
+}

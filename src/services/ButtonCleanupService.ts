@@ -30,37 +30,58 @@ class ButtonCleanupService {
   /**
    * Schedule button cleanup for leaderboard messages
    */
-  public scheduleLeaderboardCleanup(messageId: string, channelId: string, timeoutSeconds: number = 30): void {
+  public scheduleLeaderboardCleanup(
+    messageId: string,
+    channelId: string,
+    timeoutSeconds: number = 30
+  ): void {
     this.scheduleCleanup(messageId, channelId, 'leaderboard', timeoutSeconds);
   }
 
   /**
    * Schedule button cleanup for quiz messages
    */
-  public scheduleQuizCleanup(messageId: string, channelId: string, timeoutSeconds: number = 300): void {
+  public scheduleQuizCleanup(
+    messageId: string,
+    channelId: string,
+    timeoutSeconds: number = 300
+  ): void {
     this.scheduleCleanup(messageId, channelId, 'quiz', timeoutSeconds);
   }
 
   /**
    * Schedule button cleanup for question messages
    */
-  public scheduleQuestionCleanup(messageId: string, channelId: string, timeoutSeconds: number = 60): void {
+  public scheduleQuestionCleanup(
+    messageId: string,
+    channelId: string,
+    timeoutSeconds: number = 60
+  ): void {
     this.scheduleCleanup(messageId, channelId, 'question', timeoutSeconds);
   }
 
   /**
    * Schedule button cleanup for admin messages
    */
-  public scheduleAdminCleanup(messageId: string, channelId: string, timeoutSeconds: number = 60): void {
+  public scheduleAdminCleanup(
+    messageId: string,
+    channelId: string,
+    timeoutSeconds: number = 60
+  ): void {
     this.scheduleCleanup(messageId, channelId, 'admin', timeoutSeconds);
   }
 
   /**
    * Schedule button cleanup
    */
-  private scheduleCleanup(messageId: string, channelId: string, type: ButtonTimeout['type'], timeoutSeconds: number): void {
+  private scheduleCleanup(
+    messageId: string,
+    channelId: string,
+    type: ButtonTimeout['type'],
+    timeoutSeconds: number
+  ): void {
     const key = `${messageId}_${channelId}`;
-    
+
     // Clear existing timeout if any
     this.clearTimeout(key);
 
@@ -82,7 +103,11 @@ class ButtonCleanupService {
   /**
    * Immediately remove buttons from a message
    */
-  public async removeButtons(messageId: string, channelId: string, type: ButtonTimeout['type']): Promise<void> {
+  public async removeButtons(
+    messageId: string,
+    channelId: string,
+    type: ButtonTimeout['type']
+  ): Promise<void> {
     try {
       const channel = await this.getChannel(channelId);
       if (!channel) {
@@ -139,7 +164,7 @@ class ButtonCleanupService {
 
     try {
       const channel = await this.client.channels.fetch(channelId);
-      return channel?.isTextBased() ? channel as TextChannel : null;
+      return channel?.isTextBased() ? (channel as TextChannel) : null;
     } catch (error) {
       logger.error(`Error fetching channel ${channelId}:`, error);
       return null;
@@ -172,4 +197,4 @@ class ButtonCleanupService {
   }
 }
 
-export const buttonCleanupService = ButtonCleanupService.getInstance(); 
+export const buttonCleanupService = ButtonCleanupService.getInstance();
