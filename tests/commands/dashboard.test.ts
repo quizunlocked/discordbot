@@ -1,4 +1,4 @@
-import { execute } from '../../src/commands/admin/dashboard';
+import { execute } from '../../app/commands/admin/dashboard';
 
 vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
 vi.mock('@/services/DatabaseService', () => ({

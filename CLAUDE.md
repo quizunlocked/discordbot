@@ -36,14 +36,14 @@ This is a Discord bot built with Discord.js v14, TypeScript, and Prisma ORM usin
 
 ### Key Components
 
-#### Services Layer (`src/services/`)
+#### Services Layer (`app/services/`)
 
 - `QuizService` - Manages quiz sessions, question flow, and participant interactions
 - `DatabaseService` - Handles database connections and operations
 - `LeaderboardService` - Calculates and manages scoring/rankings
 - `ButtonCleanupService` - Manages Discord button component lifecycles
 
-#### Command Structure (`src/commands/`)
+#### Command Structure (`app/commands/`)
 
 - Commands are organized by feature: `quiz/`, `admin/`, `leaderboard/`
 - Each command exports `data` (SlashCommandBuilder) and `execute` function

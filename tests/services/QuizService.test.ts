@@ -1,7 +1,7 @@
-import { quizService } from '../../src/services/QuizService';
-import { buttonCleanupService } from '../../src/services/ButtonCleanupService';
+import { quizService } from '../../app/services/QuizService';
+import { buttonCleanupService } from '../../app/services/ButtonCleanupService';
 
-vi.mock('../../src/services/DatabaseService', () => ({
+vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
       quiz: {
@@ -17,7 +17,7 @@ vi.mock('../../src/services/DatabaseService', () => ({
     },
   },
 }));
-vi.mock('../../src/services/ButtonCleanupService', () => ({
+vi.mock('../../app/services/ButtonCleanupService', () => ({
   buttonCleanupService: {
     scheduleQuizCleanup: vi.fn(),
     removeButtons: vi.fn(),
@@ -225,7 +225,7 @@ describe('QuizService', () => {
 
   describe('setClient', () => {
     it('should set the Discord client instance', async () => {
-      const { quizService: service } = await import('../../src/services/QuizService');
+      const { quizService: service } = await import('../../app/services/QuizService');
       const mockClient = {} as any;
       service.setClient(mockClient);
       // @ts-expect-error: Accessing private service properties for testing
@@ -235,7 +235,7 @@ describe('QuizService', () => {
 
   describe('getActiveSessionByChannel', () => {
     it('should return the active session for a given channel ID', async () => {
-      const { quizService: service } = await import('../../src/services/QuizService');
+      const { quizService: service } = await import('../../app/services/QuizService');
       const session = {
         id: 'test-session',
         quizId: 'quiz1',
@@ -254,7 +254,7 @@ describe('QuizService', () => {
     });
 
     it('should return undefined if no active session for the channel', async () => {
-      const { quizService: service } = await import('../../src/services/QuizService');
+      const { quizService: service } = await import('../../app/services/QuizService');
       const result = service.getActiveSessionByChannel('nonexistent');
       expect(result).toBeUndefined();
     });
@@ -265,7 +265,7 @@ describe('QuizService', () => {
     let mockPrisma: any;
 
     beforeEach(async () => {
-      const { databaseService } = await import('../../src/services/DatabaseService');
+      const { databaseService } = await import('../../app/services/DatabaseService');
       mockPrisma = databaseService.prisma;
 
       // Add user-related mocks that were missing from the original mock
@@ -281,7 +281,7 @@ describe('QuizService', () => {
 
     describe('saveQuizAttempts', () => {
       it('should create users before saving quiz attempts (foreign key fix)', async () => {
-        const { quizService: service } = await import('../../src/services/QuizService');
+        const { quizService: service } = await import('../../app/services/QuizService');
         const mockQuiz = {
           id: 'quiz1',
           questions: [
@@ -396,7 +396,7 @@ describe('QuizService', () => {
       });
 
       it('should handle upsert properly when user already exists', async () => {
-        const { quizService: service } = await import('../../src/services/QuizService');
+        const { quizService: service } = await import('../../app/services/QuizService');
         const mockQuiz = { id: 'quiz1', questions: [{ id: 'q1', points: 10 }] };
 
         const mockParticipants = [
@@ -454,7 +454,7 @@ describe('QuizService', () => {
       });
 
       it('should not fail when participants have no answers', async () => {
-        const { quizService: service } = await import('../../src/services/QuizService');
+        const { quizService: service } = await import('../../app/services/QuizService');
         const mockQuiz = { id: 'quiz1', questions: [] };
 
         const mockParticipants = [

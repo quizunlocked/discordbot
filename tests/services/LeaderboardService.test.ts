@@ -1,8 +1,8 @@
-import { leaderboardService } from '../../src/services/LeaderboardService';
-import { databaseService } from '../../src/services/DatabaseService';
+import { leaderboardService } from '../../app/services/LeaderboardService';
+import { databaseService } from '../../app/services/DatabaseService';
 
 // Mock the database service
-vi.mock('../../src/services/DatabaseService', () => ({
+vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
       score: {

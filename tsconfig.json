@@ -28,7 +28,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "types": ["vitest/globals"],
-    "baseUrl": "./src",
+    "baseUrl": "./app",
     "paths": {
       "@/*": ["*"],
       "@/commands/*": ["commands/*"],
@@ -40,7 +40,7 @@
     }
   },
   "include": [
-    "src/**/*",
+    "app/**/*",
     "tests/**/*"
   ],
   "exclude": [

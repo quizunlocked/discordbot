@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { logger } from '../../src/utils/logger';
+import { logger } from '../../app/utils/logger';
 
 // Mock winston
 vi.mock('winston', () => {

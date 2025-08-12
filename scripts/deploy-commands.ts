@@ -1,6 +1,6 @@
 import { REST, Routes } from 'discord.js';
-import { config } from '../src/utils/config';
-import { logger } from '../src/utils/logger';
+import { config } from '../app/utils/config';
+import { logger } from '../app/utils/logger';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';

@@ -1,5 +1,5 @@
 import { vi, type MockedFunction } from 'vitest';
-import { execute } from '../../src/commands/quiz/upload-csv';
+import { execute } from '../../app/commands/quiz/upload-csv';
 
 vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
 vi.mock('@/services/DatabaseService', () => ({
@@ -32,7 +32,7 @@ describe('CSV Upload with Image Support', () => {
   let mockPapa: any;
 
   beforeEach(async () => {
-    const { databaseService } = await import('../../src/services/DatabaseService');
+    const { databaseService } = await import('../../app/services/DatabaseService');
     const mockPapaImport = await import('papaparse');
     mockPrisma = databaseService.prisma;
     mockPapa = mockPapaImport.default || mockPapaImport;

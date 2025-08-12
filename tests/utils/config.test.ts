@@ -1,4 +1,4 @@
-import { config } from '../../src/utils/config';
+import { config } from '../../app/utils/config';
 
 describe('Config', () => {
   const originalEnv = process.env;
@@ -30,7 +30,7 @@ describe('Config', () => {
 
       // Re-import config to get fresh values
       vi.resetModules();
-      const { config: freshConfig } = await import('../../src/utils/config');
+      const { config: freshConfig } = await import('../../app/utils/config');
 
       expect(freshConfig.token).toBe('test-token');
       expect(freshConfig.clientId).toBe('test-client-id');
@@ -58,7 +58,7 @@ describe('Config', () => {
 
       // Re-import config to get fresh values
       vi.resetModules();
-      const { config: freshConfig } = await import('../../src/utils/config');
+      const { config: freshConfig } = await import('../../app/utils/config');
 
       expect(freshConfig.nodeEnv).toBe('development');
       expect(freshConfig.logLevel).toBe('info');

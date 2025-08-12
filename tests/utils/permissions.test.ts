@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
-import { hasAdminPrivileges, requireAdminPrivileges } from '../../src/utils/permissions';
+import { hasAdminPrivileges, requireAdminPrivileges } from '../../app/utils/permissions';
 
-vi.mock('../../src/utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
+vi.mock('../../app/utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
 
 describe('permissions utility', () => {
   let mockInteraction: any;

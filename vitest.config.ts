@@ -7,8 +7,8 @@ export default defineConfig({
     include: ['tests/**/*.test.ts', 'tests/**/*.spec.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/*.d.ts', 'src/index.ts'],
+      include: ['app/**/*.ts'],
+      exclude: ['app/**/*.d.ts', 'app/index.ts'],
       reporter: ['text', 'lcov', 'html'],
     },
     setupFiles: ['tests/setup.ts'],
@@ -19,7 +19,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': new URL('./src', import.meta.url).pathname,
+      '@': new URL('./app', import.meta.url).pathname,
     },
   },
 });

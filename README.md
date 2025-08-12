@@ -219,7 +219,7 @@ The bot provides detailed error messages for validation failures, including:
 ## Project Structure
 
 ```bash
-src/
+app/
 ├── commands/          # Slash command handlers
 │   ├── quiz/         # Quiz-related commands
 │   ├── leaderboard/  # Leaderboard commands

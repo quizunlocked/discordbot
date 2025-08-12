@@ -1,4 +1,4 @@
-import { execute } from '../../src/events/interactionCreate';
+import { execute } from '../../app/events/interactionCreate';
 
 vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn() } }));
 vi.mock('@/services/QuizService', () => ({ quizService: { handleButtonInteraction: vi.fn() } }));

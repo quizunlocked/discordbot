@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { buttonCleanupService } from '../../src/services/ButtonCleanupService';
+import { buttonCleanupService } from '../../app/services/ButtonCleanupService';
 
 // Mock Discord.js
 const mockChannel = {
@@ -207,7 +207,7 @@ describe('ButtonCleanupService', () => {
   describe('setClient', () => {
     it('should set the Discord client instance', async () => {
       const { buttonCleanupService: service } = await import(
-        '../../src/services/ButtonCleanupService'
+        '../../app/services/ButtonCleanupService'
       );
       const mockClient = {} as any;
       service.setClient(mockClient);

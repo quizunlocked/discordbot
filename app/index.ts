@@ -28,8 +28,8 @@ async function loadCommands(): Promise<void> {
   const commandsPath = path.join(__dirname, 'commands');
   const commandFolders = fs.readdirSync(commandsPath);
 
-  // Determine if we're in development (src) or production (dist)
-  const isDevelopment = __dirname.includes('/src');
+  // Determine if we're in development or production based on NODE_ENV
+  const isDevelopment = process.env['NODE_ENV'] === 'development';
   const fileExtension = isDevelopment ? '.ts' : '.js';
 
   for (const folder of commandFolders) {
@@ -56,8 +56,8 @@ async function loadCommands(): Promise<void> {
 async function loadEvents(): Promise<void> {
   const eventsPath = path.join(__dirname, 'events');
   
-  // Determine if we're in development (src) or production (dist)
-  const isDevelopment = __dirname.includes('/src');
+  // Determine if we're in development or production based on NODE_ENV
+  const isDevelopment = process.env['NODE_ENV'] === 'development';
   const fileExtension = isDevelopment ? '.ts' : '.js';
   
   const eventFiles = fs

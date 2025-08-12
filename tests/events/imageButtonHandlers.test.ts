@@ -1,5 +1,5 @@
 import { vi, type MockedFunction } from 'vitest';
-import { execute } from '../../src/events/interactionCreate';
+import { execute } from '../../app/events/interactionCreate';
 import * as fs from 'fs/promises';
 
 vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
@@ -35,9 +35,9 @@ describe('Image Button Interactions', () => {
 
   beforeEach(async () => {
     const { requireAdminPrivileges: mockRequireAdminPrivileges } = await import(
-      '../../src/utils/permissions'
+      '../../app/utils/permissions'
     );
-    const { databaseService } = await import('../../src/services/DatabaseService');
+    const { databaseService } = await import('../../app/services/DatabaseService');
     requireAdminPrivileges = mockRequireAdminPrivileges as MockedFunction<any>;
     mockPrisma = databaseService.prisma;
     mockFs = fs as any;

@@ -1,4 +1,4 @@
-import { databaseService } from '../../src/services/DatabaseService';
+import { databaseService } from '../../app/services/DatabaseService';
 
 // Mock Prisma
 vi.mock('@prisma/client', () => ({

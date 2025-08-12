@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { execute } from '../../src/commands/leaderboard/stats';
+import { execute } from '../../app/commands/leaderboard/stats';
 
 describe('stats command', () => {
   let interaction: any;
@@ -24,7 +24,7 @@ describe('stats command', () => {
   });
 
   it('should handle errors gracefully', async () => {
-    const { leaderboardService } = await import('../../src/services/LeaderboardService');
+    const { leaderboardService } = await import('../../app/services/LeaderboardService');
     vi.spyOn(leaderboardService, 'getUserStats').mockRejectedValue(new Error('fail'));
     await execute(interaction as any);
     expect(interaction.reply).toHaveBeenCalled();

@@ -1,5 +1,5 @@
 import { vi, type MockedFunction } from 'vitest';
-import { execute } from '../../src/commands/quiz/start';
+import { execute } from '../../app/commands/quiz/start';
 
 vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
 vi.mock('@/services/QuizService', () => ({
@@ -31,7 +31,7 @@ describe('quiz start command', () => {
   });
 
   it('should handle errors gracefully', async () => {
-    const { quizService } = await import('../../src/services/QuizService');
+    const { quizService } = await import('../../app/services/QuizService');
     (quizService.getActiveSessionByChannel as MockedFunction<any>).mockImplementation(() => {
       throw new Error('fail');
     });

@@ -1,8 +1,8 @@
 import { vi } from 'vitest';
-import { quizService } from '../../src/services/QuizService';
+import { quizService } from '../../app/services/QuizService';
 import * as fs from 'fs/promises';
 
-vi.mock('../../src/services/DatabaseService', () => ({
+vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
       quiz: {
@@ -18,7 +18,7 @@ vi.mock('../../src/services/DatabaseService', () => ({
     },
   },
 }));
-vi.mock('../../src/services/ButtonCleanupService', () => ({
+vi.mock('../../app/services/ButtonCleanupService', () => ({
   buttonCleanupService: {
     scheduleQuizCleanup: vi.fn(),
     removeButtons: vi.fn(),
@@ -58,7 +58,7 @@ describe('QuizService Image Integration', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    const { databaseService } = await import('../../src/services/DatabaseService');
+    const { databaseService } = await import('../../app/services/DatabaseService');
     mockPrisma = databaseService.prisma;
     mockFs = fs as any;
 

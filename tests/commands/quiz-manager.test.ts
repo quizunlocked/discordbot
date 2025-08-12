@@ -1,5 +1,5 @@
 import { vi, type MockedFunction } from 'vitest';
-import { execute } from '../../src/commands/admin/quiz-manager';
+import { execute } from '../../app/commands/admin/quiz-manager';
 
 vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
 vi.mock('@/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
@@ -29,7 +29,7 @@ describe('quiz-manager command', () => {
 
   beforeEach(async () => {
     const { requireAdminPrivileges: mockRequireAdminPrivileges } = await import(
-      '../../src/utils/permissions'
+      '../../app/utils/permissions'
     );
     requireAdminPrivileges = mockRequireAdminPrivileges as MockedFunction<any>;
     requireAdminPrivileges.mockResolvedValue(true);
