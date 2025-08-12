@@ -67,6 +67,6 @@
     "node": ">=18.0.0"
   },
   "_moduleAliases": {
-    "@": "dist"
+    "@": "dist/app"
   }
 }
