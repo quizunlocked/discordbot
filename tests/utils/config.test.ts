@@ -4,7 +4,7 @@ describe('Config', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    jest.resetModules();
+    vi.resetModules();
     process.env = { ...originalEnv };
   });
 
@@ -13,7 +13,7 @@ describe('Config', () => {
   });
 
   describe('environment variables', () => {
-    it('should load required environment variables', () => {
+    it('should load required environment variables', async () => {
       // Set environment variables for this test
       const testEnv = {
         ...originalEnv,
@@ -21,7 +21,7 @@ describe('Config', () => {
         DISCORD_CLIENT_ID: 'test-client-id',
         DATABASE_URL: 'file:./test.db',
       };
-      
+
       // Mock process.env for this test
       Object.defineProperty(process, 'env', {
         value: testEnv,
@@ -29,15 +29,15 @@ describe('Config', () => {
       });
 
       // Re-import config to get fresh values
-      jest.resetModules();
-      const { config: freshConfig } = require('../../src/utils/config');
-      
+      vi.resetModules();
+      const { config: freshConfig } = await import('../../src/utils/config');
+
       expect(freshConfig.token).toBe('test-token');
       expect(freshConfig.clientId).toBe('test-client-id');
       expect(freshConfig.databaseUrl).toBe('file:./test.db');
     });
 
-    it('should use default values for optional environment variables', () => {
+    it('should use default values for optional environment variables', async () => {
       // Set environment variables for this test, excluding optional ones
       const testEnv: NodeJS.ProcessEnv = {
         ...originalEnv,
@@ -45,11 +45,11 @@ describe('Config', () => {
         DISCORD_CLIENT_ID: 'test-client-id',
         DATABASE_URL: 'file:./test.db',
       };
-      
+
       // Remove optional variables
       delete testEnv['NODE_ENV'];
       delete testEnv['LOG_LEVEL'];
-      
+
       // Mock process.env for this test
       Object.defineProperty(process, 'env', {
         value: testEnv,
@@ -57,9 +57,9 @@ describe('Config', () => {
       });
 
       // Re-import config to get fresh values
-      jest.resetModules();
-      const { config: freshConfig } = require('../../src/utils/config');
-      
+      vi.resetModules();
+      const { config: freshConfig } = await import('../../src/utils/config');
+
       expect(freshConfig.nodeEnv).toBe('development');
       expect(freshConfig.logLevel).toBe('info');
     });
@@ -88,4 +88,4 @@ describe('Config', () => {
       expect(config.databaseUrl).toBeDefined();
     });
   });
-}); 
+});

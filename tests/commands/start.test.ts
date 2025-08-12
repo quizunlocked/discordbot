@@ -1,23 +1,28 @@
+import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../src/commands/quiz/start';
 
-jest.mock('@/utils/logger', () => ({ logger: { error: jest.fn(), info: jest.fn() } }));
-jest.mock('@/services/QuizService', () => ({ quizService: { getActiveSessionByChannel: jest.fn(), startQuiz: jest.fn(), stopQuiz: jest.fn() } }));
-jest.mock('@/services/DatabaseService', () => ({ databaseService: { prisma: { quiz: { findFirst: jest.fn() } } } }));
+vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
+vi.mock('@/services/QuizService', () => ({
+  quizService: { getActiveSessionByChannel: vi.fn(), startQuiz: vi.fn(), stopQuiz: vi.fn() },
+}));
+vi.mock('@/services/DatabaseService', () => ({
+  databaseService: { prisma: { quiz: { findFirst: vi.fn() } } },
+}));
 
 describe('quiz start command', () => {
   let interaction: any;
   beforeEach(() => {
     interaction = {
-      isChatInputCommand: jest.fn().mockReturnValue(true),
+      isChatInputCommand: vi.fn().mockReturnValue(true),
       options: {
-        getSubcommand: jest.fn().mockReturnValue('start'),
-        getString: jest.fn(),
-        getInteger: jest.fn(),
-        getBoolean: jest.fn(),
+        getSubcommand: vi.fn().mockReturnValue('start'),
+        getString: vi.fn(),
+        getInteger: vi.fn(),
+        getBoolean: vi.fn(),
       },
-      reply: jest.fn().mockResolvedValue(undefined),
+      reply: vi.fn().mockResolvedValue(undefined),
       channel: {
-        isDMBased: jest.fn().mockReturnValue(false),
+        isDMBased: vi.fn().mockReturnValue(false),
       },
       channelId: 'test-channel',
       user: { id: 'user1', tag: 'user#1' },
@@ -26,9 +31,11 @@ describe('quiz start command', () => {
   });
 
   it('should handle errors gracefully', async () => {
-    const quizService = require('@/services/QuizService').quizService;
-    quizService.getActiveSessionByChannel.mockImplementation(() => { throw new Error('fail'); });
+    const { quizService } = await import('../../src/services/QuizService');
+    (quizService.getActiveSessionByChannel as MockedFunction<any>).mockImplementation(() => {
+      throw new Error('fail');
+    });
     await execute(interaction as any);
     expect(interaction.reply).toHaveBeenCalled();
   });
-}); 
+});

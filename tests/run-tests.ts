@@ -29,17 +29,16 @@ if (!existsSync(coverageDir)) {
 try {
   // Run tests with coverage
   console.log('📋 Running tests with coverage...');
-  execSync('npm test -- --coverage --verbose', { 
+  execSync('npm test -- --coverage --verbose', {
     stdio: 'inherit',
-    cwd: process.cwd()
+    cwd: process.cwd(),
   });
 
   console.log('\n✅ All tests completed successfully!');
   console.log('\n📊 Coverage report generated in ./coverage/');
   console.log('📁 Test results saved in ./coverage/');
-
 } catch (error) {
   console.error('\n❌ Tests failed!');
   console.error('Error:', error);
   process.exit(1);
-} 
+}

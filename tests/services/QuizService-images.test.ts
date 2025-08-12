@@ -1,65 +1,67 @@
+import { vi } from 'vitest';
 import { quizService } from '../../src/services/QuizService';
 import * as fs from 'fs/promises';
 
-jest.mock('../../src/services/DatabaseService', () => ({
+vi.mock('../../src/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
       quiz: {
-        create: jest.fn(),
-        findUnique: jest.fn(),
+        create: vi.fn(),
+        findUnique: vi.fn(),
       },
       quizAttempt: {
-        create: jest.fn(),
+        create: vi.fn(),
       },
       question: {
-        create: jest.fn(),
+        create: vi.fn(),
       },
     },
   },
 }));
-jest.mock('../../src/services/ButtonCleanupService', () => ({
+vi.mock('../../src/services/ButtonCleanupService', () => ({
   buttonCleanupService: {
-    scheduleQuizCleanup: jest.fn(),
-    removeButtons: jest.fn(),
+    scheduleQuizCleanup: vi.fn(),
+    removeButtons: vi.fn(),
   },
 }));
-jest.mock('uuid', () => ({ v4: jest.fn(() => 'mock-uuid') }));
-jest.mock('fs/promises', () => ({
-  access: jest.fn(),
-  readFile: jest.fn()
+vi.mock('uuid', () => ({ v4: vi.fn(() => 'mock-uuid') }));
+vi.mock('fs/promises', () => ({
+  access: vi.fn(),
+  readFile: vi.fn(),
 }));
 
-const mockSend = jest.fn().mockResolvedValue({
+const mockSend = vi.fn().mockResolvedValue({
   id: 'test-message-id',
-  edit: jest.fn(),
+  edit: vi.fn(),
   channel: { id: 'test-channel-id' },
 });
 const mockChannel = {
   id: 'channel1',
   send: mockSend,
   messages: {
-    fetch: jest.fn(),
+    fetch: vi.fn(),
   },
 };
 const mockClient = {
   users: {
-    fetch: jest.fn().mockResolvedValue({
+    fetch: vi.fn().mockResolvedValue({
       id: 'user1',
       username: 'TestUser',
-      send: jest.fn().mockResolvedValue({ id: 'dm-message-id' })
-    })
-  }
+      send: vi.fn().mockResolvedValue({ id: 'dm-message-id' }),
+    }),
+  },
 };
 
 describe('QuizService Image Integration', () => {
   let mockPrisma: any;
   let mockFs: any;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockPrisma = require('../../src/services/DatabaseService').databaseService.prisma;
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const { databaseService } = await import('../../src/services/DatabaseService');
+    mockPrisma = databaseService.prisma;
     mockFs = fs as any;
-    
+
     // Set up the client
     quizService.setClient(mockClient as any);
   });
@@ -79,10 +81,10 @@ describe('QuizService Image Integration', () => {
             image: {
               id: 'img_123',
               path: 'public/images/user1/img_123.png',
-              altText: 'Test image description'
-            }
-          }
-        ]
+              altText: 'Test image description',
+            },
+          },
+        ],
       };
 
       const mockImageBuffer = Buffer.from('fake-image-data');
@@ -103,9 +105,9 @@ describe('QuizService Image Integration', () => {
               options: ['A', 'B', 'C', 'D'],
               correctAnswer: 0,
               points: 10,
-              timeLimit: 30
-            }
-          ]
+              timeLimit: 30,
+            },
+          ],
         },
         'quiz_123',
         0, // 0 wait time to skip join phase
@@ -119,11 +121,11 @@ describe('QuizService Image Integration', () => {
 
       // Check that at least one call includes image data
       const calls = mockChannel.send.mock.calls;
-      const hasImageCall = calls.some(call => 
-        call[0].files && 
-        call[0].files.some((file: any) => file.name === 'question-image.png')
+      const hasImageCall = calls.some(
+        call =>
+          call[0].files && call[0].files.some((file: any) => file.name === 'question-image.png')
       );
-      
+
       expect(hasImageCall).toBe(true);
     });
 
@@ -141,10 +143,10 @@ describe('QuizService Image Integration', () => {
             image: {
               id: 'img_456',
               path: 'public/images/user1/img_456.jpg',
-              altText: null
-            }
-          }
-        ]
+              altText: null,
+            },
+          },
+        ],
       };
 
       const mockImageBuffer = Buffer.from('private-image-data');
@@ -156,7 +158,7 @@ describe('QuizService Image Integration', () => {
       const mockUser = {
         id: 'user1',
         username: 'TestUser',
-        send: jest.fn().mockResolvedValue({ id: 'dm-message-id' })
+        send: vi.fn().mockResolvedValue({ id: 'dm-message-id' }),
       };
       mockClient.users.fetch.mockResolvedValue(mockUser);
 
@@ -171,9 +173,9 @@ describe('QuizService Image Integration', () => {
               options: ['X', 'Y', 'Z'],
               correctAnswer: 1,
               points: 15,
-              timeLimit: 45
-            }
-          ]
+              timeLimit: 45,
+            },
+          ],
         },
         'quiz_456',
         0, // No wait time
@@ -188,16 +190,16 @@ describe('QuizService Image Integration', () => {
             expect.objectContaining({
               data: expect.objectContaining({
                 image: expect.objectContaining({
-                  url: 'attachment://question-image.jpg'
-                })
-              })
-            })
+                  url: 'attachment://question-image.jpg',
+                }),
+              }),
+            }),
           ]),
           files: expect.arrayContaining([
             expect.objectContaining({
-              name: 'question-image.jpg'
-            })
-          ])
+              name: 'question-image.jpg',
+            }),
+          ]),
         })
       );
     });
@@ -216,10 +218,10 @@ describe('QuizService Image Integration', () => {
             image: {
               id: 'img_missing',
               path: 'public/images/user1/missing.png',
-              altText: 'Missing image'
-            }
-          }
-        ]
+              altText: 'Missing image',
+            },
+          },
+        ],
       };
 
       mockPrisma.quiz.findUnique.mockResolvedValue(mockQuiz);
@@ -236,9 +238,9 @@ describe('QuizService Image Integration', () => {
               options: ['A', 'B'],
               correctAnswer: 0,
               points: 5,
-              timeLimit: 20
-            }
-          ]
+              timeLimit: 20,
+            },
+          ],
         },
         'quiz_789',
         1,
@@ -255,12 +257,12 @@ describe('QuizService Image Integration', () => {
           embeds: expect.arrayContaining([
             expect.objectContaining({
               data: expect.objectContaining({
-                title: expect.stringContaining('Question 1 of 1')
-              })
-            })
+                title: expect.stringContaining('Question 1 of 1'),
+              }),
+            }),
           ]),
           // Should not include files array when image is missing
-          files: undefined
+          files: undefined,
         })
       );
     });
@@ -276,9 +278,9 @@ describe('QuizService Image Integration', () => {
             correctAnswer: 0,
             points: 10,
             timeLimit: 30,
-            image: null
-          }
-        ]
+            image: null,
+          },
+        ],
       };
 
       mockPrisma.quiz.findUnique.mockResolvedValue(mockQuiz);
@@ -294,9 +296,9 @@ describe('QuizService Image Integration', () => {
               options: ['Yes', 'No'],
               correctAnswer: 0,
               points: 10,
-              timeLimit: 30
-            }
-          ]
+              timeLimit: 30,
+            },
+          ],
         },
         'quiz_no_image',
         1,
@@ -313,12 +315,12 @@ describe('QuizService Image Integration', () => {
           embeds: expect.arrayContaining([
             expect.objectContaining({
               data: expect.not.objectContaining({
-                image: expect.anything()
-              })
-            })
+                image: expect.anything(),
+              }),
+            }),
           ]),
           // Should not include files when no image
-          files: undefined
+          files: undefined,
         })
       );
     });
@@ -337,10 +339,10 @@ describe('QuizService Image Integration', () => {
             image: {
               id: 'img_error',
               path: 'public/images/user1/error.png',
-              altText: 'Error image'
-            }
-          }
-        ]
+              altText: 'Error image',
+            },
+          },
+        ],
       };
 
       mockPrisma.quiz.findUnique.mockResolvedValue(mockQuiz);
@@ -358,9 +360,9 @@ describe('QuizService Image Integration', () => {
               options: ['A', 'B', 'C'],
               correctAnswer: 1,
               points: 10,
-              timeLimit: 30
-            }
-          ]
+              timeLimit: 30,
+            },
+          ],
         },
         'quiz_read_error',
         1,
@@ -377,12 +379,12 @@ describe('QuizService Image Integration', () => {
           embeds: expect.arrayContaining([
             expect.objectContaining({
               data: expect.objectContaining({
-                title: expect.stringContaining('Question 1 of 1')
-              })
-            })
+                title: expect.stringContaining('Question 1 of 1'),
+              }),
+            }),
           ]),
           // Should not include files when read fails
-          files: undefined
+          files: undefined,
         })
       );
     });
@@ -395,13 +397,13 @@ describe('QuizService Image Integration', () => {
         questions: [
           {
             id: 'q1',
-            image: { id: 'img_1', path: 'path1.png' }
+            image: { id: 'img_1', path: 'path1.png' },
           },
           {
-            id: 'q2', 
-            image: null
-          }
-        ]
+            id: 'q2',
+            image: null,
+          },
+        ],
       };
 
       mockPrisma.quiz.findUnique.mockResolvedValue(mockQuizWithImages);
@@ -415,8 +417,14 @@ describe('QuizService Image Integration', () => {
         {
           title: 'Test Quiz',
           questions: [
-            { questionText: 'Q1', options: ['A', 'B'], correctAnswer: 0, points: 10, timeLimit: 30 }
-          ]
+            {
+              questionText: 'Q1',
+              options: ['A', 'B'],
+              correctAnswer: 0,
+              points: 10,
+              timeLimit: 30,
+            },
+          ],
         },
         'quiz_123',
         1,
@@ -435,10 +443,10 @@ describe('QuizService Image Integration', () => {
           include: expect.objectContaining({
             questions: expect.objectContaining({
               include: expect.objectContaining({
-                image: true
-              })
-            })
-          })
+                image: true,
+              }),
+            }),
+          }),
         })
       );
     });

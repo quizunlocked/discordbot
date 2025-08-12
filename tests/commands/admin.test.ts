@@ -1,29 +1,48 @@
+import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../src/commands/admin/admin';
 
-jest.mock('@/utils/logger', () => ({ logger: { error: jest.fn(), info: jest.fn() } }));
-jest.mock('@/utils/permissions', () => ({ requireAdminPrivileges: jest.fn() }));
-jest.mock('@/services/DatabaseService', () => ({ databaseService: { prisma: { $queryRaw: jest.fn(), quiz: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() }, score: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() } } } }));
-jest.mock('@/services/QuizService', () => ({ quizService: { getActiveSessionByChannel: jest.fn(), stopQuiz: jest.fn() } }));
-jest.mock('@/services/ButtonCleanupService', () => ({ buttonCleanupService: {} }));
+vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
+vi.mock('@/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
+vi.mock('@/services/DatabaseService', () => ({
+  databaseService: {
+    prisma: {
+      $queryRaw: vi.fn(),
+      quiz: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+      score: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
+    },
+  },
+}));
+vi.mock('@/services/QuizService', () => ({
+  quizService: { getActiveSessionByChannel: vi.fn(), stopQuiz: vi.fn() },
+}));
+vi.mock('@/services/ButtonCleanupService', () => ({ buttonCleanupService: {} }));
 
 describe('admin command', () => {
   let interaction: any;
-  let requireAdminPrivileges: jest.MockedFunction<any>;
+  let requireAdminPrivileges: MockedFunction<any>;
 
-  beforeEach(() => {
-    requireAdminPrivileges = require('@/utils/permissions').requireAdminPrivileges;
+  beforeEach(async () => {
+    const { requireAdminPrivileges: mockRequireAdminPrivileges } = await import(
+      '../../src/utils/permissions'
+    );
+    requireAdminPrivileges = mockRequireAdminPrivileges as MockedFunction<any>;
     requireAdminPrivileges.mockClear();
     requireAdminPrivileges.mockResolvedValue(true);
-    
+
     interaction = {
-      isChatInputCommand: jest.fn().mockReturnValue(true),
-      options: { getSubcommand: jest.fn(), getBoolean: jest.fn(), getString: jest.fn(), getUser: jest.fn() },
-      deferReply: jest.fn().mockResolvedValue(undefined),
-      editReply: jest.fn().mockResolvedValue(undefined),
-      reply: jest.fn().mockResolvedValue(undefined),
+      isChatInputCommand: vi.fn().mockReturnValue(true),
+      options: {
+        getSubcommand: vi.fn(),
+        getBoolean: vi.fn(),
+        getString: vi.fn(),
+        getUser: vi.fn(),
+      },
+      deferReply: vi.fn().mockResolvedValue(undefined),
+      editReply: vi.fn().mockResolvedValue(undefined),
+      reply: vi.fn().mockResolvedValue(undefined),
       channelId: 'test-channel',
       channel: {
-        isDMBased: jest.fn().mockReturnValue(false),
+        isDMBased: vi.fn().mockReturnValue(false),
       },
       user: { id: 'user1', tag: 'user#1' },
       guild: { name: 'TestGuild' },
@@ -64,9 +83,9 @@ describe('admin command', () => {
     interaction.channel.isDMBased.mockReturnValue(true);
     interaction.guild = null; // DM channels don't have guilds
     interaction.options.getSubcommand.mockReturnValue('status');
-    
+
     await execute(interaction as any);
-    
+
     expect(interaction.editReply).toHaveBeenCalledWith({
       content: '❌ Admin commands can only be used in server channels, not in direct messages.',
     });
@@ -78,13 +97,13 @@ describe('admin command', () => {
     // Mock null channel
     interaction.channel = null;
     interaction.options.getSubcommand.mockReturnValue('status');
-    
+
     await execute(interaction as any);
-    
+
     expect(interaction.editReply).toHaveBeenCalledWith({
       content: '❌ Admin commands can only be used in server channels, not in direct messages.',
     });
     // Should not proceed to handle the subcommand
     expect(requireAdminPrivileges).not.toHaveBeenCalled();
   });
-}); 
+});

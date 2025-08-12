@@ -1,36 +1,38 @@
+import { vi } from 'vitest';
 import { execute } from '../../src/commands/quiz/edit-question-add-hint';
 
-jest.mock('@/utils/logger', () => ({ 
-  logger: { 
-    error: jest.fn(), 
-    info: jest.fn(), 
-    warn: jest.fn() 
-  } 
+vi.mock('@/utils/logger', () => ({
+  logger: {
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+  },
 }));
 
-jest.mock('@/services/DatabaseService', () => ({ 
-  databaseService: { 
-    prisma: { 
-      quiz: { findUnique: jest.fn() },
-      hint: { count: jest.fn(), findFirst: jest.fn(), create: jest.fn() }
-    } 
-  } 
+vi.mock('@/services/DatabaseService', () => ({
+  databaseService: {
+    prisma: {
+      quiz: { findUnique: vi.fn() },
+      hint: { count: vi.fn(), findFirst: vi.fn(), create: vi.fn() },
+    },
+  },
 }));
 
 describe('Edit Question Add Hint Command', () => {
   let interaction: any;
   let mockPrisma: any;
 
-  beforeEach(() => {
-    mockPrisma = require('@/services/DatabaseService').databaseService.prisma;
-    jest.clearAllMocks();
+  beforeEach(async () => {
+    const { databaseService } = await import('../../src/services/DatabaseService');
+    mockPrisma = databaseService.prisma;
+    vi.clearAllMocks();
 
     interaction = {
-      deferReply: jest.fn(),
-      editReply: jest.fn(),
+      deferReply: vi.fn(),
+      editReply: vi.fn(),
       options: {
-        getString: jest.fn(),
-        getInteger: jest.fn(),
+        getString: vi.fn(),
+        getInteger: vi.fn(),
       },
       user: {
         id: 'user123',
@@ -43,10 +45,14 @@ describe('Edit Question Add Hint Command', () => {
     // Mock interaction options
     interaction.options.getString.mockImplementation((option: string) => {
       switch (option) {
-        case 'quiz-id': return 'quiz123';
-        case 'hint-title': return 'Grammar Tip';
-        case 'hint-text': return 'Remember to use the correct conjugation';
-        default: return null;
+        case 'quiz-id':
+          return 'quiz123';
+        case 'hint-title':
+          return 'Grammar Tip';
+        case 'hint-text':
+          return 'Remember to use the correct conjugation';
+        default:
+          return null;
       }
     });
     interaction.options.getInteger.mockReturnValue(1);
@@ -60,8 +66,8 @@ describe('Edit Question Add Hint Command', () => {
         {
           id: 'question123',
           questionText: 'What is the past tense of "go"?',
-        }
-      ]
+        },
+      ],
     };
 
     mockPrisma.quiz.findUnique.mockResolvedValue(mockQuiz);
@@ -99,10 +105,14 @@ describe('Edit Question Add Hint Command', () => {
   it('should reject if quiz not found', async () => {
     interaction.options.getString.mockImplementation((option: string) => {
       switch (option) {
-        case 'quiz-id': return 'nonexistent';
-        case 'hint-title': return 'Grammar Tip';
-        case 'hint-text': return 'Remember to use the correct conjugation';
-        default: return null;
+        case 'quiz-id':
+          return 'nonexistent';
+        case 'hint-title':
+          return 'Grammar Tip';
+        case 'hint-text':
+          return 'Remember to use the correct conjugation';
+        default:
+          return null;
       }
     });
     interaction.options.getInteger.mockReturnValue(1);
@@ -111,16 +121,22 @@ describe('Edit Question Add Hint Command', () => {
 
     await execute(interaction);
 
-    expect(interaction.editReply).toHaveBeenCalledWith('❌ Quiz not found. Please check the quiz ID.');
+    expect(interaction.editReply).toHaveBeenCalledWith(
+      '❌ Quiz not found. Please check the quiz ID.'
+    );
   });
 
   it('should reject if user does not own the quiz', async () => {
     interaction.options.getString.mockImplementation((option: string) => {
       switch (option) {
-        case 'quiz-id': return 'quiz123';
-        case 'hint-title': return 'Grammar Tip';
-        case 'hint-text': return 'Remember to use the correct conjugation';
-        default: return null;
+        case 'quiz-id':
+          return 'quiz123';
+        case 'hint-title':
+          return 'Grammar Tip';
+        case 'hint-text':
+          return 'Remember to use the correct conjugation';
+        default:
+          return null;
       }
     });
     interaction.options.getInteger.mockReturnValue(1);
@@ -133,24 +149,30 @@ describe('Edit Question Add Hint Command', () => {
         {
           id: 'question123',
           questionText: 'What is the past tense of "go"?',
-        }
-      ]
+        },
+      ],
     };
 
     mockPrisma.quiz.findUnique.mockResolvedValue(mockQuiz);
 
     await execute(interaction);
 
-    expect(interaction.editReply).toHaveBeenCalledWith('❌ You can only add hints to quizzes you created.');
+    expect(interaction.editReply).toHaveBeenCalledWith(
+      '❌ You can only add hints to quizzes you created.'
+    );
   });
 
   it('should reject if question number is invalid', async () => {
     interaction.options.getString.mockImplementation((option: string) => {
       switch (option) {
-        case 'quiz-id': return 'quiz123';
-        case 'hint-title': return 'Grammar Tip';
-        case 'hint-text': return 'Remember to use the correct conjugation';
-        default: return null;
+        case 'quiz-id':
+          return 'quiz123';
+        case 'hint-title':
+          return 'Grammar Tip';
+        case 'hint-text':
+          return 'Remember to use the correct conjugation';
+        default:
+          return null;
       }
     });
     interaction.options.getInteger.mockReturnValue(5); // Question 5 but quiz only has 1 question
@@ -163,24 +185,30 @@ describe('Edit Question Add Hint Command', () => {
         {
           id: 'question123',
           questionText: 'What is the past tense of "go"?',
-        }
-      ]
+        },
+      ],
     };
 
     mockPrisma.quiz.findUnique.mockResolvedValue(mockQuiz);
 
     await execute(interaction);
 
-    expect(interaction.editReply).toHaveBeenCalledWith('❌ Invalid question number. This quiz has 1 questions.');
+    expect(interaction.editReply).toHaveBeenCalledWith(
+      '❌ Invalid question number. This quiz has 1 questions.'
+    );
   });
 
   it('should reject if maximum hints limit is reached', async () => {
     interaction.options.getString.mockImplementation((option: string) => {
       switch (option) {
-        case 'quiz-id': return 'quiz123';
-        case 'hint-title': return 'Grammar Tip';
-        case 'hint-text': return 'Remember to use the correct conjugation';
-        default: return null;
+        case 'quiz-id':
+          return 'quiz123';
+        case 'hint-title':
+          return 'Grammar Tip';
+        case 'hint-text':
+          return 'Remember to use the correct conjugation';
+        default:
+          return null;
       }
     });
     interaction.options.getInteger.mockReturnValue(1);
@@ -193,8 +221,8 @@ describe('Edit Question Add Hint Command', () => {
         {
           id: 'question123',
           questionText: 'What is the past tense of "go"?',
-        }
-      ]
+        },
+      ],
     };
 
     mockPrisma.quiz.findUnique.mockResolvedValue(mockQuiz);

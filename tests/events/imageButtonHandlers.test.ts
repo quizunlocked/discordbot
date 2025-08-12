@@ -1,58 +1,63 @@
+import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../src/events/interactionCreate';
 import * as fs from 'fs/promises';
 
-jest.mock('@/utils/logger', () => ({ logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() } }));
-jest.mock('@/utils/permissions', () => ({ requireAdminPrivileges: jest.fn() }));
-jest.mock('@/services/DatabaseService', () => ({ 
-  databaseService: { 
-    prisma: { 
-      image: { 
-        findUnique: jest.fn(),
-        delete: jest.fn()
+vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
+vi.mock('@/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
+vi.mock('@/services/DatabaseService', () => ({
+  databaseService: {
+    prisma: {
+      image: {
+        findUnique: vi.fn(),
+        delete: vi.fn(),
       },
       question: {
-        updateMany: jest.fn()
+        updateMany: vi.fn(),
       },
-      $transaction: jest.fn()
-    } 
-  } 
+      $transaction: vi.fn(),
+    },
+  },
 }));
-jest.mock('@/services/QuizService', () => ({ quizService: {} }));
-jest.mock('@/services/LeaderboardService', () => ({ leaderboardService: {} }));
-jest.mock('@/services/ButtonCleanupService', () => ({ buttonCleanupService: {} }));
-jest.mock('@/commands/quiz/start', () => ({ autocomplete: jest.fn() }));
-jest.mock('fs/promises', () => ({
-  access: jest.fn(),
-  unlink: jest.fn()
+vi.mock('@/services/QuizService', () => ({ quizService: {} }));
+vi.mock('@/services/LeaderboardService', () => ({ leaderboardService: {} }));
+vi.mock('@/services/ButtonCleanupService', () => ({ buttonCleanupService: {} }));
+vi.mock('@/commands/quiz/start', () => ({ autocomplete: vi.fn() }));
+vi.mock('fs/promises', () => ({
+  access: vi.fn(),
+  unlink: vi.fn(),
 }));
 
 describe('Image Button Interactions', () => {
   let interaction: any;
-  let requireAdminPrivileges: jest.MockedFunction<any>;
+  let requireAdminPrivileges: MockedFunction<any>;
   let mockPrisma: any;
   let mockFs: any;
 
-  beforeEach(() => {
-    requireAdminPrivileges = require('@/utils/permissions').requireAdminPrivileges;
-    mockPrisma = require('@/services/DatabaseService').databaseService.prisma;
+  beforeEach(async () => {
+    const { requireAdminPrivileges: mockRequireAdminPrivileges } = await import(
+      '../../src/utils/permissions'
+    );
+    const { databaseService } = await import('../../src/services/DatabaseService');
+    requireAdminPrivileges = mockRequireAdminPrivileges as MockedFunction<any>;
+    mockPrisma = databaseService.prisma;
     mockFs = fs as any;
-    
+
     requireAdminPrivileges.mockClear();
     requireAdminPrivileges.mockResolvedValue(true);
-    jest.clearAllMocks();
-    
+    vi.clearAllMocks();
+
     interaction = {
-      isButton: jest.fn().mockReturnValue(true),
-      isAutocomplete: jest.fn().mockReturnValue(false),
-      isModalSubmit: jest.fn().mockReturnValue(false),
+      isButton: vi.fn().mockReturnValue(true),
+      isAutocomplete: vi.fn().mockReturnValue(false),
+      isModalSubmit: vi.fn().mockReturnValue(false),
       customId: '',
-      user: { 
-        id: 'user1', 
-        tag: 'testuser#1234' 
+      user: {
+        id: 'user1',
+        tag: 'testuser#1234',
       },
-      update: jest.fn().mockResolvedValue(undefined),
-      reply: jest.fn().mockResolvedValue(undefined),
-      followUp: jest.fn().mockResolvedValue(undefined)
+      update: vi.fn().mockResolvedValue(undefined),
+      reply: vi.fn().mockResolvedValue(undefined),
+      followUp: vi.fn().mockResolvedValue(undefined),
     };
   });
 
@@ -63,20 +68,20 @@ describe('Image Button Interactions', () => {
 
     it('should require admin privileges', async () => {
       requireAdminPrivileges.mockResolvedValue(false);
-      
+
       await execute(interaction as any);
-      
+
       expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
     });
 
     it('should handle non-existent image', async () => {
       mockPrisma.image.findUnique.mockResolvedValue(null);
-      
+
       await execute(interaction as any);
-      
-      expect(interaction.reply).toHaveBeenCalledWith({ 
-        content: '❌ Image not found.', 
-        ephemeral: true 
+
+      expect(interaction.reply).toHaveBeenCalledWith({
+        content: '❌ Image not found.',
+        ephemeral: true,
       });
     });
 
@@ -87,21 +92,18 @@ describe('Image Button Interactions', () => {
         path: 'public/images/user1/img_123.png',
         title: 'Test Image',
         user: { username: 'testuser' },
-        questions: [
-          { quiz: { title: 'Quiz 1' } },
-          { quiz: { title: 'Quiz 2' } }
-        ]
+        questions: [{ quiz: { title: 'Quiz 1' } }, { quiz: { title: 'Quiz 2' } }],
       };
 
       mockPrisma.image.findUnique.mockResolvedValue(mockImage);
       mockPrisma.$transaction.mockImplementation(async (callback: any) => {
         return await callback({
           question: {
-            updateMany: jest.fn().mockResolvedValue({ count: 2 })
+            updateMany: vi.fn().mockResolvedValue({ count: 2 }),
           },
           image: {
-            delete: jest.fn().mockResolvedValue(mockImage)
-          }
+            delete: vi.fn().mockResolvedValue(mockImage),
+          },
         });
       });
 
@@ -113,15 +115,15 @@ describe('Image Button Interactions', () => {
 
       expect(mockPrisma.$transaction).toHaveBeenCalled();
       expect(mockFs.unlink).toHaveBeenCalledWith('public/images/user1/img_123.png');
-      expect(interaction.update).toHaveBeenCalledWith({ 
+      expect(interaction.update).toHaveBeenCalledWith({
         embeds: expect.arrayContaining([
           expect.objectContaining({
             data: expect.objectContaining({
-              title: '✅ Image Deleted Successfully'
-            })
-          })
+              title: '✅ Image Deleted Successfully',
+            }),
+          }),
         ]),
-        components: [] 
+        components: [],
       });
     });
 
@@ -132,14 +134,14 @@ describe('Image Button Interactions', () => {
         path: 'public/images/user1/img_123.png',
         title: null,
         user: { username: 'testuser' },
-        questions: []
+        questions: [],
       };
 
       mockPrisma.image.findUnique.mockResolvedValue(mockImage);
       mockPrisma.$transaction.mockImplementation(async (callback: any) => {
         return await callback({
-          question: { updateMany: jest.fn() },
-          image: { delete: jest.fn().mockResolvedValue(mockImage) }
+          question: { updateMany: vi.fn() },
+          image: { delete: vi.fn().mockResolvedValue(mockImage) },
         });
       });
 
@@ -148,15 +150,15 @@ describe('Image Button Interactions', () => {
 
       await execute(interaction as any);
 
-      expect(interaction.update).toHaveBeenCalledWith({ 
+      expect(interaction.update).toHaveBeenCalledWith({
         embeds: expect.arrayContaining([
           expect.objectContaining({
             data: expect.objectContaining({
-              title: '✅ Image Deleted Successfully'
-            })
-          })
+              title: '✅ Image Deleted Successfully',
+            }),
+          }),
         ]),
-        components: [] 
+        components: [],
       });
       // Should not attempt to delete file that doesn't exist
       expect(mockFs.unlink).not.toHaveBeenCalled();
@@ -164,12 +166,12 @@ describe('Image Button Interactions', () => {
 
     it('should handle database errors', async () => {
       mockPrisma.image.findUnique.mockRejectedValue(new Error('Database error'));
-      
+
       await execute(interaction as any);
-      
-      expect(interaction.followUp).toHaveBeenCalledWith({ 
-        content: '❌ Error deleting image. Please try again.', 
-        ephemeral: true 
+
+      expect(interaction.followUp).toHaveBeenCalledWith({
+        content: '❌ Error deleting image. Please try again.',
+        ephemeral: true,
       });
     });
   });
@@ -181,27 +183,27 @@ describe('Image Button Interactions', () => {
 
     it('should cancel image deletion', async () => {
       await execute(interaction as any);
-      
-      expect(interaction.update).toHaveBeenCalledWith({ 
+
+      expect(interaction.update).toHaveBeenCalledWith({
         embeds: expect.arrayContaining([
           expect.objectContaining({
             data: expect.objectContaining({
-              title: '❌ Image Deletion Cancelled'
-            })
-          })
+              title: '❌ Image Deletion Cancelled',
+            }),
+          }),
         ]),
-        components: [] 
+        components: [],
       });
     });
 
     it('should handle cancellation errors gracefully', async () => {
       interaction.update.mockRejectedValue(new Error('Discord API error'));
-      
+
       await execute(interaction as any);
-      
-      expect(interaction.followUp).toHaveBeenCalledWith({ 
-        content: '❌ Error cancelling image deletion.', 
-        ephemeral: true 
+
+      expect(interaction.followUp).toHaveBeenCalledWith({
+        content: '❌ Error cancelling image deletion.',
+        ephemeral: true,
       });
     });
   });
@@ -209,12 +211,12 @@ describe('Image Button Interactions', () => {
   describe('unknown image button', () => {
     it('should handle unknown image actions', async () => {
       interaction.customId = 'image_unknown_action';
-      
+
       await execute(interaction as any);
-      
-      expect(interaction.reply).toHaveBeenCalledWith({ 
-        content: '❌ Unknown image action.', 
-        ephemeral: true 
+
+      expect(interaction.reply).toHaveBeenCalledWith({
+        content: '❌ Unknown image action.',
+        ephemeral: true,
       });
     });
   });
@@ -223,13 +225,13 @@ describe('Image Button Interactions', () => {
     it.skip('should handle general button interaction errors', async () => {
       interaction.customId = 'image_delete_confirm_img_123';
       requireAdminPrivileges.mockRejectedValue(new Error('Permission error'));
-      
+
       await execute(interaction as any);
-      
+
       // The error handling happens at the top level, so the interaction should be handled normally
-      expect(interaction.reply).toHaveBeenCalledWith({ 
-        content: 'There was an error while processing your request.', 
-        ephemeral: true 
+      expect(interaction.reply).toHaveBeenCalledWith({
+        content: 'There was an error while processing your request.',
+        ephemeral: true,
       });
     });
   });

@@ -1,35 +1,50 @@
+import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../src/commands/admin/quiz-manager';
 
-jest.mock('@/utils/logger', () => ({ logger: { error: jest.fn(), info: jest.fn() } }));
-jest.mock('@/utils/permissions', () => ({ requireAdminPrivileges: jest.fn() }));
-const mockShowModal = jest.fn();
-jest.mock('discord.js', () => {
-  const original = jest.requireActual('discord.js');
+vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
+vi.mock('@/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
+const mockShowModal = vi.fn();
+vi.mock('discord.js', async () => {
+  const actual = await vi.importActual('discord.js');
   return {
-    ...original,
-    ModalBuilder: jest.fn().mockImplementation(() => ({ setCustomId: () => ({ setTitle: () => ({ addComponents: () => ({}) }) }) })),
+    ...actual,
+    SlashCommandBuilder: vi.fn().mockImplementation(() => ({
+      setName: vi.fn().mockReturnThis(),
+      setDescription: vi.fn().mockReturnThis(),
+      addSubcommand: vi.fn().mockReturnThis(),
+      addSubcommandGroup: vi.fn().mockReturnThis(),
+      setDefaultMemberPermissions: vi.fn().mockReturnThis(),
+    })),
+    ModalBuilder: vi.fn().mockImplementation(() => ({
+      setCustomId: vi.fn().mockReturnThis(),
+      setTitle: vi.fn().mockReturnThis(),
+      addComponents: vi.fn().mockReturnThis(),
+    })),
   };
 });
 
 describe('quiz-manager command', () => {
   let interaction: any;
-  let requireAdminPrivileges: jest.MockedFunction<any>;
+  let requireAdminPrivileges: MockedFunction<any>;
 
-  beforeEach(() => {
-    requireAdminPrivileges = require('@/utils/permissions').requireAdminPrivileges;
+  beforeEach(async () => {
+    const { requireAdminPrivileges: mockRequireAdminPrivileges } = await import(
+      '../../src/utils/permissions'
+    );
+    requireAdminPrivileges = mockRequireAdminPrivileges as MockedFunction<any>;
     requireAdminPrivileges.mockResolvedValue(true);
-    
+
     interaction = {
-      isChatInputCommand: jest.fn().mockReturnValue(true),
-      options: { 
-        getSubcommand: jest.fn(), 
-        getSubcommandGroup: jest.fn().mockReturnValue(null),
-        getString: jest.fn() 
+      isChatInputCommand: vi.fn().mockReturnValue(true),
+      options: {
+        getSubcommand: vi.fn(),
+        getSubcommandGroup: vi.fn().mockReturnValue(null),
+        getString: vi.fn(),
       },
-      reply: jest.fn().mockResolvedValue(undefined),
+      reply: vi.fn().mockResolvedValue(undefined),
       showModal: mockShowModal,
       channel: {
-        isDMBased: jest.fn().mockReturnValue(false),
+        isDMBased: vi.fn().mockReturnValue(false),
       },
       user: { id: 'user1', tag: 'user#1' },
       guild: { name: 'TestGuild' },
@@ -40,12 +55,17 @@ describe('quiz-manager command', () => {
   it('should handle unknown subcommand', async () => {
     interaction.options.getSubcommand.mockReturnValue('unknown');
     await execute(interaction as any);
-    expect(interaction.reply).toHaveBeenCalledWith({ content: 'Unknown subcommand.', ephemeral: true });
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: 'Unknown subcommand.',
+      ephemeral: true,
+    });
   });
 
   it('should handle errors gracefully', async () => {
     interaction.options.getSubcommand.mockReturnValue('create');
-    mockShowModal.mockImplementation(() => { throw new Error('fail'); });
+    mockShowModal.mockImplementation(() => {
+      throw new Error('fail');
+    });
     await execute(interaction as any);
     expect(interaction.reply).toHaveBeenCalled();
   });
@@ -84,9 +104,9 @@ describe('quiz-manager command', () => {
     interaction.channel.isDMBased.mockReturnValue(true);
     interaction.guild = null; // DM channels don't have guilds
     interaction.options.getSubcommand.mockReturnValue('create');
-    
+
     await execute(interaction as any);
-    
+
     expect(interaction.reply).toHaveBeenCalledWith({
       content: '❌ Admin commands can only be used in server channels, not in direct messages.',
       ephemeral: true,
@@ -99,9 +119,9 @@ describe('quiz-manager command', () => {
     // Mock no guild context
     interaction.guild = null;
     interaction.options.getSubcommand.mockReturnValue('create');
-    
+
     await execute(interaction as any);
-    
+
     expect(interaction.reply).toHaveBeenCalledWith({
       content: '❌ Admin commands can only be used in server channels, not in direct messages.',
       ephemeral: true,
@@ -109,4 +129,4 @@ describe('quiz-manager command', () => {
     // Should not proceed to handle the subcommand
     expect(mockShowModal).not.toHaveBeenCalled();
   });
-}); 
+});

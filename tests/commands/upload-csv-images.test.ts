@@ -1,51 +1,60 @@
+import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../src/commands/quiz/upload-csv';
 
-jest.mock('@/utils/logger', () => ({ logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() } }));
-jest.mock('@/services/DatabaseService', () => ({ 
-  databaseService: { 
-    prisma: { 
-      user: { upsert: jest.fn() },
-      quiz: { create: jest.fn(), findFirst: jest.fn() },
-      question: { createMany: jest.fn() },
-      image: { findMany: jest.fn() },
-      $transaction: jest.fn()
-    } 
-  } 
+vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
+vi.mock('@/services/DatabaseService', () => ({
+  databaseService: {
+    prisma: {
+      user: { upsert: vi.fn() },
+      quiz: { create: vi.fn(), findFirst: vi.fn() },
+      question: { createMany: vi.fn() },
+      image: { findMany: vi.fn() },
+      $transaction: vi.fn(),
+    },
+  },
 }));
-jest.mock('papaparse', () => ({
-  parse: jest.fn()
-}));
+vi.mock('papaparse', () => {
+  const mockPapaparse = {
+    parse: vi.fn(),
+  };
+  return {
+    default: mockPapaparse,
+    ...mockPapaparse,
+  };
+});
 
 // Mock fetch globally
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('CSV Upload with Image Support', () => {
   let interaction: any;
   let mockPrisma: any;
   let mockPapa: any;
 
-  beforeEach(() => {
-    mockPrisma = require('@/services/DatabaseService').databaseService.prisma;
-    mockPapa = require('papaparse');
-    jest.clearAllMocks();
-    
+  beforeEach(async () => {
+    const { databaseService } = await import('../../src/services/DatabaseService');
+    const mockPapaImport = await import('papaparse');
+    mockPrisma = databaseService.prisma;
+    mockPapa = mockPapaImport.default || mockPapaImport;
+    vi.clearAllMocks();
+
     // Mock the duplicate check to return null (no existing quiz)
     mockPrisma.quiz.findFirst.mockResolvedValue(null);
-    
+
     interaction = {
-      isChatInputCommand: jest.fn().mockReturnValue(true),
-      options: { 
-        getString: jest.fn(),
-        getAttachment: jest.fn()
+      isChatInputCommand: vi.fn().mockReturnValue(true),
+      options: {
+        getString: vi.fn(),
+        getAttachment: vi.fn(),
       },
-      deferReply: jest.fn().mockResolvedValue(undefined),
-      editReply: jest.fn().mockResolvedValue(undefined),
-      user: { 
-        id: 'user1', 
+      deferReply: vi.fn().mockResolvedValue(undefined),
+      editReply: vi.fn().mockResolvedValue(undefined),
+      user: {
+        id: 'user1',
         username: 'testuser',
-        tag: 'testuser#1234' 
+        tag: 'testuser#1234',
       },
-      id: 'interaction_123' // Add interaction ID for the duplicate check
+      id: 'interaction_123', // Add interaction ID for the duplicate check
     };
   });
 
@@ -54,12 +63,12 @@ describe('CSV Upload with Image Support', () => {
       name: 'test.csv',
       size: 1000,
       url: 'https://example.com/test.csv',
-      contentType: 'text/csv'
+      contentType: 'text/csv',
     });
 
-    (global.fetch as jest.Mock).mockResolvedValue({
+    (global.fetch as MockedFunction<any>).mockResolvedValue({
       ok: true,
-      text: () => Promise.resolve('csv content')
+      text: () => Promise.resolve('csv content'),
     });
 
     // Mock Papa Parse to return parsed data
@@ -71,7 +80,7 @@ describe('CSV Upload with Image Support', () => {
           correctAnswer: '0',
           points: '10',
           timeLimit: '30',
-          imageId: 'img_123'
+          imageId: 'img_123',
         },
         {
           questionText: 'Question 2',
@@ -79,7 +88,7 @@ describe('CSV Upload with Image Support', () => {
           correctAnswer: '1',
           points: '10',
           timeLimit: '30',
-          imageId: 'img_456'
+          imageId: 'img_456',
         },
         {
           questionText: 'Question 3',
@@ -87,26 +96,24 @@ describe('CSV Upload with Image Support', () => {
           correctAnswer: '2',
           points: '10',
           timeLimit: '30',
-          imageId: ''
-        }
+          imageId: '',
+        },
       ],
-      errors: []
+      errors: [],
     });
 
     // Mock that only img_123 exists
-    mockPrisma.image.findMany.mockResolvedValue([
-      { id: 'img_123' }
-    ]);
+    mockPrisma.image.findMany.mockResolvedValue([{ id: 'img_123' }]);
 
     await execute(interaction as any);
 
     expect(mockPrisma.image.findMany).toHaveBeenCalledWith({
-      where: { 
-        id: { 
-          in: ['img_123', 'img_456'] 
-        } 
+      where: {
+        id: {
+          in: ['img_123', 'img_456'],
+        },
       },
-      select: { id: true }
+      select: { id: true },
     });
 
     expect(interaction.editReply).toHaveBeenCalledWith(
@@ -119,13 +126,13 @@ describe('CSV Upload with Image Support', () => {
       name: 'test.csv',
       size: 1000,
       url: 'https://example.com/test.csv',
-      contentType: 'text/csv'
+      contentType: 'text/csv',
     });
     interaction.options.getString.mockReturnValue('Test Quiz');
 
-    (global.fetch as jest.Mock).mockResolvedValue({
+    (global.fetch as MockedFunction<any>).mockResolvedValue({
       ok: true,
-      text: () => Promise.resolve('csv content')
+      text: () => Promise.resolve('csv content'),
     });
 
     // Mock Papa Parse to return parsed data
@@ -137,7 +144,7 @@ describe('CSV Upload with Image Support', () => {
           correctAnswer: '0',
           points: '10',
           timeLimit: '30',
-          imageId: 'img_123'
+          imageId: 'img_123',
         },
         {
           questionText: 'Question 2',
@@ -145,7 +152,7 @@ describe('CSV Upload with Image Support', () => {
           correctAnswer: '1',
           points: '10',
           timeLimit: '30',
-          imageId: ''
+          imageId: '',
         },
         {
           questionText: 'Question 3',
@@ -153,73 +160,70 @@ describe('CSV Upload with Image Support', () => {
           correctAnswer: '2',
           points: '10',
           timeLimit: '30',
-          imageId: 'img_456'
-        }
+          imageId: 'img_456',
+        },
       ],
-      errors: []
+      errors: [],
     });
 
     // Mock that both images exist
-    mockPrisma.image.findMany.mockResolvedValue([
-      { id: 'img_123' },
-      { id: 'img_456' }
-    ]);
+    mockPrisma.image.findMany.mockResolvedValue([{ id: 'img_123' }, { id: 'img_456' }]);
 
     // Mock successful database transaction
     mockPrisma.$transaction.mockImplementation(async (callback: any) => {
       const mockQuiz = { id: 'quiz_123', title: 'Test Quiz' };
       return await callback({
         user: {
-          upsert: jest.fn().mockResolvedValue({ id: 'user1', username: 'testuser' })
+          upsert: vi.fn().mockResolvedValue({ id: 'user1', username: 'testuser' }),
         },
         quiz: {
-          create: jest.fn().mockResolvedValue(mockQuiz)
+          create: vi.fn().mockResolvedValue(mockQuiz),
         },
         question: {
-          createMany: jest.fn().mockResolvedValue({ count: 3 })
-        }
+          createMany: vi.fn().mockResolvedValue({ count: 3 }),
+        },
       });
     });
 
     await execute(interaction as any);
 
     expect(mockPrisma.$transaction).toHaveBeenCalled();
-    
+
     // Check that questions were created with correct imageId values
     const transactionCallback = mockPrisma.$transaction.mock.calls[0][0];
     const mockTx = {
-      user: { upsert: jest.fn().mockResolvedValue({ id: 'user1', username: 'testuser' }) },
-      quiz: { create: jest.fn().mockResolvedValue({ id: 'quiz_123', title: 'Test Quiz' }) },
-      question: { createMany: jest.fn().mockResolvedValue({ count: 3 }) }
+      user: { upsert: vi.fn().mockResolvedValue({ id: 'user1', username: 'testuser' }) },
+      quiz: { create: vi.fn().mockResolvedValue({ id: 'quiz_123', title: 'Test Quiz' }) },
+      question: { createMany: vi.fn().mockResolvedValue({ count: 3 }) },
     };
-    
+
     await transactionCallback(mockTx);
-    
+
     expect(mockTx.question.createMany).toHaveBeenCalledWith({
       data: expect.arrayContaining([
         expect.objectContaining({
           questionText: 'Question 1',
-          imageId: 'img_123'
+          imageId: 'img_123',
         }),
         expect.objectContaining({
           questionText: 'Question 2',
-          imageId: null
+          imageId: null,
         }),
         expect.objectContaining({
           questionText: 'Question 3',
-          imageId: 'img_456'
-        })
-      ])
+          imageId: 'img_456',
+        }),
+      ]),
     });
 
     expect(interaction.editReply).toHaveBeenCalledWith({
       embeds: expect.arrayContaining([
         expect.objectContaining({
           data: expect.objectContaining({
-            title: '✅ Quiz Created Successfully'
-          })
-        })
-      ])
+            title: '✅ Quiz Created Successfully',
+          }),
+        }),
+      ]),
     });
   });
 
@@ -228,12 +232,12 @@ describe('CSV Upload with Image Support', () => {
       name: 'test.csv',
       size: 1000,
       url: 'https://example.com/test.csv',
-      contentType: 'text/csv'
+      contentType: 'text/csv',
     });
 
-    (global.fetch as jest.Mock).mockResolvedValue({
+    (global.fetch as MockedFunction<any>).mockResolvedValue({
       ok: true,
-      text: () => Promise.resolve('csv content')
+      text: () => Promise.resolve('csv content'),
     });
 
     // Mock Papa Parse to return data without imageId
@@ -244,17 +248,17 @@ describe('CSV Upload with Image Support', () => {
           options: '["A","B","C"]',
           correctAnswer: '0',
           points: '10',
-          timeLimit: '30'
+          timeLimit: '30',
         },
         {
           questionText: 'Question 2',
           options: '["A","B","C"]',
           correctAnswer: '1',
           points: '10',
-          timeLimit: '30'
-        }
+          timeLimit: '30',
+        },
       ],
-      errors: []
+      errors: [],
     });
 
     // Should not call image validation since no imageIds present
@@ -264,14 +268,14 @@ describe('CSV Upload with Image Support', () => {
       const mockQuiz = { id: 'quiz_123', title: 'Custom Quiz - testuser' };
       return await callback({
         user: {
-          upsert: jest.fn().mockResolvedValue({ id: 'user1', username: 'testuser' })
+          upsert: vi.fn().mockResolvedValue({ id: 'user1', username: 'testuser' }),
         },
         quiz: {
-          create: jest.fn().mockResolvedValue(mockQuiz)
+          create: vi.fn().mockResolvedValue(mockQuiz),
         },
         question: {
-          createMany: jest.fn().mockResolvedValue({ count: 2 })
-        }
+          createMany: vi.fn().mockResolvedValue({ count: 2 }),
+        },
       });
     });
 
@@ -283,10 +287,10 @@ describe('CSV Upload with Image Support', () => {
       embeds: expect.arrayContaining([
         expect.objectContaining({
           data: expect.objectContaining({
-            title: '✅ Quiz Created Successfully'
-          })
-        })
-      ])
+            title: '✅ Quiz Created Successfully',
+          }),
+        }),
+      ]),
     });
   });
 
@@ -295,12 +299,12 @@ describe('CSV Upload with Image Support', () => {
       name: 'test.csv',
       size: 1000,
       url: 'https://example.com/test.csv',
-      contentType: 'text/csv'
+      contentType: 'text/csv',
     });
 
-    (global.fetch as jest.Mock).mockResolvedValue({
+    (global.fetch as MockedFunction<any>).mockResolvedValue({
       ok: true,
-      text: () => Promise.resolve('csv content')
+      text: () => Promise.resolve('csv content'),
     });
 
     // Mock Papa Parse to return data with empty imageIds
@@ -312,7 +316,7 @@ describe('CSV Upload with Image Support', () => {
           correctAnswer: '0',
           points: '10',
           timeLimit: '30',
-          imageId: ''
+          imageId: '',
         },
         {
           questionText: 'Question 2',
@@ -320,7 +324,7 @@ describe('CSV Upload with Image Support', () => {
           correctAnswer: '1',
           points: '10',
           timeLimit: '30',
-          imageId: ''
+          imageId: '',
         },
         {
           questionText: 'Question 3',
@@ -328,24 +332,24 @@ describe('CSV Upload with Image Support', () => {
           correctAnswer: '2',
           points: '10',
           timeLimit: '30',
-          imageId: ''
-        }
+          imageId: '',
+        },
       ],
-      errors: []
+      errors: [],
     });
 
     mockPrisma.$transaction.mockImplementation(async (callback: any) => {
       const mockQuiz = { id: 'quiz_123', title: 'Custom Quiz - testuser' };
       return await callback({
         user: {
-          upsert: jest.fn().mockResolvedValue({ id: 'user1', username: 'testuser' })
+          upsert: vi.fn().mockResolvedValue({ id: 'user1', username: 'testuser' }),
         },
         quiz: {
-          create: jest.fn().mockResolvedValue(mockQuiz)
+          create: vi.fn().mockResolvedValue(mockQuiz),
         },
         question: {
-          createMany: jest.fn().mockResolvedValue({ count: 3 })
-        }
+          createMany: vi.fn().mockResolvedValue({ count: 3 }),
+        },
       });
     });
 
@@ -357,10 +361,10 @@ describe('CSV Upload with Image Support', () => {
       embeds: expect.arrayContaining([
         expect.objectContaining({
           data: expect.objectContaining({
-            title: '✅ Quiz Created Successfully'
-          })
-        })
-      ])
+            title: '✅ Quiz Created Successfully',
+          }),
+        }),
+      ]),
     });
   });
 
@@ -369,12 +373,12 @@ describe('CSV Upload with Image Support', () => {
       name: 'test.csv',
       size: 1000,
       url: 'https://example.com/test.csv',
-      contentType: 'text/csv'
+      contentType: 'text/csv',
     });
 
-    (global.fetch as jest.Mock).mockResolvedValue({
+    (global.fetch as MockedFunction<any>).mockResolvedValue({
       ok: true,
-      text: () => Promise.resolve('csv content')
+      text: () => Promise.resolve('csv content'),
     });
 
     // Mock Papa Parse to return data with imageId
@@ -386,10 +390,10 @@ describe('CSV Upload with Image Support', () => {
           correctAnswer: '0',
           points: '10',
           timeLimit: '30',
-          imageId: 'img_123'
-        }
+          imageId: 'img_123',
+        },
       ],
-      errors: []
+      errors: [],
     });
 
     mockPrisma.image.findMany.mockRejectedValue(new Error('Database error'));
@@ -406,12 +410,12 @@ describe('CSV Upload with Image Support', () => {
       name: 'test.csv',
       size: 1000,
       url: 'https://example.com/test.csv',
-      contentType: 'text/csv'
+      contentType: 'text/csv',
     });
 
-    (global.fetch as jest.Mock).mockResolvedValue({
+    (global.fetch as MockedFunction<any>).mockResolvedValue({
       ok: true,
-      text: () => Promise.resolve('csv content')
+      text: () => Promise.resolve('csv content'),
     });
 
     mockPapa.parse.mockReturnValue({
@@ -421,16 +425,16 @@ describe('CSV Upload with Image Support', () => {
           options: '["A","B","C"]',
           correctAnswer: '0',
           points: '10',
-          timeLimit: '30'
-        }
+          timeLimit: '30',
+        },
       ],
-      errors: []
+      errors: [],
     });
 
     // Mock that a quiz already exists for this interaction (override the beforeEach setting)
     mockPrisma.quiz.findFirst.mockResolvedValueOnce({
       id: 'quiz_interaction_123_existing',
-      title: 'Existing Quiz'
+      title: 'Existing Quiz',
     });
 
     await execute(interaction as any);
@@ -439,23 +443,23 @@ describe('CSV Upload with Image Support', () => {
     expect(mockPrisma.quiz.findFirst).toHaveBeenCalledWith({
       where: {
         id: {
-          startsWith: 'quiz_interaction_123_'
-        }
-      }
+          startsWith: 'quiz_interaction_123_',
+        },
+      },
     });
 
     // Should not create new quiz
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
 
-    // Should return existing quiz message  
+    // Should return existing quiz message
     expect(interaction.editReply).toHaveBeenCalledWith({
       embeds: expect.arrayContaining([
         expect.objectContaining({
           data: expect.objectContaining({
-            title: '✅ Quiz Already Created'
-          })
-        })
-      ])
+            title: '✅ Quiz Already Created',
+          }),
+        }),
+      ]),
     });
   });
 });

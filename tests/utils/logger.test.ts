@@ -1,34 +1,41 @@
+import { vi } from 'vitest';
 import { logger } from '../../src/utils/logger';
 
 // Mock winston
-jest.mock('winston', () => ({
-  format: {
-    combine: jest.fn(),
-    timestamp: jest.fn(),
-    errors: jest.fn(),
-    json: jest.fn(),
-    colorize: jest.fn(),
-    simple: jest.fn(),
-  },
-  transports: {
-    File: jest.fn(),
-    Console: jest.fn(),
-  },
-  createLogger: jest.fn(() => ({
-    info: jest.fn(),
-    warn: jest.fn(),
-    error: jest.fn(),
-    debug: jest.fn(),
-    log: jest.fn(),
-    add: jest.fn(),
-  })),
-}));
+vi.mock('winston', () => {
+  const winston = {
+    format: {
+      combine: vi.fn(),
+      timestamp: vi.fn(),
+      errors: vi.fn(),
+      json: vi.fn(),
+      colorize: vi.fn(),
+      simple: vi.fn(),
+    },
+    transports: {
+      File: vi.fn(),
+      Console: vi.fn(),
+    },
+    createLogger: vi.fn(() => ({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      log: vi.fn(),
+      add: vi.fn(),
+    })),
+  };
+  return {
+    default: winston,
+    ...winston,
+  };
+});
 
 describe('Logger', () => {
   let mockLogger: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockLogger = logger as any;
   });
 
@@ -63,4 +70,4 @@ describe('Logger', () => {
       expect(mockLogger.debug).toBeDefined();
     });
   });
-}); 
+});

@@ -30,7 +30,7 @@ describe('getGuildIdFromArgs', () => {
 describe('getDeploymentTarget', () => {
   it('returns "arg" if argGuildId is provided', () => {
     expect(getDeploymentTarget('123', { devGuildId: 'dev' })).toBe('arg');
-    expect(getDeploymentTarget('123', { })).toBe('arg');
+    expect(getDeploymentTarget('123', {})).toBe('arg');
   });
 
   it('returns "dev" if no argGuildId but devGuildId is set', () => {
@@ -38,6 +38,6 @@ describe('getDeploymentTarget', () => {
   });
 
   it('returns "global" if neither argGuildId nor devGuildId is set', () => {
-    expect(getDeploymentTarget(undefined, { })).toBe('global');
+    expect(getDeploymentTarget(undefined, {})).toBe('global');
   });
-}); 
+});

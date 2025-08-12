@@ -1,11 +1,12 @@
+import { vi } from 'vitest';
 import { execute } from '../../src/commands/quiz/ping';
 
 describe('quiz ping command', () => {
   let interaction: any;
   beforeEach(() => {
     interaction = {
-      reply: jest.fn().mockResolvedValue({ createdTimestamp: 100, editReply: jest.fn() }),
-      editReply: jest.fn().mockResolvedValue(undefined),
+      reply: vi.fn().mockResolvedValue({ createdTimestamp: 100, editReply: vi.fn() }),
+      editReply: vi.fn().mockResolvedValue(undefined),
       createdTimestamp: 50,
     };
   });
@@ -15,4 +16,4 @@ describe('quiz ping command', () => {
     expect(interaction.reply).toHaveBeenCalledWith({ content: 'Pinging...', fetchReply: true });
     expect(interaction.editReply).toHaveBeenCalledWith(expect.stringContaining('Pong! Latency is'));
   });
-}); 
+});

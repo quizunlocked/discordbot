@@ -1,78 +1,83 @@
+import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../src/commands/image/image';
 import * as fs from 'fs/promises';
 
-jest.mock('@/utils/logger', () => ({ logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() } }));
-jest.mock('@/utils/permissions', () => ({ requireAdminPrivileges: jest.fn() }));
-jest.mock('@/services/ButtonCleanupService', () => ({ 
-  buttonCleanupService: { 
-    scheduleAdminCleanup: jest.fn() 
-  } 
+vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
+vi.mock('@/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
+vi.mock('@/services/ButtonCleanupService', () => ({
+  buttonCleanupService: {
+    scheduleAdminCleanup: vi.fn(),
+  },
 }));
-jest.mock('@/services/DatabaseService', () => ({ 
-  databaseService: { 
-    prisma: { 
-      user: { 
-        upsert: jest.fn() 
+vi.mock('@/services/DatabaseService', () => ({
+  databaseService: {
+    prisma: {
+      user: {
+        upsert: vi.fn(),
       },
-      image: { 
-        create: jest.fn(),
-        update: jest.fn(),
-        findUnique: jest.fn(),
-        findMany: jest.fn(),
-        delete: jest.fn()
+      image: {
+        create: vi.fn(),
+        update: vi.fn(),
+        findUnique: vi.fn(),
+        findMany: vi.fn(),
+        delete: vi.fn(),
       },
       question: {
-        updateMany: jest.fn()
+        updateMany: vi.fn(),
       },
-      $transaction: jest.fn()
-    } 
-  } 
+      $transaction: vi.fn(),
+    },
+  },
 }));
-jest.mock('fs/promises', () => ({
-  mkdir: jest.fn(),
-  writeFile: jest.fn(),
-  access: jest.fn(),
-  unlink: jest.fn()
+vi.mock('fs/promises', () => ({
+  mkdir: vi.fn(),
+  writeFile: vi.fn(),
+  access: vi.fn(),
+  unlink: vi.fn(),
 }));
 
 // Mock fetch globally
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('image command', () => {
   let interaction: any;
-  let requireAdminPrivileges: jest.MockedFunction<any>;
+  let requireAdminPrivileges: MockedFunction<any>;
   let mockPrisma: any;
   let mockFs: any;
 
-  beforeEach(() => {
-    requireAdminPrivileges = require('@/utils/permissions').requireAdminPrivileges;
-    mockPrisma = require('@/services/DatabaseService').databaseService.prisma;
+  beforeEach(async () => {
+    const { requireAdminPrivileges: mockRequireAdminPrivileges } = await import(
+      '../../src/utils/permissions'
+    );
+    const { databaseService } = await import('../../src/services/DatabaseService');
+    requireAdminPrivileges = mockRequireAdminPrivileges as MockedFunction<any>;
+    mockPrisma = databaseService.prisma;
     mockFs = fs as any;
-    
+
     requireAdminPrivileges.mockClear();
     requireAdminPrivileges.mockResolvedValue(true);
-    
+
     // Reset all mocks
-    jest.clearAllMocks();
-    
+    vi.clearAllMocks();
+
     interaction = {
-      isChatInputCommand: jest.fn().mockReturnValue(true),
-      options: { 
-        getSubcommand: jest.fn(),
-        getString: jest.fn(),
-        getAttachment: jest.fn()
+      isChatInputCommand: vi.fn().mockReturnValue(true),
+      options: {
+        getSubcommand: vi.fn(),
+        getString: vi.fn(),
+        getAttachment: vi.fn(),
       },
-      deferReply: jest.fn().mockResolvedValue(undefined),
-      editReply: jest.fn().mockResolvedValue({ id: 'reply-123' }),
-      reply: jest.fn().mockResolvedValue(undefined),
+      deferReply: vi.fn().mockResolvedValue(undefined),
+      editReply: vi.fn().mockResolvedValue({ id: 'reply-123' }),
+      reply: vi.fn().mockResolvedValue(undefined),
       channelId: 'test-channel',
       channel: {
-        isDMBased: jest.fn().mockReturnValue(false),
+        isDMBased: vi.fn().mockReturnValue(false),
       },
-      user: { 
-        id: 'user1', 
+      user: {
+        id: 'user1',
         username: 'testuser',
-        tag: 'testuser#1234' 
+        tag: 'testuser#1234',
       },
       guild: { name: 'TestGuild' },
     };
@@ -85,9 +90,9 @@ describe('image command', () => {
 
     it('should handle missing file attachment', async () => {
       interaction.options.getAttachment.mockReturnValue(null);
-      
+
       await execute(interaction as any);
-      
+
       expect(interaction.editReply).toHaveBeenCalledWith(
         '❌ No file was provided. Please attach an image file.'
       );
@@ -98,11 +103,11 @@ describe('image command', () => {
         name: 'test.txt',
         size: 1000,
         url: 'https://example.com/test.txt',
-        contentType: 'text/plain'
+        contentType: 'text/plain',
       });
-      
+
       await execute(interaction as any);
-      
+
       expect(interaction.editReply).toHaveBeenCalledWith(
         '❌ Invalid file type. Please upload one of: .png, .jpg, .jpeg, .gif, .webp'
       );
@@ -113,11 +118,11 @@ describe('image command', () => {
         name: 'test.png',
         size: 15 * 1024 * 1024, // 15MB
         url: 'https://example.com/test.png',
-        contentType: 'image/png'
+        contentType: 'image/png',
       });
-      
+
       await execute(interaction as any);
-      
+
       expect(interaction.editReply).toHaveBeenCalledWith(
         '❌ File too large. Please upload an image smaller than 10MB.'
       );
@@ -128,11 +133,11 @@ describe('image command', () => {
         name: 'test.png',
         size: 1000,
         url: 'https://example.com/test.png',
-        contentType: 'text/plain'
+        contentType: 'text/plain',
       });
-      
+
       await execute(interaction as any);
-      
+
       expect(interaction.editReply).toHaveBeenCalledWith(
         '❌ Invalid file type. Please upload a valid image file.'
       );
@@ -143,16 +148,16 @@ describe('image command', () => {
         name: 'test.png',
         size: 5000,
         url: 'https://example.com/test.png',
-        contentType: 'image/png'
+        contentType: 'image/png',
       };
-      
+
       const mockImageBuffer = Buffer.from('fake-image-data');
       const mockImageRecord = {
         id: 'img_123',
         userId: 'user1',
         path: '',
         title: 'Test Image',
-        altText: 'Test alt text'
+        altText: 'Test alt text',
       };
 
       interaction.options.getAttachment.mockReturnValue(mockAttachment);
@@ -163,26 +168,26 @@ describe('image command', () => {
       });
 
       // Mock fetch response
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as MockedFunction<any>).mockResolvedValue({
         ok: true,
-        arrayBuffer: () => Promise.resolve(mockImageBuffer.buffer)
+        arrayBuffer: () => Promise.resolve(mockImageBuffer.buffer),
       });
 
       // Mock database operations
       mockPrisma.$transaction.mockImplementation(async (callback: any) => {
         return await callback({
           user: {
-            upsert: jest.fn().mockResolvedValue({ id: 'user1', username: 'testuser' })
+            upsert: vi.fn().mockResolvedValue({ id: 'user1', username: 'testuser' }),
           },
           image: {
-            create: jest.fn().mockResolvedValue(mockImageRecord)
-          }
+            create: vi.fn().mockResolvedValue(mockImageRecord),
+          },
         });
       });
 
       mockPrisma.image.update.mockResolvedValue({
         ...mockImageRecord,
-        path: 'public/images/user1/img_123.png'
+        path: 'public/images/user1/img_123.png',
       });
 
       await execute(interaction as any);
@@ -191,16 +196,16 @@ describe('image command', () => {
       expect(mockFs.writeFile).toHaveBeenCalled();
       expect(mockPrisma.image.update).toHaveBeenCalledWith({
         where: { id: 'img_123' },
-        data: { path: 'public/images/user1/img_123.png' }
+        data: { path: 'public/images/user1/img_123.png' },
       });
       expect(interaction.editReply).toHaveBeenCalledWith({
         embeds: expect.arrayContaining([
           expect.objectContaining({
             data: expect.objectContaining({
-              title: '✅ Image Uploaded Successfully'
-            })
-          })
-        ])
+              title: '✅ Image Uploaded Successfully',
+            }),
+          }),
+        ]),
       });
     });
 
@@ -209,10 +214,10 @@ describe('image command', () => {
         name: 'test.png',
         size: 5000,
         url: 'https://example.com/test.png',
-        contentType: 'image/png'
+        contentType: 'image/png',
       });
 
-      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (global.fetch as MockedFunction<any>).mockRejectedValue(new Error('Network error'));
 
       await execute(interaction as any);
 
@@ -230,17 +235,17 @@ describe('image command', () => {
 
     it('should require admin privileges', async () => {
       requireAdminPrivileges.mockResolvedValue(false);
-      
+
       await execute(interaction as any);
-      
+
       expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
     });
 
     it('should handle non-existent image', async () => {
       mockPrisma.image.findUnique.mockResolvedValue(null);
-      
+
       await execute(interaction as any);
-      
+
       expect(interaction.editReply).toHaveBeenCalledWith('❌ Image not found.');
     });
 
@@ -252,25 +257,22 @@ describe('image command', () => {
         title: 'Test Image',
         uploadedAt: new Date(),
         user: { username: 'testuser' },
-        questions: [
-          { quiz: { title: 'Quiz 1' } },
-          { quiz: { title: 'Quiz 2' } }
-        ]
+        questions: [{ quiz: { title: 'Quiz 1' } }, { quiz: { title: 'Quiz 2' } }],
       };
 
       mockPrisma.image.findUnique.mockResolvedValue(mockImage);
-      
+
       await execute(interaction as any);
-      
+
       expect(interaction.editReply).toHaveBeenCalledWith({
         embeds: expect.arrayContaining([
           expect.objectContaining({
             data: expect.objectContaining({
-              title: '⚠️ Confirm Image Deletion'
-            })
-          })
+              title: '⚠️ Confirm Image Deletion',
+            }),
+          }),
         ]),
-        components: expect.any(Array)
+        components: expect.any(Array),
       });
     });
 
@@ -282,22 +284,22 @@ describe('image command', () => {
         title: null,
         uploadedAt: new Date(),
         user: { username: 'testuser' },
-        questions: []
+        questions: [],
       };
 
       mockPrisma.image.findUnique.mockResolvedValue(mockImage);
-      
+
       await execute(interaction as any);
-      
+
       expect(interaction.editReply).toHaveBeenCalledWith({
         embeds: expect.arrayContaining([
           expect.objectContaining({
             data: expect.objectContaining({
-              title: '⚠️ Confirm Image Deletion'
-            })
-          })
+              title: '⚠️ Confirm Image Deletion',
+            }),
+          }),
         ]),
-        components: expect.any(Array)
+        components: expect.any(Array),
       });
     });
   });
@@ -307,9 +309,9 @@ describe('image command', () => {
       interaction.channel.isDMBased.mockReturnValue(true);
       interaction.guild = null;
       interaction.options.getSubcommand.mockReturnValue('upload');
-      
+
       await execute(interaction as any);
-      
+
       expect(interaction.editReply).toHaveBeenCalledWith({
         content: '❌ Image commands can only be used in server channels, not in direct messages.',
       });
@@ -317,18 +319,18 @@ describe('image command', () => {
 
     it('should handle unknown subcommands', async () => {
       interaction.options.getSubcommand.mockReturnValue('unknown');
-      
+
       await execute(interaction as any);
-      
+
       expect(interaction.editReply).toHaveBeenCalledWith('Unknown subcommand.');
     });
 
     it('should handle general errors gracefully', async () => {
       interaction.options.getSubcommand.mockReturnValue('upload');
       interaction.deferReply.mockRejectedValue(new Error('Discord API error'));
-      
+
       await execute(interaction as any);
-      
+
       expect(interaction.editReply).toHaveBeenCalledWith({
         content: 'There was an error executing the image command. Please check the logs.',
       });

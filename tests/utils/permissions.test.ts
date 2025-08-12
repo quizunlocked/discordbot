@@ -1,6 +1,7 @@
+import { vi } from 'vitest';
 import { hasAdminPrivileges, requireAdminPrivileges } from '../../src/utils/permissions';
 
-jest.mock('../../src/utils/logger', () => ({ logger: { error: jest.fn(), warn: jest.fn() } }));
+vi.mock('../../src/utils/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
 
 describe('permissions utility', () => {
   let mockInteraction: any;
@@ -10,17 +11,17 @@ describe('permissions utility', () => {
       guild: { id: 'guild1' },
       member: {
         permissions: {
-          has: jest.fn()
-        }
+          has: vi.fn(),
+        },
       },
       memberPermissions: {
-        has: jest.fn()
+        has: vi.fn(),
       },
       user: { tag: 'test#1234' },
-      isCommand: jest.fn().mockReturnValue(true),
-      isButton: jest.fn().mockReturnValue(false),
+      isCommand: vi.fn().mockReturnValue(true),
+      isButton: vi.fn().mockReturnValue(false),
       commandName: 'test-command',
-      reply: jest.fn().mockResolvedValue(undefined)
+      reply: vi.fn().mockResolvedValue(undefined),
     };
   });
 
@@ -67,7 +68,7 @@ describe('permissions utility', () => {
       expect(result).toBe(false);
       expect(mockInteraction.reply).toHaveBeenCalledWith({
         content: expect.stringContaining('Access Denied'),
-        ephemeral: true
+        ephemeral: true,
       });
     });
 
@@ -76,12 +77,12 @@ describe('permissions utility', () => {
       mockInteraction.isButton.mockReturnValue(true);
       mockInteraction.customId = 'test-button';
       mockInteraction.memberPermissions.has.mockReturnValue(false);
-      
+
       await requireAdminPrivileges(mockInteraction);
       expect(mockInteraction.reply).toHaveBeenCalledWith({
         content: expect.stringContaining('Access Denied'),
-        ephemeral: true
+        ephemeral: true,
       });
     });
   });
-}); 
+});

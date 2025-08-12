@@ -1,26 +1,27 @@
+import { vi } from 'vitest';
 import { buttonCleanupService } from '../../src/services/ButtonCleanupService';
 
 // Mock Discord.js
 const mockChannel = {
   messages: {
-    fetch: jest.fn(),
+    fetch: vi.fn(),
   },
 };
 
 const mockMessage = {
-  edit: jest.fn(),
+  edit: vi.fn(),
   components: [],
   embeds: [],
 };
 
-jest.mock('discord.js', () => ({
-  ActionRowBuilder: jest.fn(),
-  ButtonBuilder: jest.fn(),
+vi.mock('discord.js', () => ({
+  ActionRowBuilder: vi.fn(),
+  ButtonBuilder: vi.fn(),
 }));
 
 describe('ButtonCleanupService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('singleton pattern', () => {
@@ -38,7 +39,7 @@ describe('ButtonCleanupService', () => {
       const delay = 5000;
 
       // Mock setTimeout
-      jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
+      vi.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
         callback();
         return 1 as any;
       });
@@ -53,7 +54,7 @@ describe('ButtonCleanupService', () => {
       const messageId2 = 'message2';
       const channelId = 'channel123';
 
-      jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
+      vi.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
         callback();
         return 1 as any;
       });
@@ -71,7 +72,7 @@ describe('ButtonCleanupService', () => {
       const channelId = 'channel123';
       const delay = 30;
 
-      jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
+      vi.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
         callback();
         return 1 as any;
       });
@@ -88,7 +89,7 @@ describe('ButtonCleanupService', () => {
       const channelId = 'channel123';
       const delay = 300;
 
-      jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
+      vi.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
         callback();
         return 1 as any;
       });
@@ -106,18 +107,18 @@ describe('ButtonCleanupService', () => {
       const type = 'quiz';
 
       // Mock the channel and message
-      const mockFetch = jest.fn().mockResolvedValue(mockMessage);
+      const mockFetch = vi.fn().mockResolvedValue(mockMessage);
       mockChannel.messages.fetch = mockFetch;
 
       // Mock the getChannel method
-      (buttonCleanupService as any).getChannel = jest.fn().mockResolvedValue(mockChannel);
+      (buttonCleanupService as any).getChannel = vi.fn().mockResolvedValue(mockChannel);
 
       await buttonCleanupService.removeButtons(messageId, channelId, type);
 
       expect(mockChannel.messages.fetch).toHaveBeenCalledWith(messageId);
-      expect(mockMessage.edit).toHaveBeenCalledWith({ 
-        embeds: mockMessage.embeds, 
-        components: [] 
+      expect(mockMessage.edit).toHaveBeenCalledWith({
+        embeds: mockMessage.embeds,
+        components: [],
       });
     });
 
@@ -127,7 +128,7 @@ describe('ButtonCleanupService', () => {
       const type = 'quiz';
 
       // Mock the getChannel method to return null
-      (buttonCleanupService as any).getChannel = jest.fn().mockResolvedValue(null);
+      (buttonCleanupService as any).getChannel = vi.fn().mockResolvedValue(null);
 
       await expect(
         buttonCleanupService.removeButtons(messageId, channelId, type)
@@ -140,10 +141,10 @@ describe('ButtonCleanupService', () => {
       const type = 'quiz';
 
       // Mock the channel and message fetch to throw error
-      const mockFetch = jest.fn().mockRejectedValue(new Error('Message not found'));
+      const mockFetch = vi.fn().mockRejectedValue(new Error('Message not found'));
       mockChannel.messages.fetch = mockFetch;
 
-      (buttonCleanupService as any).getChannel = jest.fn().mockResolvedValue(mockChannel);
+      (buttonCleanupService as any).getChannel = vi.fn().mockResolvedValue(mockChannel);
 
       await expect(
         buttonCleanupService.removeButtons(messageId, channelId, type)
@@ -156,7 +157,7 @@ describe('ButtonCleanupService', () => {
       const messageId = 'message123';
       const channelId = 'channel123';
 
-      jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
+      vi.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
         callback();
         return 1 as any;
       });
@@ -172,9 +173,9 @@ describe('ButtonCleanupService', () => {
       const channelId = 'channel123';
 
       // Mock the removeButtons method
-      const removeButtonsSpy = jest.spyOn(buttonCleanupService, 'removeButtons').mockResolvedValue();
+      const removeButtonsSpy = vi.spyOn(buttonCleanupService, 'removeButtons').mockResolvedValue();
 
-      jest.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
+      vi.spyOn(global, 'setTimeout').mockImplementation((callback: any) => {
         callback();
         return 1 as any;
       });
@@ -204,12 +205,14 @@ describe('ButtonCleanupService', () => {
   });
 
   describe('setClient', () => {
-    it('should set the Discord client instance', () => {
-      const service = require('../../src/services/ButtonCleanupService').buttonCleanupService;
-      const mockClient = {};
+    it('should set the Discord client instance', async () => {
+      const { buttonCleanupService: service } = await import(
+        '../../src/services/ButtonCleanupService'
+      );
+      const mockClient = {} as any;
       service.setClient(mockClient);
-      // @ts-ignore
+      // @ts-expect-error: Service private property access for testing
       expect(service.client).toBe(mockClient);
     });
   });
-}); 
+});

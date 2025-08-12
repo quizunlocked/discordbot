@@ -1,5 +1,6 @@
-// Jest setup file
+// Vitest setup file
 import dotenv from 'dotenv';
+import { vi } from 'vitest';
 
 // Load test environment variables
 dotenv.config({ path: '.env.test' });
@@ -10,9 +11,9 @@ process.env['NODE_ENV'] = 'test';
 // Mock console methods to reduce noise in tests
 global.console = {
   ...console,
-  log: jest.fn(),
-  debug: jest.fn(),
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-}; 
+  log: vi.fn(),
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+};
