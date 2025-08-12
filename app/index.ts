@@ -1,4 +1,4 @@
-import 'module-alias/register';
+import 'module-alias/register.js';
 import { Client, Collection, GatewayIntentBits, Events } from 'discord.js';
 import { config } from '@/utils/config';
 import { logger } from '@/utils/logger';
@@ -8,6 +8,10 @@ import { QuizService, quizService } from '@/services/QuizService';
 import { BotClient } from '@/types';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Extend the Discord.js Client with our custom properties
 const client: BotClient = new Client({
@@ -36,17 +40,19 @@ async function loadCommands(): Promise<void> {
     const folderPath = path.join(commandsPath, folder);
     const commandFiles = fs
       .readdirSync(folderPath)
-      .filter((file) => file.endsWith(fileExtension) && !file.endsWith('.d.ts'));
+      .filter(file => file.endsWith(fileExtension) && !file.endsWith('.d.ts'));
 
     for (const file of commandFiles) {
       const filePath = path.join(folderPath, file);
       const command = await import(filePath);
-      
+
       if ('data' in command && 'execute' in command) {
         client.commands.set(command.data.name, command);
         logger.info(`Loaded command: ${command.data.name}`);
       } else {
-        logger.warn(`The command at ${filePath} is missing a required "data" or "execute" property.`);
+        logger.warn(
+          `The command at ${filePath} is missing a required "data" or "execute" property.`
+        );
       }
     }
   }
@@ -55,31 +61,31 @@ async function loadCommands(): Promise<void> {
 // Load events
 async function loadEvents(): Promise<void> {
   const eventsPath = path.join(__dirname, 'events');
-  
+
   // Determine if we're in development or production based on NODE_ENV
   const isDevelopment = process.env['NODE_ENV'] === 'development';
   const fileExtension = isDevelopment ? '.ts' : '.js';
-  
+
   const eventFiles = fs
     .readdirSync(eventsPath)
-    .filter((file) => file.endsWith(fileExtension) && !file.endsWith('.d.ts'));
+    .filter(file => file.endsWith(fileExtension) && !file.endsWith('.d.ts'));
 
   for (const file of eventFiles) {
     const filePath = path.join(eventsPath, file);
     const event = await import(filePath);
-    
+
     if (event.once) {
       client.once(event.name, (...args) => event.execute(...args));
     } else {
       client.on(event.name, (...args) => event.execute(...args));
     }
-    
+
     logger.info(`Loaded event: ${event.name}`);
   }
 }
 
 // Handle interaction creation
-client.on(Events.InteractionCreate, async (interaction) => {
+client.on(Events.InteractionCreate, async interaction => {
   if (interaction.isChatInputCommand()) {
     const command = client.commands.get(interaction.commandName);
 
@@ -97,7 +103,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const now = Date.now();
     const timestamps = cooldowns.get(command.data.name)!;
     const defaultCooldownDuration = command.cooldown || 3;
-    const cooldownAmount = (defaultCooldownDuration) * 1000;
+    const cooldownAmount = defaultCooldownDuration * 1000;
 
     if (timestamps.has(interaction.user.id)) {
       const expirationTime = timestamps.get(interaction.user.id)! + cooldownAmount;
@@ -120,7 +126,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       await command.execute(interaction);
     } catch (error) {
       logger.error(`Error executing command ${command.data.name}:`, error);
-      
+
       // Only try to reply if the interaction hasn't been handled yet
       if (interaction.isRepliable() && !interaction.replied && !interaction.deferred) {
         try {
@@ -142,24 +148,24 @@ async function initializeBot(): Promise<void> {
   try {
     // Connect to database
     await databaseService.connect();
-    
+
     // Seed quizzes if DB is empty
     await QuizService.seedQuizzesIfEmpty();
-    
+
     // Seed users with quiz attempts if DB is empty
     await QuizService.seedUsersIfEmpty();
-    
+
     // Set client in services
     buttonCleanupService.setClient(client);
     quizService.setClient(client);
-    
+
     // Load commands and events
     await loadCommands();
     await loadEvents();
-    
+
     // Login to Discord
     await client.login(config.token);
-    
+
     logger.info('Bot initialized successfully');
   } catch (error) {
     logger.error('Failed to initialize bot:', error);
@@ -185,9 +191,9 @@ process.on('SIGTERM', async () => {
 });
 
 // Handle unhandled promise rejections
-process.on('unhandledRejection', (error) => {
+process.on('unhandledRejection', error => {
   logger.error('Unhandled promise rejection:', error);
 });
 
 // Start the bot
-initializeBot(); 
+initializeBot();
