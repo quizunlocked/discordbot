@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
-import { logger } from '@/utils/logger';
-import { databaseService } from '@/services/DatabaseService';
-import { partition } from '@/utils/arrayUtils';
+import { logger } from '../../utils/logger.js';
+import { databaseService } from '../../services/DatabaseService.js';
+import { partition } from '../../utils/arrayUtils.js';
 import Papa from 'papaparse';
 
 interface CSVQuestion {
@@ -23,10 +23,7 @@ export const data = new SlashCommandBuilder()
   .setName('upload-quiz-csv')
   .setDescription('Upload a CSV file to create a custom quiz')
   .addAttachmentOption(option =>
-    option
-      .setName('file')
-      .setDescription('CSV file with quiz questions')
-      .setRequired(true)
+    option.setName('file').setDescription('CSV file with quiz questions').setRequired(true)
   )
   .addStringOption(option =>
     option
@@ -47,18 +44,20 @@ function safeReturn(uploadKey: string): void {
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const uploadKey = `${interaction.user.id}-${interaction.id}`;
-  
+
   // Prevent duplicate executions
   if (uploadInProgress.has(uploadKey)) {
-    logger.warn(`CSV upload already in progress for interaction ${interaction.id}, skipping duplicate`);
+    logger.warn(
+      `CSV upload already in progress for interaction ${interaction.id}, skipping duplicate`
+    );
     return;
   }
-  
+
   // Mark upload as in progress
   uploadInProgress.set(uploadKey, true);
-  
+
   let isDeferred = false;
-  
+
   try {
     // Quick validation that the interaction is still valid
     if (interaction.replied || interaction.deferred) {
@@ -66,7 +65,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       safeReturn(uploadKey);
       return;
     }
-    
+
     // Try to defer the reply, but don't fail if the interaction is already expired
     try {
       await interaction.deferReply({ ephemeral: true });
@@ -81,20 +80,33 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const attachment = interaction.options.getAttachment('file');
 
     if (!attachment) {
-      await safeEditReply(interaction, isDeferred, '❌ No file was provided. Please attach a CSV file.');
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        '❌ No file was provided. Please attach a CSV file.'
+      );
       safeReturn(uploadKey);
       return;
     }
 
     // Validate file type and size
     if (!attachment.contentType?.includes('text/csv') && !attachment.name?.endsWith('.csv')) {
-      await safeEditReply(interaction, isDeferred, '❌ Invalid file type. Please upload a CSV file.');
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        '❌ Invalid file type. Please upload a CSV file.'
+      );
       safeReturn(uploadKey);
       return;
     }
 
-    if (attachment.size > 25 * 1024 * 1024) { // 25MB limit
-      await safeEditReply(interaction, isDeferred, '❌ File too large. Please upload a CSV file smaller than 25MB.');
+    if (attachment.size > 25 * 1024 * 1024) {
+      // 25MB limit
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        '❌ File too large. Please upload a CSV file smaller than 25MB.'
+      );
       safeReturn(uploadKey);
       return;
     }
@@ -102,14 +114,18 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     // Download and parse the CSV file
     const csvContent = await downloadAttachment(attachment.url);
     if (!csvContent) {
-      await safeEditReply(interaction, isDeferred, '❌ Failed to download the CSV file. Please try again.');
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        '❌ Failed to download the CSV file. Please try again.'
+      );
       safeReturn(uploadKey);
       return;
     }
 
     // Parse CSV content using functional approach
     const { questions, errors: parseErrors } = parseCSVFunctional(csvContent);
-    
+
     if (parseErrors.length > 0) {
       const errorMessage = formatValidationErrors(parseErrors);
       await safeEditReply(interaction, isDeferred, `❌ CSV validation failed:\n\n${errorMessage}`);
@@ -121,7 +137,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const imageErrors = await validateImageIds(questions);
     if (imageErrors.length > 0) {
       const errorMessage = formatValidationErrors(imageErrors);
-      await safeEditReply(interaction, isDeferred, `❌ Image validation failed:\n\n${errorMessage}`);
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        `❌ Image validation failed:\n\n${errorMessage}`
+      );
       safeReturn(uploadKey);
       return;
     }
@@ -133,7 +153,11 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     }
 
     if (questions.length > 100) {
-      await safeEditReply(interaction, isDeferred, '❌ Too many questions. Maximum allowed is 100 questions per quiz.');
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        '❌ Too many questions. Maximum allowed is 100 questions per quiz.'
+      );
       safeReturn(uploadKey);
       return;
     }
@@ -147,24 +171,30 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const existingQuiz = await databaseService.prisma.quiz.findFirst({
       where: {
         id: {
-          startsWith: `quiz_${interaction.id}_`
-        }
-      }
+          startsWith: `quiz_${interaction.id}_`,
+        },
+      },
     });
 
     if (existingQuiz) {
-      logger.warn(`Quiz already exists for interaction ${interaction.id}, skipping duplicate creation`);
-      await safeEditReply(interaction, isDeferred, { 
-        embeds: [new EmbedBuilder()
-          .setTitle('✅ Quiz Already Created')
-          .setDescription(`The quiz "${existingQuiz.title}" was already created from this upload.`)
-          .setColor('#00ff00')]
+      logger.warn(
+        `Quiz already exists for interaction ${interaction.id}, skipping duplicate creation`
+      );
+      await safeEditReply(interaction, isDeferred, {
+        embeds: [
+          new EmbedBuilder()
+            .setTitle('✅ Quiz Already Created')
+            .setDescription(
+              `The quiz "${existingQuiz.title}" was already created from this upload.`
+            )
+            .setColor('#00ff00'),
+        ],
       });
       safeReturn(uploadKey);
       return;
     }
 
-    await databaseService.prisma.$transaction(async (tx) => {
+    await databaseService.prisma.$transaction(async tx => {
       // Create or get user
       const user = await tx.user.upsert({
         where: { id: interaction.user.id },
@@ -218,18 +248,27 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     await safeEditReply(interaction, isDeferred, { embeds: [embed] });
 
-    logger.info(`Quiz "${quizTitle}" created from CSV by ${interaction.user.tag} with ${questions.length} questions`);
-
+    logger.info(
+      `Quiz "${quizTitle}" created from CSV by ${interaction.user.tag} with ${questions.length} questions`
+    );
   } catch (error) {
     logger.error('Error uploading CSV quiz:', error);
-    await safeEditReply(interaction, isDeferred, '❌ An error occurred while processing your CSV file. Please check the format and try again.');
+    await safeEditReply(
+      interaction,
+      isDeferred,
+      '❌ An error occurred while processing your CSV file. Please check the format and try again.'
+    );
   } finally {
     // Always clean up the tracking map
     uploadInProgress.delete(uploadKey);
   }
 }
 
-async function safeEditReply(interaction: ChatInputCommandInteraction, isDeferred: boolean, content: string | any): Promise<void> {
+async function safeEditReply(
+  interaction: ChatInputCommandInteraction,
+  isDeferred: boolean,
+  content: string | any
+): Promise<void> {
   try {
     // Check if we can still respond to the interaction
     if (interaction.replied) {
@@ -242,15 +281,16 @@ async function safeEditReply(interaction: ChatInputCommandInteraction, isDeferre
       await interaction.editReply(content);
     } else {
       // Try to send a direct reply
-      const replyContent = typeof content === 'string' 
-        ? { content, ephemeral: true } 
-        : { ...content, ephemeral: true };
+      const replyContent =
+        typeof content === 'string'
+          ? { content, ephemeral: true }
+          : { ...content, ephemeral: true };
       await interaction.reply(replyContent);
     }
   } catch (error) {
     // Log the error but don't throw - we don't want to crash the command
     logger.error('Failed to send interaction response:', error);
-    
+
     // If this is an "Unknown interaction" error, the user won't see any response
     // but at least we won't crash the bot
     if (error instanceof Error && error.message.includes('Unknown interaction')) {
@@ -272,7 +312,10 @@ async function downloadAttachment(url: string): Promise<string | null> {
   }
 }
 
-function parseCSVFunctional(csvContent: string): { questions: CSVQuestion[], errors: ValidationError[] } {
+function parseCSVFunctional(csvContent: string): {
+  questions: CSVQuestion[];
+  errors: ValidationError[];
+} {
   const parseResult = Papa.parse(csvContent, {
     header: true,
     skipEmptyLines: true,
@@ -434,12 +477,12 @@ async function validateImageIds(questions: CSVQuestion[]): Promise<ValidationErr
   try {
     // Check which image IDs exist in the database
     const existingImages = await databaseService.prisma.image.findMany({
-      where: { 
-        id: { 
-          in: imageIds.map(item => item.imageId!) 
-        } 
+      where: {
+        id: {
+          in: imageIds.map(item => item.imageId!),
+        },
       },
-      select: { id: true }
+      select: { id: true },
     });
 
     const existingImageIds = new Set(existingImages.map(img => img.id));
@@ -470,7 +513,7 @@ function formatValidationErrors(errors: ValidationError[]): string {
   if (errors.length === 0) return '';
 
   const errorGroups = new Map<string, ValidationError[]>();
-  
+
   errors.forEach(error => {
     const key = error.row === 0 ? 'General' : `Row ${error.row}`;
     if (!errorGroups.has(key)) {
@@ -480,7 +523,7 @@ function formatValidationErrors(errors: ValidationError[]): string {
   });
 
   let message = '';
-  
+
   for (const [group, groupErrors] of errorGroups) {
     message += `**${group}:**\n`;
     groupErrors.forEach(error => {

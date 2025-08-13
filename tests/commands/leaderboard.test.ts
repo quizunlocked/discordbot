@@ -1,11 +1,11 @@
 import { vi } from 'vitest';
 import { execute } from '../../app/commands/leaderboard/leaderboard';
 
-vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
-vi.mock('@/services/LeaderboardService', () => ({
+vi.mock('../../app/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
+vi.mock('../../app/services/LeaderboardService', () => ({
   leaderboardService: { getLeaderboard: vi.fn(), createLeaderboardEmbed: vi.fn() },
 }));
-vi.mock('@/services/ButtonCleanupService', () => ({
+vi.mock('../../app/services/ButtonCleanupService', () => ({
   buttonCleanupService: { scheduleLeaderboardCleanup: vi.fn() },
 }));
 

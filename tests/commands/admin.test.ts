@@ -1,9 +1,9 @@
 import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../app/commands/admin/admin';
 
-vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
-vi.mock('@/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
-vi.mock('@/services/DatabaseService', () => ({
+vi.mock('../../app/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
+vi.mock('../../app/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
+vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
       $queryRaw: vi.fn(),
@@ -12,10 +12,10 @@ vi.mock('@/services/DatabaseService', () => ({
     },
   },
 }));
-vi.mock('@/services/QuizService', () => ({
+vi.mock('../../app/services/QuizService', () => ({
   quizService: { getActiveSessionByChannel: vi.fn(), stopQuiz: vi.fn() },
 }));
-vi.mock('@/services/ButtonCleanupService', () => ({ buttonCleanupService: {} }));
+vi.mock('../../app/services/ButtonCleanupService', () => ({ buttonCleanupService: {} }));
 
 describe('admin command', () => {
   let interaction: any;

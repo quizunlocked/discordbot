@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
-import { logger } from '@/utils/logger';
-import { databaseService } from '@/services/DatabaseService';
-import { partition } from '@/utils/arrayUtils';
+import { logger } from '../../utils/logger.js';
+import { databaseService } from '../../services/DatabaseService.js';
+import { partition } from '../../utils/arrayUtils.js';
 import Papa from 'papaparse';
 
 interface CSVCorpusEntry {
@@ -21,10 +21,7 @@ export const data = new SlashCommandBuilder()
   .setName('upload-corpus-csv')
   .setDescription('Upload a CSV file to create a corpus for quiz generation')
   .addAttachmentOption(option =>
-    option
-      .setName('file')
-      .setDescription('CSV file with corpus data')
-      .setRequired(true)
+    option.setName('file').setDescription('CSV file with corpus data').setRequired(true)
   )
   .addStringOption(option =>
     option
@@ -46,18 +43,20 @@ function safeReturn(uploadKey: string): void {
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
   const uploadKey = `${interaction.user.id}-${interaction.id}`;
-  
+
   // Prevent duplicate executions
   if (uploadInProgress.has(uploadKey)) {
-    logger.warn(`Corpus CSV upload already in progress for interaction ${interaction.id}, skipping duplicate`);
+    logger.warn(
+      `Corpus CSV upload already in progress for interaction ${interaction.id}, skipping duplicate`
+    );
     return;
   }
-  
+
   // Mark upload as in progress
   uploadInProgress.set(uploadKey, true);
-  
+
   let isDeferred = false;
-  
+
   try {
     // Quick validation that the interaction is still valid
     if (interaction.replied || interaction.deferred) {
@@ -65,7 +64,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       safeReturn(uploadKey);
       return;
     }
-    
+
     // Try to defer the reply, but don't fail if the interaction is already expired
     try {
       await interaction.deferReply({ ephemeral: true });
@@ -80,31 +79,48 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     const attachment = interaction.options.getAttachment('file');
 
     if (!attachment) {
-      await safeEditReply(interaction, isDeferred, '❌ No file was provided. Please attach a CSV file.');
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        '❌ No file was provided. Please attach a CSV file.'
+      );
       safeReturn(uploadKey);
       return;
     }
 
     // Validate file type and size
     if (!attachment.contentType?.includes('text/csv') && !attachment.name?.endsWith('.csv')) {
-      await safeEditReply(interaction, isDeferred, '❌ Invalid file type. Please upload a CSV file.');
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        '❌ Invalid file type. Please upload a CSV file.'
+      );
       safeReturn(uploadKey);
       return;
     }
 
-    if (attachment.size > 25 * 1024 * 1024) { // 25MB limit
-      await safeEditReply(interaction, isDeferred, '❌ File too large. Please upload a CSV file smaller than 25MB.');
+    if (attachment.size > 25 * 1024 * 1024) {
+      // 25MB limit
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        '❌ File too large. Please upload a CSV file smaller than 25MB.'
+      );
       safeReturn(uploadKey);
       return;
     }
 
     // Check if corpus title already exists
     const existingCorpus = await databaseService.prisma.corpus.findUnique({
-      where: { title }
+      where: { title },
     });
 
     if (existingCorpus) {
-      await safeEditReply(interaction, isDeferred, `❌ A corpus with the title "${title}" already exists. Please choose a different title.`);
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        `❌ A corpus with the title "${title}" already exists. Please choose a different title.`
+      );
       safeReturn(uploadKey);
       return;
     }
@@ -112,29 +128,45 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     // Download and parse the CSV file
     const csvContent = await downloadAttachment(attachment.url);
     if (!csvContent) {
-      await safeEditReply(interaction, isDeferred, '❌ Failed to download the CSV file. Please try again.');
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        '❌ Failed to download the CSV file. Please try again.'
+      );
       safeReturn(uploadKey);
       return;
     }
 
     // Parse CSV content using functional approach
     const { entries, errors: parseErrors } = parseCorpusCSV(csvContent);
-    
+
     if (parseErrors.length > 0) {
       const errorMessage = formatValidationErrors(parseErrors);
-      await safeEditReply(interaction, isDeferred, `❌ Corpus CSV validation failed:\n\n${errorMessage}`);
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        `❌ Corpus CSV validation failed:\n\n${errorMessage}`
+      );
       safeReturn(uploadKey);
       return;
     }
 
     if (entries.length === 0) {
-      await safeEditReply(interaction, isDeferred, '❌ No valid corpus entries found in the CSV file.');
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        '❌ No valid corpus entries found in the CSV file.'
+      );
       safeReturn(uploadKey);
       return;
     }
 
     if (entries.length > 1000) {
-      await safeEditReply(interaction, isDeferred, '❌ Too many entries. Maximum allowed is 1000 entries per corpus.');
+      await safeEditReply(
+        interaction,
+        isDeferred,
+        '❌ Too many entries. Maximum allowed is 1000 entries per corpus.'
+      );
       safeReturn(uploadKey);
       return;
     }
@@ -142,7 +174,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     // Create corpus in database
     const corpusId = `corpus_${interaction.id}_${Date.now()}`;
 
-    await databaseService.prisma.$transaction(async (tx) => {
+    await databaseService.prisma.$transaction(async tx => {
       // Create corpus
       const corpus = await tx.corpus.create({
         data: {
@@ -180,18 +212,27 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     await safeEditReply(interaction, isDeferred, { embeds: [embed] });
 
-    logger.info(`Corpus "${title}" created from CSV by ${interaction.user.tag} with ${entries.length} entries`);
-
+    logger.info(
+      `Corpus "${title}" created from CSV by ${interaction.user.tag} with ${entries.length} entries`
+    );
   } catch (error) {
     logger.error('Error uploading corpus CSV:', error);
-    await safeEditReply(interaction, isDeferred, '❌ An error occurred while processing your corpus CSV file. Please check the format and try again.');
+    await safeEditReply(
+      interaction,
+      isDeferred,
+      '❌ An error occurred while processing your corpus CSV file. Please check the format and try again.'
+    );
   } finally {
     // Always clean up the tracking map
     uploadInProgress.delete(uploadKey);
   }
 }
 
-async function safeEditReply(interaction: ChatInputCommandInteraction, isDeferred: boolean, content: string | any): Promise<void> {
+async function safeEditReply(
+  interaction: ChatInputCommandInteraction,
+  isDeferred: boolean,
+  content: string | any
+): Promise<void> {
   try {
     // Check if we can still respond to the interaction
     if (interaction.replied) {
@@ -204,15 +245,16 @@ async function safeEditReply(interaction: ChatInputCommandInteraction, isDeferre
       await interaction.editReply(content);
     } else {
       // Try to send a direct reply
-      const replyContent = typeof content === 'string' 
-        ? { content, ephemeral: true } 
-        : { ...content, ephemeral: true };
+      const replyContent =
+        typeof content === 'string'
+          ? { content, ephemeral: true }
+          : { ...content, ephemeral: true };
       await interaction.reply(replyContent);
     }
   } catch (error) {
     // Log the error but don't throw - we don't want to crash the command
     logger.error('Failed to send interaction response:', error);
-    
+
     // If this is an "Unknown interaction" error, the user won't see any response
     // but at least we won't crash the bot
     if (error instanceof Error && error.message.includes('Unknown interaction')) {
@@ -234,7 +276,10 @@ async function downloadAttachment(url: string): Promise<string | null> {
   }
 }
 
-function parseCorpusCSV(csvContent: string): { entries: CSVCorpusEntry[], errors: ValidationError[] } {
+function parseCorpusCSV(csvContent: string): {
+  entries: CSVCorpusEntry[];
+  errors: ValidationError[];
+} {
   const parseResult = Papa.parse(csvContent, {
     header: true,
     skipEmptyLines: true,
@@ -253,18 +298,30 @@ function parseCorpusCSV(csvContent: string): { entries: CSVCorpusEntry[], errors
   // Get column headers to identify hint columns
   const headers = Object.keys(parseResult.data[0] || {});
   if (headers.length < 2) {
-    return { 
-      entries: [], 
-      errors: [{ row: 1, field: 'Headers', message: 'CSV must have at least question_variants and correct_answer_variants columns' }] 
+    return {
+      entries: [],
+      errors: [
+        {
+          row: 1,
+          field: 'Headers',
+          message: 'CSV must have at least question_variants and correct_answer_variants columns',
+        },
+      ],
     };
   }
 
   // First two columns must be question_variants and correct_answer_variants
   const [questionCol, answerCol, ...hintCols] = headers;
   if (!questionCol || !answerCol) {
-    return { 
-      entries: [], 
-      errors: [{ row: 1, field: 'Headers', message: 'First two columns must be question_variants and correct_answer_variants' }] 
+    return {
+      entries: [],
+      errors: [
+        {
+          row: 1,
+          field: 'Headers',
+          message: 'First two columns must be question_variants and correct_answer_variants',
+        },
+      ],
     };
   }
 
@@ -282,7 +339,7 @@ function parseCorpusCSV(csvContent: string): { entries: CSVCorpusEntry[], errors
   );
 
   // Extract entries from valid rows
-  const entries = validRows.map(({ row }: { row: any }) => 
+  const entries = validRows.map(({ row }: { row: any }) =>
     transformRowToCorpusEntry(row, questionCol, answerCol, hintCols)
   );
 
@@ -292,15 +349,22 @@ function parseCorpusCSV(csvContent: string): { entries: CSVCorpusEntry[], errors
   return { entries, errors };
 }
 
-function transformRowToCorpusEntry(row: any, questionCol: string, answerCol: string, hintCols: string[]): CSVCorpusEntry {
+function transformRowToCorpusEntry(
+  row: any,
+  questionCol: string,
+  answerCol: string,
+  hintCols: string[]
+): CSVCorpusEntry {
   // Parse question variants (newline-delimited)
-  const questionVariants = (row[questionCol] || '').trim()
+  const questionVariants = (row[questionCol] || '')
+    .trim()
     .split('\n')
     .map((q: string) => q.trim())
     .filter((q: string) => q.length > 0);
 
   // Parse answer variants (newline-delimited)
-  const answerVariants = (row[answerCol] || '').trim()
+  const answerVariants = (row[answerCol] || '')
+    .trim()
     .split('\n')
     .map((a: string) => a.trim())
     .filter((a: string) => a.length > 0);
@@ -316,7 +380,7 @@ function transformRowToCorpusEntry(row: any, questionCol: string, answerCol: str
         .split('\n')
         .map((h: string) => h.trim())
         .filter((h: string) => h.length > 0);
-      
+
       if (variants.length > 0) {
         hintVariants[hintCol] = variants;
         validHintTitles.push(hintCol);
@@ -332,7 +396,13 @@ function transformRowToCorpusEntry(row: any, questionCol: string, answerCol: str
   };
 }
 
-function validateCorpusRow(row: any, rowNumber: number, questionCol: string, answerCol: string, hintCols: string[]): ValidationError[] {
+function validateCorpusRow(
+  row: any,
+  rowNumber: number,
+  questionCol: string,
+  answerCol: string,
+  hintCols: string[]
+): ValidationError[] {
   const errors: ValidationError[] = [];
 
   // Check required fields
@@ -344,7 +414,10 @@ function validateCorpusRow(row: any, rowNumber: number, questionCol: string, ans
       message: 'Question variants are required',
     });
   } else {
-    const questionVariants = questionText.split('\n').map(q => q.trim()).filter(q => q.length > 0);
+    const questionVariants = questionText
+      .split('\n')
+      .map(q => q.trim())
+      .filter(q => q.length > 0);
     if (questionVariants.length === 0) {
       errors.push({
         row: rowNumber,
@@ -362,7 +435,10 @@ function validateCorpusRow(row: any, rowNumber: number, questionCol: string, ans
       message: 'Answer variants are required',
     });
   } else {
-    const answerVariants = answerText.split('\n').map(a => a.trim()).filter(a => a.length > 0);
+    const answerVariants = answerText
+      .split('\n')
+      .map(a => a.trim())
+      .filter(a => a.length > 0);
     if (answerVariants.length === 0) {
       errors.push({
         row: rowNumber,
@@ -376,7 +452,10 @@ function validateCorpusRow(row: any, rowNumber: number, questionCol: string, ans
   for (const hintCol of hintCols) {
     const hintContent = (row[hintCol] || '').trim();
     if (hintContent) {
-      const hintVariants = hintContent.split('\n').map(h => h.trim()).filter(h => h.length > 0);
+      const hintVariants = hintContent
+        .split('\n')
+        .map(h => h.trim())
+        .filter(h => h.length > 0);
       if (hintVariants.length === 0) {
         errors.push({
           row: rowNumber,
@@ -394,7 +473,7 @@ function formatValidationErrors(errors: ValidationError[]): string {
   if (errors.length === 0) return '';
 
   const errorGroups = new Map<string, ValidationError[]>();
-  
+
   errors.forEach(error => {
     const key = error.row === 0 ? 'General' : `Row ${error.row}`;
     if (!errorGroups.has(key)) {
@@ -404,7 +483,7 @@ function formatValidationErrors(errors: ValidationError[]): string {
   });
 
   let message = '';
-  
+
   for (const [group, groupErrors] of errorGroups) {
     message += `**${group}:**\n`;
     groupErrors.forEach(error => {

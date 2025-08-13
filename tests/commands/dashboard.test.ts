@@ -1,7 +1,7 @@
 import { execute } from '../../app/commands/admin/dashboard';
 
-vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
-vi.mock('@/services/DatabaseService', () => ({
+vi.mock('../../app/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
+vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
       user: { count: vi.fn() },
@@ -13,8 +13,10 @@ vi.mock('@/services/DatabaseService', () => ({
     },
   },
 }));
-vi.mock('@/services/QuizService', () => ({ quizService: { getActiveSessionByChannel: vi.fn() } }));
-vi.mock('@/services/ButtonCleanupService', () => ({ buttonCleanupService: {} }));
+vi.mock('../../app/services/QuizService', () => ({
+  quizService: { getActiveSessionByChannel: vi.fn() },
+}));
+vi.mock('../../app/services/ButtonCleanupService', () => ({ buttonCleanupService: {} }));
 
 describe('dashboard command', () => {
   let interaction: any;

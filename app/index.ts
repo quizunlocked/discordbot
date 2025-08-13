@@ -1,11 +1,10 @@
-import 'module-alias/register.js';
 import { Client, Collection, GatewayIntentBits, Events } from 'discord.js';
-import { config } from '@/utils/config';
-import { logger } from '@/utils/logger';
-import { databaseService } from '@/services/DatabaseService';
-import { buttonCleanupService } from '@/services/ButtonCleanupService';
-import { QuizService, quizService } from '@/services/QuizService';
-import { BotClient } from '@/types';
+import { config } from './utils/config.js';
+import { logger } from './utils/logger.js';
+import { databaseService } from './services/DatabaseService.js';
+import { buttonCleanupService } from './services/ButtonCleanupService.js';
+import { QuizService, quizService } from './services/QuizService.js';
+import { BotClient } from './types/index.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';

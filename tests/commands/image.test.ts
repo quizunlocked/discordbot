@@ -2,14 +2,16 @@ import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../app/commands/image/image';
 import * as fs from 'fs/promises';
 
-vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
-vi.mock('@/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
-vi.mock('@/services/ButtonCleanupService', () => ({
+vi.mock('../../app/utils/logger', () => ({
+  logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
+}));
+vi.mock('../../app/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
+vi.mock('../../app/services/ButtonCleanupService', () => ({
   buttonCleanupService: {
     scheduleAdminCleanup: vi.fn(),
   },
 }));
-vi.mock('@/services/DatabaseService', () => ({
+vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
       user: {

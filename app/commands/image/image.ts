@@ -1,15 +1,15 @@
-import { 
-  SlashCommandBuilder, 
-  ChatInputCommandInteraction, 
+import {
+  SlashCommandBuilder,
+  ChatInputCommandInteraction,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
 } from 'discord.js';
-import { logger } from '@/utils/logger';
-import { databaseService } from '@/services/DatabaseService';
-import { requireAdminPrivileges } from '@/utils/permissions';
-import { buttonCleanupService } from '@/services/ButtonCleanupService';
+import { logger } from '../../utils/logger.js';
+import { databaseService } from '../../services/DatabaseService.js';
+import { requireAdminPrivileges } from '../../utils/permissions.js';
+import { buttonCleanupService } from '../../services/ButtonCleanupService.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -31,10 +31,7 @@ export const data = new SlashCommandBuilder()
           .setRequired(true)
       )
       .addStringOption(option =>
-        option
-          .setName('title')
-          .setDescription('Optional title for the image')
-          .setRequired(false)
+        option.setName('title').setDescription('Optional title for the image').setRequired(false)
       )
       .addStringOption(option =>
         option
@@ -48,10 +45,7 @@ export const data = new SlashCommandBuilder()
       .setName('delete')
       .setDescription('Delete an uploaded image')
       .addStringOption(option =>
-        option
-          .setName('image_id')
-          .setDescription('ID of the image to delete')
-          .setRequired(true)
+        option.setName('image_id').setDescription('ID of the image to delete').setRequired(true)
       )
   );
 
@@ -61,7 +55,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   if (!interaction.isChatInputCommand()) return;
 
   const subcommand = interaction.options.getSubcommand();
-  
+
   try {
     await interaction.deferReply({ ephemeral: true });
 
@@ -83,7 +77,6 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       default:
         await interaction.editReply('Unknown subcommand.');
     }
-    
   } catch (error) {
     logger.error('Error in image command:', error);
     await interaction.editReply({
@@ -131,7 +124,7 @@ async function handleUpload(interaction: ChatInputCommandInteraction): Promise<v
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
+
     const imageBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(imageBuffer);
 
@@ -140,7 +133,7 @@ async function handleUpload(interaction: ChatInputCommandInteraction): Promise<v
     await fs.mkdir(userDir, { recursive: true });
 
     // Create database record first to get the image ID
-    const image = await databaseService.prisma.$transaction(async (tx) => {
+    const image = await databaseService.prisma.$transaction(async tx => {
       // Create or get user
       const user = await tx.user.upsert({
         where: { id: interaction.user.id },
@@ -205,18 +198,19 @@ async function handleUpload(interaction: ChatInputCommandInteraction): Promise<v
         `• Use this image ID in CSV uploads: \`${image.id}\``,
         '• Add an `imageId` column to your quiz CSV files',
         '• The image will display with quiz questions that reference this ID',
-        '• Use `/image delete` to remove images you no longer need'
+        '• Use `/image delete` to remove images you no longer need',
       ].join('\n'),
-      inline: false
+      inline: false,
     });
 
     await interaction.editReply({ embeds: [embed] });
 
     logger.info(`Image uploaded by ${interaction.user.tag}: ${image.id} (${filename})`);
-
   } catch (error) {
     logger.error('Error uploading image:', error);
-    await interaction.editReply('❌ An error occurred while uploading your image. Please try again.');
+    await interaction.editReply(
+      '❌ An error occurred while uploading your image. Please try again.'
+    );
   }
 }
 
@@ -234,10 +228,10 @@ async function handleDelete(interaction: ChatInputCommandInteraction): Promise<v
         user: true,
         questions: {
           include: {
-            quiz: true
-          }
-        }
-      }
+            quiz: true,
+          },
+        },
+      },
     });
 
     if (!image) {
@@ -247,7 +241,7 @@ async function handleDelete(interaction: ChatInputCommandInteraction): Promise<v
 
     // Check if image is being used in questions
     const questionsUsingImage = image.questions.length;
-    
+
     // Create confirmation embed
     const embed = new EmbedBuilder()
       .setTitle('⚠️ Confirm Image Deletion')
@@ -270,7 +264,7 @@ async function handleDelete(interaction: ChatInputCommandInteraction): Promise<v
       embed.addFields({
         name: '⚠️ Warning',
         value: `This image is used in ${questionsUsingImage} question(s) across ${quizTitles.length} quiz(es):\n• ${quizTitles.slice(0, 3).join('\n• ')}${quizTitles.length > 3 ? '\n• ...' : ''}`,
-        inline: false
+        inline: false,
       });
     }
 
@@ -279,32 +273,32 @@ async function handleDelete(interaction: ChatInputCommandInteraction): Promise<v
       value: [
         '• Image file will be permanently deleted from disk',
         '• Database record will be removed',
-        questionsUsingImage > 0 ? '• Questions using this image will no longer display it' : '• No questions will be affected'
+        questionsUsingImage > 0
+          ? '• Questions using this image will no longer display it'
+          : '• No questions will be affected',
       ].join('\n'),
-      inline: false
+      inline: false,
     });
 
     // Create confirmation buttons
-    const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`image_delete_confirm_${imageId}`)
-          .setLabel('✅ Confirm Delete')
-          .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-          .setCustomId(`image_delete_cancel_${imageId}`)
-          .setLabel('❌ Cancel')
-          .setStyle(ButtonStyle.Secondary)
-      );
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`image_delete_confirm_${imageId}`)
+        .setLabel('✅ Confirm Delete')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`image_delete_cancel_${imageId}`)
+        .setLabel('❌ Cancel')
+        .setStyle(ButtonStyle.Secondary)
+    );
 
-    const reply = await interaction.editReply({ 
-      embeds: [embed], 
-      components: [row] 
+    const reply = await interaction.editReply({
+      embeds: [embed],
+      components: [row],
     });
 
     // Schedule button cleanup
     buttonCleanupService.scheduleAdminCleanup(reply.id, interaction.channelId, 60);
-
   } catch (error) {
     logger.error('Error preparing image deletion:', error);
     await interaction.editReply('❌ Error preparing image deletion.');

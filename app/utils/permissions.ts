@@ -1,5 +1,5 @@
 import { CommandInteraction, ButtonInteraction, PermissionFlagsBits } from 'discord.js';
-import { logger } from './logger';
+import { logger } from './logger.js';
 
 /**
  * Check if a user has administrator privileges

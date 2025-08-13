@@ -2,9 +2,11 @@ import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../app/events/interactionCreate';
 import * as fs from 'fs/promises';
 
-vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
-vi.mock('@/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
-vi.mock('@/services/DatabaseService', () => ({
+vi.mock('../../app/utils/logger', () => ({
+  logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
+}));
+vi.mock('../../app/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
+vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
       image: {
@@ -18,10 +20,10 @@ vi.mock('@/services/DatabaseService', () => ({
     },
   },
 }));
-vi.mock('@/services/QuizService', () => ({ quizService: {} }));
-vi.mock('@/services/LeaderboardService', () => ({ leaderboardService: {} }));
-vi.mock('@/services/ButtonCleanupService', () => ({ buttonCleanupService: {} }));
-vi.mock('@/commands/quiz/start', () => ({ autocomplete: vi.fn() }));
+vi.mock('../../app/services/QuizService', () => ({ quizService: {} }));
+vi.mock('../../app/services/LeaderboardService', () => ({ leaderboardService: {} }));
+vi.mock('../../app/services/ButtonCleanupService', () => ({ buttonCleanupService: {} }));
+vi.mock('../../app/commands/quiz/start', () => ({ autocomplete: vi.fn() }));
 vi.mock('fs/promises', () => ({
   access: vi.fn(),
   unlink: vi.fn(),

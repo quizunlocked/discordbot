@@ -1,37 +1,32 @@
-import { 
-  SlashCommandBuilder, 
-  CommandInteraction, 
-  PermissionFlagsBits, 
+import {
+  SlashCommandBuilder,
+  CommandInteraction,
+  PermissionFlagsBits,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
-  TextInputStyle
+  TextInputStyle,
 } from 'discord.js';
-import { logger } from '@/utils/logger';
-import { databaseService } from '@/services/DatabaseService';
-import { requireAdminPrivileges } from '@/utils/permissions';
-import { canManageQuiz, hasAdminPrivileges } from '@/utils/permissions';
+import { logger } from '../../utils/logger.js';
+import { databaseService } from '../../services/DatabaseService.js';
+import { requireAdminPrivileges } from '../../utils/permissions.js';
+import { canManageQuiz, hasAdminPrivileges } from '../../utils/permissions.js';
 
 export const data = new SlashCommandBuilder()
   .setName('quiz-manager')
   .setDescription('Advanced quiz management commands')
   .addSubcommand(subcommand =>
-    subcommand
-      .setName('create')
-      .setDescription('Create a new quiz with interactive form')
+    subcommand.setName('create').setDescription('Create a new quiz with interactive form')
   )
   .addSubcommand(subcommand =>
     subcommand
       .setName('edit')
       .setDescription('Edit an existing quiz')
       .addStringOption(option =>
-        option
-          .setName('quiz_id')
-          .setDescription('The ID of the quiz to edit')
-          .setRequired(true)
+        option.setName('quiz_id').setDescription('The ID of the quiz to edit').setRequired(true)
       )
   )
   .addSubcommand(subcommand =>
@@ -39,16 +34,11 @@ export const data = new SlashCommandBuilder()
       .setName('delete')
       .setDescription('Delete a quiz')
       .addStringOption(option =>
-        option
-          .setName('quiz_id')
-          .setDescription('The ID of the quiz to delete')
-          .setRequired(true)
+        option.setName('quiz_id').setDescription('The ID of the quiz to delete').setRequired(true)
       )
   )
   .addSubcommand(subcommand =>
-    subcommand
-      .setName('delete-all')
-      .setDescription('Delete all quizzes (⚠️ DESTRUCTIVE)')
+    subcommand.setName('delete-all').setDescription('Delete all quizzes (⚠️ DESTRUCTIVE)')
   )
   .addSubcommandGroup(group =>
     group
@@ -73,7 +63,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
 
   const subcommandGroup = interaction.options.getSubcommandGroup();
   const subcommand = interaction.options.getSubcommand();
-  
+
   // Validate channel type - admin commands must be run in guild channels
   if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {
     await interaction.reply({
@@ -82,7 +72,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
     });
     return;
   }
-  
+
   try {
     if (subcommandGroup === 'question') {
       switch (subcommand) {
@@ -112,7 +102,6 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
           await interaction.reply({ content: 'Unknown subcommand.', ephemeral: true });
       }
     }
-    
   } catch (error) {
     logger.error('Error in quiz-manager command:', error);
     await interaction.reply({
@@ -125,9 +114,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
 async function handleCreateQuiz(interaction: CommandInteraction): Promise<void> {
   try {
     // Create modal for quiz creation
-    const modal = new ModalBuilder()
-      .setCustomId('quiz_create_modal')
-      .setTitle('Create New Quiz');
+    const modal = new ModalBuilder().setCustomId('quiz_create_modal').setTitle('Create New Quiz');
 
     const titleInput = new TextInputBuilder()
       .setCustomId('quiz_title')
@@ -169,7 +156,6 @@ async function handleCreateQuiz(interaction: CommandInteraction): Promise<void> 
     modal.addComponents(firstRow, secondRow, thirdRow, fourthRow);
 
     await interaction.showModal(modal);
-    
   } catch (error) {
     logger.error('Error creating quiz modal:', error);
     await interaction.reply({ content: '❌ Error creating quiz form.', ephemeral: true });
@@ -179,12 +165,12 @@ async function handleCreateQuiz(interaction: CommandInteraction): Promise<void> 
 async function handleEditQuiz(interaction: CommandInteraction): Promise<void> {
   try {
     if (!interaction.isChatInputCommand()) return;
-    
+
     const quizId = interaction.options.getString('quiz_id', true);
-    
+
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: quizId },
-      include: { questions: true }
+      include: { questions: true },
     });
 
     if (!quiz) {
@@ -194,15 +180,15 @@ async function handleEditQuiz(interaction: CommandInteraction): Promise<void> {
 
     // Check if user can manage this quiz
     const userCanManage = canManageQuiz(
-      interaction.user.id, 
-      (quiz as any).quizOwnerId, 
+      interaction.user.id,
+      (quiz as any).quizOwnerId,
       hasAdminPrivileges(interaction)
     );
 
     if (!userCanManage) {
-      await interaction.reply({ 
-        content: '❌ You can only edit quizzes you own or have admin privileges for.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: '❌ You can only edit quizzes you own or have admin privileges for.',
+        ephemeral: true,
       });
       return;
     }
@@ -217,30 +203,33 @@ async function handleEditQuiz(interaction: CommandInteraction): Promise<void> {
         { name: 'Questions', value: quiz.questions.length.toString(), inline: true },
         { name: 'Status', value: quiz.isActive ? '🟢 Active' : '🔴 Inactive', inline: true },
         { name: 'Privacy', value: privacyStatus, inline: true },
-        { name: 'Time Limit', value: (quiz as any).timeLimit ? `${(quiz as any).timeLimit}s` : 'None', inline: true }
+        {
+          name: 'Time Limit',
+          value: (quiz as any).timeLimit ? `${(quiz as any).timeLimit}s` : 'None',
+          inline: true,
+        }
       )
       .setColor('#0099ff')
       .setTimestamp();
 
-    const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`quiz_edit_title_${quizId}`)
-          .setLabel('Edit Title')
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId(`quiz_edit_description_${quizId}`)
-          .setLabel('Edit Description')
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId(`quiz_edit_time_limit_${quizId}`)
-          .setLabel('Edit Time Limit')
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId(`quiz_toggle_status_${quizId}`)
-          .setLabel(quiz.isActive ? 'Disable' : 'Enable')
-          .setStyle(quiz.isActive ? ButtonStyle.Danger : ButtonStyle.Success)
-      );
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`quiz_edit_title_${quizId}`)
+        .setLabel('Edit Title')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`quiz_edit_description_${quizId}`)
+        .setLabel('Edit Description')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`quiz_edit_time_limit_${quizId}`)
+        .setLabel('Edit Time Limit')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`quiz_toggle_status_${quizId}`)
+        .setLabel(quiz.isActive ? 'Disable' : 'Enable')
+        .setStyle(quiz.isActive ? ButtonStyle.Danger : ButtonStyle.Success)
+    );
 
     // Add private toggle button if user owns the quiz or is admin
     const privateToggleButton = new ButtonBuilder()
@@ -249,7 +238,7 @@ async function handleEditQuiz(interaction: CommandInteraction): Promise<void> {
       .setStyle(isPrivate ? ButtonStyle.Success : ButtonStyle.Secondary);
 
     const components = [row];
-    
+
     // Only show private toggle if user owns the quiz or is admin
     if (userCanManage) {
       const privateRow = new ActionRowBuilder<ButtonBuilder>().addComponents(privateToggleButton);
@@ -257,7 +246,6 @@ async function handleEditQuiz(interaction: CommandInteraction): Promise<void> {
     }
 
     await interaction.reply({ embeds: [embed], components, ephemeral: true });
-    
   } catch (error) {
     logger.error('Error editing quiz:', error);
     await interaction.reply({ content: '❌ Error editing quiz.', ephemeral: true });
@@ -267,19 +255,19 @@ async function handleEditQuiz(interaction: CommandInteraction): Promise<void> {
 async function handleDeleteQuiz(interaction: CommandInteraction): Promise<void> {
   try {
     if (!interaction.isChatInputCommand()) return;
-    
+
     const quizId = interaction.options.getString('quiz_id', true);
-    
+
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: quizId },
       include: {
         _count: {
           select: {
             attempts: true,
-            questions: true
-          }
-        }
-      }
+            questions: true,
+          },
+        },
+      },
     });
 
     if (!quiz) {
@@ -289,24 +277,24 @@ async function handleDeleteQuiz(interaction: CommandInteraction): Promise<void> 
 
     const embed = new EmbedBuilder()
       .setTitle('⚠️ Confirm Quiz Deletion')
-      .setDescription(`Are you sure you want to delete **${quiz.title}**?\n\nThis will permanently delete:\n• ${quiz._count.questions} questions\n• ${quiz._count.attempts} quiz attempts\n• All related data\n\n**This action cannot be undone!**`)
+      .setDescription(
+        `Are you sure you want to delete **${quiz.title}**?\n\nThis will permanently delete:\n• ${quiz._count.questions} questions\n• ${quiz._count.attempts} quiz attempts\n• All related data\n\n**This action cannot be undone!**`
+      )
       .setColor('#ff0000')
       .setTimestamp();
 
-    const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`quiz_delete_confirm_${quizId}`)
-          .setLabel('✅ Delete Quiz')
-          .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-          .setCustomId(`quiz_delete_cancel_${quizId}`)
-          .setLabel('❌ Cancel')
-          .setStyle(ButtonStyle.Secondary)
-      );
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`quiz_delete_confirm_${quizId}`)
+        .setLabel('✅ Delete Quiz')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`quiz_delete_cancel_${quizId}`)
+        .setLabel('❌ Cancel')
+        .setStyle(ButtonStyle.Secondary)
+    );
 
     await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-    
   } catch (error) {
     logger.error('Error deleting quiz:', error);
     await interaction.reply({ content: '❌ Error deleting quiz.', ephemeral: true });
@@ -316,17 +304,17 @@ async function handleDeleteQuiz(interaction: CommandInteraction): Promise<void> 
 async function handleDeleteAllQuizzes(interaction: CommandInteraction): Promise<void> {
   try {
     if (!interaction.isChatInputCommand()) return;
-    
+
     // Get quiz statistics before deletion
     const quizStats = await databaseService.prisma.quiz.findMany({
       include: {
         _count: {
           select: {
             attempts: true,
-            questions: true
-          }
-        }
-      }
+            questions: true,
+          },
+        },
+      },
     });
 
     if (quizStats.length === 0) {
@@ -340,24 +328,24 @@ async function handleDeleteAllQuizzes(interaction: CommandInteraction): Promise<
 
     const embed = new EmbedBuilder()
       .setTitle('⚠️ Confirm Delete ALL Quizzes')
-      .setDescription(`Are you sure you want to delete **ALL ${totalQuizzes} quizzes**?\n\nThis will permanently delete:\n• ${totalQuizzes} quizzes\n• ${totalQuestions} questions\n• ${totalAttempts} quiz attempts\n• All related data\n\n**⚠️ THIS ACTION CANNOT BE UNDONE! ⚠️**`)
+      .setDescription(
+        `Are you sure you want to delete **ALL ${totalQuizzes} quizzes**?\n\nThis will permanently delete:\n• ${totalQuizzes} quizzes\n• ${totalQuestions} questions\n• ${totalAttempts} quiz attempts\n• All related data\n\n**⚠️ THIS ACTION CANNOT BE UNDONE! ⚠️**`
+      )
       .setColor('#ff0000')
       .setTimestamp();
 
-    const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`quiz_delete_all_confirm`)
-          .setLabel('✅ Delete ALL Quizzes')
-          .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-          .setCustomId(`quiz_delete_all_cancel`)
-          .setLabel('❌ Cancel')
-          .setStyle(ButtonStyle.Secondary)
-      );
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`quiz_delete_all_confirm`)
+        .setLabel('✅ Delete ALL Quizzes')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`quiz_delete_all_cancel`)
+        .setLabel('❌ Cancel')
+        .setStyle(ButtonStyle.Secondary)
+    );
 
     await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-    
   } catch (error) {
     logger.error('Error preparing delete all quizzes:', error);
     await interaction.reply({ content: '❌ Error preparing delete all quizzes.', ephemeral: true });
@@ -367,13 +355,13 @@ async function handleDeleteAllQuizzes(interaction: CommandInteraction): Promise<
 async function handleAddQuestion(interaction: CommandInteraction): Promise<void> {
   try {
     if (!interaction.isChatInputCommand()) return;
-    
+
     const quizId = interaction.options.getString('quiz_id', true);
-    
+
     // Check if quiz exists and user has permission
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: quizId },
-      include: { questions: true }
+      include: { questions: true },
     });
 
     if (!quiz) {
@@ -383,15 +371,15 @@ async function handleAddQuestion(interaction: CommandInteraction): Promise<void>
 
     // Check if user can manage this quiz
     const userCanManage = canManageQuiz(
-      interaction.user.id, 
-      (quiz as any).quizOwnerId, 
+      interaction.user.id,
+      (quiz as any).quizOwnerId,
       hasAdminPrivileges(interaction)
     );
 
     if (!userCanManage) {
-      await interaction.reply({ 
-        content: '❌ You can only add questions to quizzes you own or have admin privileges for.', 
-        ephemeral: true 
+      await interaction.reply({
+        content: '❌ You can only add questions to quizzes you own or have admin privileges for.',
+        ephemeral: true,
       });
       return;
     }
@@ -450,9 +438,8 @@ async function handleAddQuestion(interaction: CommandInteraction): Promise<void>
     modal.addComponents(firstRow, secondRow, thirdRow, fourthRow, fifthRow);
 
     await interaction.showModal(modal);
-    
   } catch (error) {
     logger.error('Error adding question:', error);
     await interaction.reply({ content: '❌ Error adding question.', ephemeral: true });
   }
-} 
+}

@@ -14,8 +14,8 @@ export default defineConfig({
     setupFiles: ['tests/setup.ts'],
     testTimeout: 10000,
     typecheck: {
-      tsconfig: 'tsconfig.json'
-    }
+      tsconfig: 'tsconfig.json',
+    },
   },
   resolve: {
     alias: {

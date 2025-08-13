@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { execute } from '../../app/commands/quiz/edit-question-add-hint';
 
-vi.mock('@/utils/logger', () => ({
+vi.mock('../../app/utils/logger', () => ({
   logger: {
     error: vi.fn(),
     info: vi.fn(),
@@ -9,7 +9,7 @@ vi.mock('@/utils/logger', () => ({
   },
 }));
 
-vi.mock('@/services/DatabaseService', () => ({
+vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
       quiz: { findUnique: vi.fn() },

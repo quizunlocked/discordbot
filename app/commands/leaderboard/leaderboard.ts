@@ -1,8 +1,14 @@
-import { SlashCommandBuilder, CommandInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { Command } from '@/types';
-import { leaderboardService } from '@/services/LeaderboardService';
-import { buttonCleanupService } from '@/services/ButtonCleanupService';
-import { logger } from '@/utils/logger';
+import {
+  SlashCommandBuilder,
+  CommandInteraction,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} from 'discord.js';
+import { Command } from '../../types/index.js';
+import { leaderboardService } from '../../services/LeaderboardService.js';
+import { buttonCleanupService } from '../../services/ButtonCleanupService.js';
+import { logger } from '../../utils/logger.js';
 
 const PERIODS = ['weekly', 'monthly', 'yearly', 'overall'] as const;
 const ENTRIES_PER_PAGE = 10;
@@ -40,12 +46,17 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
     // Validate channel type - leaderboard commands must be run in guild channels
     if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {
       await interaction.editReply({
-        content: '❌ Leaderboard commands can only be used in server channels, not in direct messages.',
+        content:
+          '❌ Leaderboard commands can only be used in server channels, not in direct messages.',
       });
       return;
     }
 
-    const period = (interaction.options.getString('period') || 'weekly') as 'weekly' | 'monthly' | 'yearly' | 'overall';
+    const period = (interaction.options.getString('period') || 'weekly') as
+      | 'weekly'
+      | 'monthly'
+      | 'yearly'
+      | 'overall';
     const page = interaction.options.getInteger('page') || 1;
 
     // Get leaderboard data
@@ -59,7 +70,7 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
 
     // Create navigation buttons
     const row = new ActionRowBuilder<ButtonBuilder>();
-    
+
     if (totalPages > 1) {
       row.addComponents(
         new ButtonBuilder()
@@ -95,10 +106,9 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
 
     // Schedule button cleanup for leaderboard (30 seconds)
     buttonCleanupService.scheduleLeaderboardCleanup(reply.id, interaction.channelId, 30);
-
   } catch (error) {
     logger.error('Error executing leaderboard command:', error);
-    
+
     // Check if interaction is still valid before trying to reply
     if (interaction.isRepliable()) {
       try {
@@ -118,4 +128,4 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
       }
     }
   }
-}; 
+};

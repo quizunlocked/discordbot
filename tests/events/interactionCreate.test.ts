@@ -1,7 +1,9 @@
 import { execute } from '../../app/events/interactionCreate';
 
-vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn() } }));
-vi.mock('@/services/QuizService', () => ({ quizService: { handleButtonInteraction: vi.fn() } }));
+vi.mock('../../app/utils/logger', () => ({ logger: { error: vi.fn() } }));
+vi.mock('../../app/services/QuizService', () => ({
+  quizService: { handleButtonInteraction: vi.fn() },
+}));
 
 describe('interactionCreate event', () => {
   it('should handle button interaction', async () => {

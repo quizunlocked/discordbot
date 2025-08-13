@@ -1,9 +1,9 @@
 import { SlashCommandBuilder, CommandInteraction, PermissionFlagsBits } from 'discord.js';
-import { logger } from '@/utils/logger';
-import { quizService } from '@/services/QuizService';
-import { databaseService } from '@/services/DatabaseService';
-import { QuizConfig } from '@/types';
-import { canAccessQuiz } from '@/utils/permissions';
+import { logger } from '../../utils/logger.js';
+import { quizService } from '../../services/QuizService.js';
+import { databaseService } from '../../services/DatabaseService.js';
+import { QuizConfig } from '../../types/index.js';
+import { canAccessQuiz } from '../../utils/permissions.js';
 
 export const data = new SlashCommandBuilder()
   .setName('quiz')
@@ -43,9 +43,7 @@ export const data = new SlashCommandBuilder()
       )
   )
   .addSubcommand(subcommand =>
-    subcommand
-      .setName('stop')
-      .setDescription('Stop the current quiz session')
+    subcommand.setName('stop').setDescription('Stop the current quiz session')
   )
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
 
@@ -53,13 +51,13 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
   if (!interaction.isChatInputCommand()) return;
 
   const subcommand = interaction.options.getSubcommand();
-  
+
   if (subcommand === 'start') {
     const quizId = interaction.options.getString('quiz_id', true);
     const waitTime = interaction.options.getInteger('wait_time') || 30;
     const totalTimeLimit = interaction.options.getInteger('total_time_limit');
     const isPrivate = interaction.options.getBoolean('private') || false;
-    
+
     // Validate channel type - quiz commands must be run in guild channels
     if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {
       await interaction.reply({
@@ -68,7 +66,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
       });
       return;
     }
-    
+
     try {
       // Check if there's already an active quiz in this channel
       const activeSession = quizService.getActiveSessionByChannel(interaction.channelId);
@@ -83,7 +81,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
       // Find the quiz by ID in the database
       let existingQuiz = await databaseService.prisma.quiz.findUnique({
         where: { id: quizId },
-        include: { questions: true }
+        include: { questions: true },
       });
 
       if (!existingQuiz) {
@@ -96,7 +94,13 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
 
       // Check access permissions for private quizzes
       if ((existingQuiz as any).private) {
-        if (!canAccessQuiz(interaction.user.id, (existingQuiz as any).quizOwnerId, (existingQuiz as any).private)) {
+        if (
+          !canAccessQuiz(
+            interaction.user.id,
+            (existingQuiz as any).quizOwnerId,
+            (existingQuiz as any).private
+          )
+        ) {
           await interaction.reply({
             content: '❌ This is a private quiz. Only the creator can start it.',
             ephemeral: true,
@@ -114,8 +118,8 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
           options: JSON.parse(q.options),
           correctAnswer: q.correctAnswer,
           points: q.points,
-          timeLimit: q.timeLimit
-        }))
+          timeLimit: q.timeLimit,
+        })),
       };
 
       // Add total time limit to quiz config if provided
@@ -127,7 +131,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
         content: `Starting quiz: **${quizConfig.title}**\nGet ready to answer some questions!`,
         ephemeral: false,
       });
-      
+
       // Start the quiz with waiting period
       await quizService.startQuiz(
         interaction.channel as any,
@@ -138,9 +142,10 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
         isPrivate,
         isPrivate ? interaction.user.id : undefined
       );
-      
-      logger.info(`Quiz "${quizConfig.title}" started by ${interaction.user.tag} in ${interaction.guild?.name}`);
-      
+
+      logger.info(
+        `Quiz "${quizConfig.title}" started by ${interaction.user.tag} in ${interaction.guild?.name}`
+      );
     } catch (error) {
       logger.error('Error starting quiz:', error);
       await interaction.reply({
@@ -162,14 +167,13 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
 
       // Stop the quiz
       await quizService.stopQuiz(activeSession.id);
-      
+
       await interaction.reply({
         content: '✅ Quiz has been stopped.',
         ephemeral: false,
       });
-      
+
       logger.info(`Quiz stopped by ${interaction.user.tag} in ${interaction.guild?.name}`);
-      
     } catch (error) {
       logger.error('Error stopping quiz:', error);
       await interaction.reply({
@@ -203,4 +207,4 @@ export async function autocomplete(interaction: any) {
       value: q.id,
     }))
   );
-} 
+}

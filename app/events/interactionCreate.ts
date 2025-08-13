@@ -8,13 +8,13 @@ import {
   EmbedBuilder,
   ModalSubmitInteraction,
 } from 'discord.js';
-import { logger } from '@/utils/logger';
-import { quizService } from '@/services/QuizService';
-import { leaderboardService } from '@/services/LeaderboardService';
-import { buttonCleanupService } from '@/services/ButtonCleanupService';
-import { databaseService } from '@/services/DatabaseService';
-import { requireAdminPrivileges, canManageQuiz, hasAdminPrivileges } from '@/utils/permissions';
-import { autocomplete as quizAutocomplete } from '@/commands/quiz/start';
+import { logger } from '../utils/logger.js';
+import { quizService } from '../services/QuizService.js';
+import { leaderboardService } from '../services/LeaderboardService.js';
+import { buttonCleanupService } from '../services/ButtonCleanupService.js';
+import { databaseService } from '../services/DatabaseService.js';
+import { requireAdminPrivileges, canManageQuiz, hasAdminPrivileges } from '../utils/permissions.js';
+import { autocomplete as quizAutocomplete } from '../commands/quiz/start';
 import * as fs from 'fs/promises';
 
 export const name = Events.InteractionCreate;

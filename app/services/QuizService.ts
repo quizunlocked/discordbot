@@ -8,12 +8,12 @@ import {
   Client,
   AttachmentBuilder,
 } from 'discord.js';
-import { databaseService } from './DatabaseService';
-import { leaderboardService } from './LeaderboardService';
-import { buttonCleanupService } from './ButtonCleanupService';
-import { logger } from '@/utils/logger';
-import { config } from '@/utils/config';
-import { QuizSession, ParticipantData, QuizConfig } from '@/types';
+import { databaseService } from './DatabaseService.js';
+import { leaderboardService } from './LeaderboardService.js';
+import { buttonCleanupService } from './ButtonCleanupService.js';
+import { logger } from '../utils/logger.js';
+import { config } from '../utils/config.js';
+import { QuizSession, ParticipantData, QuizConfig } from '../types/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs/promises';
 import * as path from 'path';

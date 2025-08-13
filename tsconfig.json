@@ -46,7 +46,8 @@
   "exclude": [
     "node_modules",
     "dist",
-    "vitest.config.ts"
+    "scripts/**/*",
+    "./*.ts"
   ],
   "ts-node": {
     "transpileOnly": true,

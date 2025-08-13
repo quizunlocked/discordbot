@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
-import { logger } from '@/utils/logger';
-import { databaseService } from '@/services/DatabaseService';
+import { logger } from '../../utils/logger.js';
+import { databaseService } from '../../services/DatabaseService.js';
 
 export const data = new SlashCommandBuilder()
   .setName('edit-question-add-hint')
@@ -47,10 +47,10 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     // Validate quiz exists and user has access
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: quizId },
-      include: { 
+      include: {
         questions: {
-          orderBy: { id: 'asc' } // Ensure consistent ordering
-        }
+          orderBy: { id: 'asc' }, // Ensure consistent ordering
+        },
       },
     });
 
@@ -123,13 +123,20 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .addFields(
         { name: 'Quiz ID', value: quizId, inline: true },
         { name: 'Question Number', value: questionNumber.toString(), inline: true },
-        { name: 'Question', value: question.questionText.length > 100 
-          ? question.questionText.substring(0, 97) + '...' 
-          : question.questionText, inline: false },
+        {
+          name: 'Question',
+          value:
+            question.questionText.length > 100
+              ? question.questionText.substring(0, 97) + '...'
+              : question.questionText,
+          inline: false,
+        },
         { name: 'Hint Title', value: hintTitle, inline: true },
-        { name: 'Hint Text', value: hintText.length > 100 
-          ? hintText.substring(0, 97) + '...' 
-          : hintText, inline: false },
+        {
+          name: 'Hint Text',
+          value: hintText.length > 100 ? hintText.substring(0, 97) + '...' : hintText,
+          inline: false,
+        },
         { name: 'Total Hints', value: `${currentHints + 1}/5`, inline: true }
       )
       .setColor('#00ff00')
@@ -140,11 +147,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     logger.info(
       `Hint "${hintTitle}" added to question ${questionNumber} in quiz "${quiz.title}" by ${interaction.user.tag}`
     );
-
   } catch (error) {
     logger.error('Error adding hint to question:', error);
-    await interaction.editReply(
-      '❌ An error occurred while adding the hint. Please try again.'
-    );
+    await interaction.editReply('❌ An error occurred while adding the hint. Please try again.');
   }
 }

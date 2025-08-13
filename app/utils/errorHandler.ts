@@ -1,5 +1,5 @@
 import { CommandInteraction } from 'discord.js';
-import { logger } from './logger';
+import { logger } from './logger.js';
 
 export const withErrorHandling =
   <T extends [CommandInteraction, ...any[]]>(fn: (...args: T) => Promise<void>) =>

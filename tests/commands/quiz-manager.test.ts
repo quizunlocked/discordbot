@@ -1,8 +1,8 @@
 import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../app/commands/admin/quiz-manager';
 
-vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
-vi.mock('@/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
+vi.mock('../../app/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
+vi.mock('../../app/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
 const mockShowModal = vi.fn();
 vi.mock('discord.js', async () => {
   const actual = await vi.importActual('discord.js');

@@ -10,14 +10,21 @@ const __dirname = path.dirname(__filename);
 
 async function loadCommands(): Promise<any[]> {
   const commands: any[] = [];
-  const commandsPath = path.join(__dirname, '../dist/commands');
+
+  // Use NODE_ENV to determine if we're in production
+  const isProduction = process.env['NODE_ENV'] === 'production';
+  const commandsPath = isProduction
+    ? path.join(__dirname, '../dist/app/commands')
+    : path.join(__dirname, '../app/commands');
+  const fileExtension = isProduction ? '.js' : '.ts';
+
   const commandFolders = fs.readdirSync(commandsPath);
 
   for (const folder of commandFolders) {
     const folderPath = path.join(commandsPath, folder);
     const commandFiles = fs
       .readdirSync(folderPath)
-      .filter(file => file.endsWith('.js') && !file.endsWith('.d.ts'));
+      .filter(file => file.endsWith(fileExtension) && !file.endsWith('.d.ts'));
 
     for (const file of commandFiles) {
       const filePath = path.join(folderPath, file);

@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
-import { logger } from '@/utils/logger';
-import { databaseService } from '@/services/DatabaseService';
+import { logger } from '../../utils/logger.js';
+import { databaseService } from '../../services/DatabaseService.js';
 
 export const data = new SlashCommandBuilder()
   .setName('generate-quiz')
@@ -76,12 +76,16 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     });
 
     if (!corpus) {
-      await interaction.editReply(`❌ Corpus "${corpusTitle}" not found. Please check the corpus title.`);
+      await interaction.editReply(
+        `❌ Corpus "${corpusTitle}" not found. Please check the corpus title.`
+      );
       return;
     }
 
     if (corpus.entries.length === 0) {
-      await interaction.editReply(`❌ Corpus "${corpusTitle}" has no entries. Please upload corpus data first.`);
+      await interaction.editReply(
+        `❌ Corpus "${corpusTitle}" has no entries. Please upload corpus data first.`
+      );
       return;
     }
 
@@ -110,7 +114,9 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     });
 
     if (existingQuiz) {
-      await interaction.editReply(`❌ You already have a quiz titled "${quizTitle}". Please choose a different title.`);
+      await interaction.editReply(
+        `❌ You already have a quiz titled "${quizTitle}". Please choose a different title.`
+      );
       return;
     }
 
@@ -130,7 +136,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     // Create the quiz in database
     const quizId = `quiz_${interaction.id}_${Date.now()}`;
 
-    await databaseService.prisma.$transaction(async (tx) => {
+    await databaseService.prisma.$transaction(async tx => {
       // Create or get user
       const user = await tx.user.upsert({
         where: { id: interaction.user.id },
@@ -157,7 +163,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       for (let i = 0; i < generatedQuestions.length; i++) {
         const question = generatedQuestions[i];
         if (!question) continue;
-        
+
         const createdQuestion = await tx.question.create({
           data: {
             quizId: quiz.id,
@@ -207,11 +213,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
     await interaction.editReply({ embeds: [embed] });
 
-    logger.info(`Quiz "${quizTitle}" generated from corpus "${corpusTitle}" by ${interaction.user.tag} with ${generatedQuestions.length} questions`);
-
+    logger.info(
+      `Quiz "${quizTitle}" generated from corpus "${corpusTitle}" by ${interaction.user.tag} with ${generatedQuestions.length} questions`
+    );
   } catch (error) {
     logger.error('Error generating quiz from corpus:', error);
-    await interaction.editReply('❌ An error occurred while generating the quiz. Please try again.');
+    await interaction.editReply(
+      '❌ An error occurred while generating the quiz. Please try again.'
+    );
   }
 }
 
@@ -224,11 +233,9 @@ async function generateQuizFromCorpus(
   try {
     // Randomly select entries for the quiz (without replacement)
     const selectedEntries = shuffleArray([...entries]).slice(0, numQuestions);
-    
+
     // Create a pool of all answer variants for distractor generation
-    const allAnswerVariants = entries.flatMap(entry => 
-      entry.answerVariants as string[]
-    );
+    const allAnswerVariants = entries.flatMap(entry => entry.answerVariants as string[]);
 
     const generatedQuestions: GeneratedQuestion[] = [];
 
@@ -241,20 +248,18 @@ async function generateQuizFromCorpus(
 
       // Randomly select one question variant
       const questionText = getRandomElement(questionVariants);
-      
+
       // Randomly select one correct answer variant
       const correctAnswer = getRandomElement(answerVariants);
-      
+
       // Generate distractors (incorrect answers) from other entries
-      const otherAnswers = allAnswerVariants.filter(answer => 
-        !answerVariants.includes(answer)
-      );
+      const otherAnswers = allAnswerVariants.filter(answer => !answerVariants.includes(answer));
       const distractors = shuffleArray(otherAnswers).slice(0, numChoices - 1);
-      
+
       // Combine correct answer and distractors
       const allOptions = [correctAnswer, ...distractors];
       const shuffledOptions = shuffleArray(allOptions);
-      
+
       // Find the index of the correct answer after shuffling
       const correctIndex = shuffledOptions.indexOf(correctAnswer);
 
@@ -284,7 +289,6 @@ async function generateQuizFromCorpus(
     }
 
     return generatedQuestions;
-
   } catch (error) {
     logger.error('Error in generateQuizFromCorpus:', error);
     return [];

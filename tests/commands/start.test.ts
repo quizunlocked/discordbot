@@ -1,11 +1,11 @@
 import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../app/commands/quiz/start';
 
-vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
-vi.mock('@/services/QuizService', () => ({
+vi.mock('../../app/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
+vi.mock('../../app/services/QuizService', () => ({
   quizService: { getActiveSessionByChannel: vi.fn(), startQuiz: vi.fn(), stopQuiz: vi.fn() },
 }));
-vi.mock('@/services/DatabaseService', () => ({
+vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: { prisma: { quiz: { findFirst: vi.fn() } } },
 }));
 

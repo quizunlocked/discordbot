@@ -355,20 +355,6 @@ npm run build
 npm start
 ```
 
-#### "Cannot find module '@/utils/config'"
-
-This error occurs when TypeScript path aliases aren't resolved at runtime. **Solution:**
-
-Ensure `module-alias` is installed and `_moduleAliases` is configured in `package.json`:
-
-```json
-{
-  "_moduleAliases": {
-    "@": "dist"
-  }
-}
-```
-
 #### PostgreSQL Connection Issues
 
 **Error:** "connection to server failed" or database connection errors

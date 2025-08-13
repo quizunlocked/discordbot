@@ -1,16 +1,16 @@
-import { 
-  SlashCommandBuilder, 
-  CommandInteraction, 
-  PermissionFlagsBits, 
+import {
+  SlashCommandBuilder,
+  CommandInteraction,
+  PermissionFlagsBits,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
 } from 'discord.js';
-import { logger } from '@/utils/logger';
-import { databaseService } from '@/services/DatabaseService';
-import { quizService } from '@/services/QuizService';
-import { buttonCleanupService } from '@/services/ButtonCleanupService';
+import { logger } from '../../utils/logger.js';
+import { databaseService } from '../../services/DatabaseService.js';
+import { quizService } from '../../services/QuizService.js';
+import { buttonCleanupService } from '../../services/ButtonCleanupService.js';
 
 export const data = new SlashCommandBuilder()
   .setName('dashboard')
@@ -39,7 +39,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
       attemptCount,
       scoreCount,
       activeQuizzes,
-      recentAttempts
+      recentAttempts,
     ] = await Promise.all([
       databaseService.prisma.user.count(),
       databaseService.prisma.quiz.count(),
@@ -52,9 +52,9 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
         orderBy: { startedAt: 'desc' },
         include: {
           user: true,
-          quiz: true
-        }
-      })
+          quiz: true,
+        },
+      }),
     ]);
 
     // Get bot status
@@ -85,65 +85,66 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
         { name: 'Questions', value: questionCount.toString(), inline: true },
         { name: 'Attempts', value: attemptCount.toString(), inline: true },
         { name: 'Score Records', value: scoreCount.toString(), inline: true },
-        { name: 'Active Sessions', value: activeSessions ? '1 in this channel' : 'None', inline: true }
+        {
+          name: 'Active Sessions',
+          value: activeSessions ? '1 in this channel' : 'None',
+          inline: true,
+        }
       )
       .setTimestamp();
 
     // Add recent activity if any
     if (recentAttempts.length > 0) {
-      const recentActivity = recentAttempts.map(a => 
-        `${a.user.username}: ${a.quiz.title} (${a.totalScore} pts)`
-      ).join('\n');
-      
-      embed.addFields({ 
-        name: '📈 Recent Activity', 
+      const recentActivity = recentAttempts
+        .map(a => `${a.user.username}: ${a.quiz.title} (${a.totalScore} pts)`)
+        .join('\n');
+
+      embed.addFields({
+        name: '📈 Recent Activity',
         value: recentActivity,
-        inline: false 
+        inline: false,
       });
     }
 
     // Create quick action buttons
-    const row1 = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('dashboard_status')
-          .setLabel('System Status')
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId('dashboard_quizzes')
-          .setLabel('Manage Quizzes')
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId('dashboard_users')
-          .setLabel('User Management')
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setCustomId('dashboard_database')
-          .setLabel('Database Stats')
-          .setStyle(ButtonStyle.Primary)
-      );
+    const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId('dashboard_status')
+        .setLabel('System Status')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId('dashboard_quizzes')
+        .setLabel('Manage Quizzes')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId('dashboard_users')
+        .setLabel('User Management')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId('dashboard_database')
+        .setLabel('Database Stats')
+        .setStyle(ButtonStyle.Primary)
+    );
 
-    const row2 = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId('dashboard_create_quiz')
-          .setLabel('Create Quiz')
-          .setStyle(ButtonStyle.Success),
-        new ButtonBuilder()
-          .setCustomId('dashboard_stop_quiz')
-          .setLabel('Stop Active Quiz')
-          .setStyle(ButtonStyle.Danger)
-          .setDisabled(!activeSessions)
-      );
+    const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId('dashboard_create_quiz')
+        .setLabel('Create Quiz')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId('dashboard_stop_quiz')
+        .setLabel('Stop Active Quiz')
+        .setStyle(ButtonStyle.Danger)
+        .setDisabled(!activeSessions)
+    );
 
-    const reply = await interaction.editReply({ 
-      embeds: [embed], 
-      components: [row1, row2] 
+    const reply = await interaction.editReply({
+      embeds: [embed],
+      components: [row1, row2],
     });
 
     // Schedule button cleanup for dashboard (5 minutes)
     buttonCleanupService.scheduleAdminCleanup(reply.id, interaction.channelId, 300);
-
   } catch (error) {
     logger.error('Error in dashboard command:', error);
     await interaction.editReply({
@@ -167,4 +168,4 @@ function formatUptime(seconds: number): string {
   } else {
     return `${secs}s`;
   }
-} 
+}

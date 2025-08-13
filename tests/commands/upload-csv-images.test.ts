@@ -1,8 +1,10 @@
 import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../app/commands/quiz/upload-csv';
 
-vi.mock('@/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
-vi.mock('@/services/DatabaseService', () => ({
+vi.mock('../../app/utils/logger', () => ({
+  logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
+}));
+vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
       user: { upsert: vi.fn() },

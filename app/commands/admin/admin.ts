@@ -1,25 +1,23 @@
-import { 
-  SlashCommandBuilder, 
-  CommandInteraction, 
-  PermissionFlagsBits, 
+import {
+  SlashCommandBuilder,
+  CommandInteraction,
+  PermissionFlagsBits,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
 } from 'discord.js';
-import { logger } from '@/utils/logger';
-import { databaseService } from '@/services/DatabaseService';
-import { quizService } from '@/services/QuizService';
-import { buttonCleanupService } from '@/services/ButtonCleanupService';
-import { requireAdminPrivileges } from '@/utils/permissions';
+import { logger } from '../../utils/logger.js';
+import { databaseService } from '../../services/DatabaseService.js';
+import { quizService } from '../../services/QuizService.js';
+import { buttonCleanupService } from '../../services/ButtonCleanupService.js';
+import { requireAdminPrivileges } from '../../utils/permissions.js';
 
 export const data = new SlashCommandBuilder()
   .setName('admin')
   .setDescription('Admin commands for managing the quiz bot')
   .addSubcommand(subcommand =>
-    subcommand
-      .setName('status')
-      .setDescription('Check bot status and database connection')
+    subcommand.setName('status').setDescription('Check bot status and database connection')
   )
   .addSubcommand(subcommand =>
     subcommand
@@ -37,10 +35,7 @@ export const data = new SlashCommandBuilder()
       .setName('quiz-info')
       .setDescription('Get detailed information about a quiz')
       .addStringOption(option =>
-        option
-          .setName('quiz_id')
-          .setDescription('The ID of the quiz')
-          .setRequired(true)
+        option.setName('quiz_id').setDescription('The ID of the quiz').setRequired(true)
       )
   )
   .addSubcommand(subcommand =>
@@ -48,10 +43,7 @@ export const data = new SlashCommandBuilder()
       .setName('toggle-quiz')
       .setDescription('Enable or disable a quiz')
       .addStringOption(option =>
-        option
-          .setName('quiz_id')
-          .setDescription('The ID of the quiz')
-          .setRequired(true)
+        option.setName('quiz_id').setDescription('The ID of the quiz').setRequired(true)
       )
   )
   .addSubcommand(subcommand =>
@@ -59,10 +51,7 @@ export const data = new SlashCommandBuilder()
       .setName('user-stats')
       .setDescription('Get detailed statistics for a user')
       .addUserOption(option =>
-        option
-          .setName('user')
-          .setDescription('The user to get stats for')
-          .setRequired(true)
+        option.setName('user').setDescription('The user to get stats for').setRequired(true)
       )
   )
   .addSubcommand(subcommand =>
@@ -70,10 +59,7 @@ export const data = new SlashCommandBuilder()
       .setName('clear-user-data')
       .setDescription('Clear all data for a specific user')
       .addUserOption(option =>
-        option
-          .setName('user')
-          .setDescription('The user to clear data for')
-          .setRequired(true)
+        option.setName('user').setDescription('The user to clear data for').setRequired(true)
       )
   )
   .addSubcommand(subcommand =>
@@ -92,7 +78,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
   if (!interaction.isChatInputCommand()) return;
 
   const subcommand = interaction.options.getSubcommand();
-  
+
   try {
     await interaction.deferReply({ ephemeral: true });
 
@@ -133,7 +119,6 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
       default:
         await interaction.editReply('Unknown subcommand.');
     }
-    
   } catch (error) {
     logger.error('Error in admin command:', error);
     await interaction.editReply({
@@ -169,7 +154,6 @@ async function handleStatus(interaction: CommandInteraction): Promise<void> {
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-    
   } catch (error) {
     logger.error('Error checking status:', error);
     await interaction.editReply('❌ Error checking bot status.');
@@ -179,20 +163,20 @@ async function handleStatus(interaction: CommandInteraction): Promise<void> {
 async function handleListQuizzes(interaction: CommandInteraction): Promise<void> {
   try {
     if (!interaction.isChatInputCommand()) return;
-    
+
     const includeInactive = interaction.options.getBoolean('include_inactive') ?? true; // Default to true to show all quizzes
-    
+
     const quizzes = await databaseService.prisma.quiz.findMany({
       where: includeInactive ? {} : { isActive: true },
       include: {
         _count: {
           select: {
             questions: true,
-            attempts: true
-          }
-        }
+            attempts: true,
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     if (quizzes.length === 0) {
@@ -203,19 +187,24 @@ async function handleListQuizzes(interaction: CommandInteraction): Promise<void>
     const embed = new EmbedBuilder()
       .setTitle('📚 Available Quizzes')
       .setColor('#0099ff')
-      .setDescription(quizzes.map(quiz => {
-        const status = quiz.isActive ? '🟢 Active' : '🔴 Inactive';
-        return `**${quiz.title}** (${quiz.id})\n${status} • ${quiz._count.questions} questions • ${quiz._count.attempts} attempts`;
-      }).join('\n\n'))
+      .setDescription(
+        quizzes
+          .map(quiz => {
+            const status = quiz.isActive ? '🟢 Active' : '🔴 Inactive';
+            return `**${quiz.title}** (${quiz.id})\n${status} • ${quiz._count.questions} questions • ${quiz._count.attempts} attempts`;
+          })
+          .join('\n\n')
+      )
       .setTimestamp();
 
     // Add note about inactive quizzes if showing all
     if (includeInactive) {
-      embed.setFooter({ text: 'Showing all quizzes (active and inactive). Use /admin list-quizzes include_inactive:false to show only active quizzes.' });
+      embed.setFooter({
+        text: 'Showing all quizzes (active and inactive). Use /admin list-quizzes include_inactive:false to show only active quizzes.',
+      });
     }
 
     await interaction.editReply({ embeds: [embed] });
-    
   } catch (error) {
     logger.error('Error listing quizzes:', error);
     await interaction.editReply('❌ Error listing quizzes.');
@@ -225,9 +214,9 @@ async function handleListQuizzes(interaction: CommandInteraction): Promise<void>
 async function handleQuizInfo(interaction: CommandInteraction): Promise<void> {
   try {
     if (!interaction.isChatInputCommand()) return;
-    
+
     const quizId = interaction.options.getString('quiz_id', true);
-    
+
     const quiz = await databaseService.prisma.quiz.findUnique({
       where: { id: quizId },
       include: {
@@ -235,18 +224,18 @@ async function handleQuizInfo(interaction: CommandInteraction): Promise<void> {
         attempts: {
           include: {
             user: true,
-            questionAttempts: true
+            questionAttempts: true,
           },
           orderBy: { startedAt: 'desc' },
-          take: 10
+          take: 10,
         },
         _count: {
           select: {
             questions: true,
-            attempts: true
-          }
-        }
-      }
+            attempts: true,
+          },
+        },
+      },
     });
 
     if (!quiz) {
@@ -256,9 +245,10 @@ async function handleQuizInfo(interaction: CommandInteraction): Promise<void> {
 
     // Calculate statistics
     const totalParticipants = new Set(quiz.attempts.map(a => a.userId)).size;
-    const averageScore = quiz.attempts.length > 0 
-      ? Math.round(quiz.attempts.reduce((sum, a) => sum + a.totalScore, 0) / quiz.attempts.length)
-      : 0;
+    const averageScore =
+      quiz.attempts.length > 0
+        ? Math.round(quiz.attempts.reduce((sum, a) => sum + a.totalScore, 0) / quiz.attempts.length)
+        : 0;
 
     const embed = new EmbedBuilder()
       .setTitle(`📊 Quiz Information: ${quiz.title}`)
@@ -275,19 +265,21 @@ async function handleQuizInfo(interaction: CommandInteraction): Promise<void> {
       .setTimestamp();
 
     if (quiz.questions.length > 0) {
-      const questionsText = quiz.questions.map((q, i) => 
-        `${i + 1}. ${q.questionText.substring(0, 50)}${q.questionText.length > 50 ? '...' : ''}`
-      ).join('\n');
-      
-      embed.addFields({ 
-        name: 'Questions Preview', 
+      const questionsText = quiz.questions
+        .map(
+          (q, i) =>
+            `${i + 1}. ${q.questionText.substring(0, 50)}${q.questionText.length > 50 ? '...' : ''}`
+        )
+        .join('\n');
+
+      embed.addFields({
+        name: 'Questions Preview',
         value: questionsText.substring(0, 1024) + (questionsText.length > 1024 ? '...' : ''),
-        inline: false 
+        inline: false,
       });
     }
 
     await interaction.editReply({ embeds: [embed] });
-    
   } catch (error) {
     logger.error('Error getting quiz info:', error);
     await interaction.editReply('❌ Error getting quiz information.');
@@ -297,11 +289,11 @@ async function handleQuizInfo(interaction: CommandInteraction): Promise<void> {
 async function handleToggleQuiz(interaction: CommandInteraction): Promise<void> {
   try {
     if (!interaction.isChatInputCommand()) return;
-    
+
     const quizId = interaction.options.getString('quiz_id', true);
-    
+
     const quiz = await databaseService.prisma.quiz.findUnique({
-      where: { id: quizId }
+      where: { id: quizId },
     });
 
     if (!quiz) {
@@ -310,10 +302,10 @@ async function handleToggleQuiz(interaction: CommandInteraction): Promise<void> 
     }
 
     const newStatus = !quiz.isActive;
-    
+
     await databaseService.prisma.quiz.update({
       where: { id: quizId },
-      data: { isActive: newStatus }
+      data: { isActive: newStatus },
     });
 
     const embed = new EmbedBuilder()
@@ -323,7 +315,6 @@ async function handleToggleQuiz(interaction: CommandInteraction): Promise<void> 
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-    
   } catch (error) {
     logger.error('Error toggling quiz:', error);
     await interaction.editReply('❌ Error updating quiz status.');
@@ -333,9 +324,9 @@ async function handleToggleQuiz(interaction: CommandInteraction): Promise<void> 
 async function handleUserStats(interaction: CommandInteraction): Promise<void> {
   try {
     if (!interaction.isChatInputCommand()) return;
-    
+
     const user = interaction.options.getUser('user', true);
-    
+
     // Get user data
     const userData = await databaseService.prisma.user.findUnique({
       where: { id: user.id },
@@ -343,14 +334,14 @@ async function handleUserStats(interaction: CommandInteraction): Promise<void> {
         quizAttempts: {
           include: {
             quiz: true,
-            questionAttempts: true
+            questionAttempts: true,
           },
-          orderBy: { startedAt: 'desc' }
+          orderBy: { startedAt: 'desc' },
         },
         scores: {
-          orderBy: { year: 'desc' }
-        }
-      }
+          orderBy: { year: 'desc' },
+        },
+      },
     });
 
     if (!userData) {
@@ -362,11 +353,13 @@ async function handleUserStats(interaction: CommandInteraction): Promise<void> {
     const totalQuizzes = userData.quizAttempts.length;
     const totalScore = userData.quizAttempts.reduce((sum, a) => sum + a.totalScore, 0);
     const averageScore = totalQuizzes > 0 ? Math.round(totalScore / totalQuizzes) : 0;
-    const correctAnswers = userData.quizAttempts.reduce((sum, a) => 
-      sum + a.questionAttempts.filter(qa => qa.isCorrect).length, 0
+    const correctAnswers = userData.quizAttempts.reduce(
+      (sum, a) => sum + a.questionAttempts.filter(qa => qa.isCorrect).length,
+      0
     );
-    const totalAnswers = userData.quizAttempts.reduce((sum, a) => 
-      sum + a.questionAttempts.length, 0
+    const totalAnswers = userData.quizAttempts.reduce(
+      (sum, a) => sum + a.questionAttempts.length,
+      0
     );
     const successRate = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
 
@@ -386,19 +379,19 @@ async function handleUserStats(interaction: CommandInteraction): Promise<void> {
 
     // Add recent quiz attempts
     if (userData.quizAttempts.length > 0) {
-      const recentAttempts = userData.quizAttempts.slice(0, 5).map(a => 
-        `${a.quiz.title}: ${a.totalScore} pts (${a.startedAt.toLocaleDateString()})`
-      ).join('\n');
-      
-      embed.addFields({ 
-        name: 'Recent Quiz Attempts', 
+      const recentAttempts = userData.quizAttempts
+        .slice(0, 5)
+        .map(a => `${a.quiz.title}: ${a.totalScore} pts (${a.startedAt.toLocaleDateString()})`)
+        .join('\n');
+
+      embed.addFields({
+        name: 'Recent Quiz Attempts',
         value: recentAttempts,
-        inline: false 
+        inline: false,
       });
     }
 
     await interaction.editReply({ embeds: [embed] });
-    
   } catch (error) {
     logger.error('Error getting user stats:', error);
     await interaction.editReply('❌ Error getting user statistics.');
@@ -408,36 +401,36 @@ async function handleUserStats(interaction: CommandInteraction): Promise<void> {
 async function handleClearUserData(interaction: CommandInteraction): Promise<void> {
   try {
     if (!interaction.isChatInputCommand()) return;
-    
+
     const user = interaction.options.getUser('user', true);
-    
+
     // Create confirmation buttons
-    const row = new ActionRowBuilder<ButtonBuilder>()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`admin_clear_user_confirm_${user.id}`)
-          .setLabel('✅ Confirm')
-          .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-          .setCustomId(`admin_clear_user_cancel_${user.id}`)
-          .setLabel('❌ Cancel')
-          .setStyle(ButtonStyle.Secondary)
-      );
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`admin_clear_user_confirm_${user.id}`)
+        .setLabel('✅ Confirm')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(`admin_clear_user_cancel_${user.id}`)
+        .setLabel('❌ Cancel')
+        .setStyle(ButtonStyle.Secondary)
+    );
 
     const embed = new EmbedBuilder()
       .setTitle('⚠️ Confirm User Data Deletion')
-      .setDescription(`Are you sure you want to delete all data for **${user.username}**?\n\nThis action will permanently delete:\n• All quiz attempts\n• All scores and statistics\n• All question attempts\n\n**This action cannot be undone!**`)
+      .setDescription(
+        `Are you sure you want to delete all data for **${user.username}**?\n\nThis action will permanently delete:\n• All quiz attempts\n• All scores and statistics\n• All question attempts\n\n**This action cannot be undone!**`
+      )
       .setColor('#ff0000')
       .setTimestamp();
 
-    const reply = await interaction.editReply({ 
-      embeds: [embed], 
-      components: [row] 
+    const reply = await interaction.editReply({
+      embeds: [embed],
+      components: [row],
     });
 
     // Schedule button cleanup
     buttonCleanupService.scheduleAdminCleanup(reply.id, interaction.channelId, 60);
-    
   } catch (error) {
     logger.error('Error preparing user data deletion:', error);
     await interaction.editReply('❌ Error preparing user data deletion.');
@@ -447,18 +440,12 @@ async function handleClearUserData(interaction: CommandInteraction): Promise<voi
 async function handleDatabaseStats(interaction: CommandInteraction): Promise<void> {
   try {
     // Get database statistics
-    const [
-      userCount,
-      quizCount,
-      questionCount,
-      attemptCount,
-      scoreCount
-    ] = await Promise.all([
+    const [userCount, quizCount, questionCount, attemptCount, scoreCount] = await Promise.all([
       databaseService.prisma.user.count(),
       databaseService.prisma.quiz.count(),
       databaseService.prisma.question.count(),
       databaseService.prisma.quizAttempt.count(),
-      databaseService.prisma.score.count()
+      databaseService.prisma.score.count(),
     ]);
 
     // Get recent activity
@@ -467,8 +454,8 @@ async function handleDatabaseStats(interaction: CommandInteraction): Promise<voi
       orderBy: { startedAt: 'desc' },
       include: {
         user: true,
-        quiz: true
-      }
+        quiz: true,
+      },
     });
 
     const embed = new EmbedBuilder()
@@ -484,19 +471,18 @@ async function handleDatabaseStats(interaction: CommandInteraction): Promise<voi
       .setTimestamp();
 
     if (recentAttempts.length > 0) {
-      const recentActivity = recentAttempts.map(a => 
-        `${a.user.username}: ${a.quiz.title} (${a.totalScore} pts)`
-      ).join('\n');
-      
-      embed.addFields({ 
-        name: 'Recent Activity', 
+      const recentActivity = recentAttempts
+        .map(a => `${a.user.username}: ${a.quiz.title} (${a.totalScore} pts)`)
+        .join('\n');
+
+      embed.addFields({
+        name: 'Recent Activity',
         value: recentActivity,
-        inline: false 
+        inline: false,
       });
     }
 
     await interaction.editReply({ embeds: [embed] });
-    
   } catch (error) {
     logger.error('Error getting database stats:', error);
     await interaction.editReply('❌ Error getting database statistics.');
@@ -506,7 +492,7 @@ async function handleDatabaseStats(interaction: CommandInteraction): Promise<voi
 async function handleStopActiveQuiz(interaction: CommandInteraction): Promise<void> {
   try {
     const activeSession = quizService.getActiveSessionByChannel(interaction.channelId);
-    
+
     if (!activeSession) {
       await interaction.editReply('❌ No active quiz found in this channel.');
       return;
@@ -521,7 +507,6 @@ async function handleStopActiveQuiz(interaction: CommandInteraction): Promise<vo
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
-    
   } catch (error) {
     logger.error('Error stopping active quiz:', error);
     await interaction.editReply('❌ Error stopping active quiz.');
@@ -543,4 +528,4 @@ function formatUptime(seconds: number): string {
   } else {
     return `${secs}s`;
   }
-} 
+}

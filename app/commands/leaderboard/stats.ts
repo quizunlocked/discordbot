@@ -1,8 +1,8 @@
 import { SlashCommandBuilder, CommandInteraction, EmbedBuilder } from 'discord.js';
-import { Command } from '@/types';
-import { leaderboardService } from '@/services/LeaderboardService';
-import { logger } from '@/utils/logger';
-import { config } from '@/utils/config';
+import { Command } from '../../types/index.js';
+import { leaderboardService } from '../../services/LeaderboardService.js';
+import { logger } from '../../utils/logger.js';
+import { config } from '../../utils/config.js';
 
 export const data = new SlashCommandBuilder()
   .setName('stats')
@@ -23,7 +23,8 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
     // Validate channel type - leaderboard commands must be run in guild channels
     if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {
       await interaction.editReply({
-        content: '❌ Leaderboard commands can only be used in server channels, not in direct messages.',
+        content:
+          '❌ Leaderboard commands can only be used in server channels, not in direct messages.',
       });
       return;
     }
@@ -65,15 +66,20 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
         { name: '📝 Quizzes Taken', value: stats.totalQuizzes.toString(), inline: true },
         { name: '📊 Average Score', value: stats.averageScore.toString(), inline: true },
         { name: '🥇 Overall Rank', value: `#${stats.rank}`, inline: true },
-        { name: '⏱️ Best Time', value: stats.bestTime ? `${Math.floor(stats.bestTime / 60)}m ${stats.bestTime % 60}s` : 'N/A', inline: true },
+        {
+          name: '⏱️ Best Time',
+          value: stats.bestTime
+            ? `${Math.floor(stats.bestTime / 60)}m ${stats.bestTime % 60}s`
+            : 'N/A',
+          inline: true,
+        },
         { name: '📈 Success Rate', value: `${successRate}%`, inline: true }
       );
 
     await interaction.editReply({ embeds: [embed] });
-
   } catch (error) {
     logger.error('Error executing stats command:', error);
-    
+
     // Check if interaction is still valid before trying to reply
     if (interaction.isRepliable()) {
       try {
@@ -93,4 +99,4 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
       }
     }
   }
-}; 
+};

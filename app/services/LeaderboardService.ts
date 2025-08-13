@@ -1,8 +1,8 @@
 import { EmbedBuilder } from 'discord.js';
-import { databaseService } from './DatabaseService';
-import { logger } from '@/utils/logger';
-import { LeaderboardPeriod, LeaderboardEntry } from '@/types';
-import { sumBy, minBy } from '@/utils/arrayUtils';
+import { databaseService } from './DatabaseService.js';
+import { logger } from '../utils/logger.js';
+import { LeaderboardPeriod, LeaderboardEntry } from '../types/index.js';
+import { sumBy, minBy } from '../utils/arrayUtils.js';
 
 class LeaderboardService {
   private static instance: LeaderboardService;

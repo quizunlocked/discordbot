@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import { execute } from '../../app/events/ready';
 
-vi.mock('@/utils/logger', () => ({ logger: { info: vi.fn() } }));
+vi.mock('../../app/utils/logger', () => ({ logger: { info: vi.fn() } }));
 
 describe('ready event', () => {
   it('should log ready and set bot activity', async () => {
