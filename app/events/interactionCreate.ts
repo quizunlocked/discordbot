@@ -14,7 +14,7 @@ import { leaderboardService } from '../services/LeaderboardService.js';
 import { buttonCleanupService } from '../services/ButtonCleanupService.js';
 import { databaseService } from '../services/DatabaseService.js';
 import { requireAdminPrivileges, canManageQuiz, hasAdminPrivileges } from '../utils/permissions.js';
-import { autocomplete as quizAutocomplete } from '../commands/quiz/start';
+import { autocomplete as quizAutocomplete } from '../commands/quiz/start.js';
 import * as fs from 'fs/promises';
 
 export const name = Events.InteractionCreate;
