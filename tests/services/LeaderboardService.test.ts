@@ -158,6 +158,7 @@ describe('LeaderboardService', () => {
           totalScore: 100,
           averageScore: 100,
           bestTime: 60,
+          averageResponseTime: 5,
           rank: 1,
           totalQuizzes: 1,
         },
@@ -167,6 +168,7 @@ describe('LeaderboardService', () => {
           totalScore: 80,
           averageScore: 80,
           bestTime: 90,
+          averageResponseTime: 8,
           rank: 2,
           totalQuizzes: 1,
         },
@@ -462,6 +464,30 @@ describe('LeaderboardService', () => {
         expect(result[0]?.totalScore).toBe(100);
         expect(result[9]?.rank).toBe(10);
         expect(result[9]?.totalScore).toBe(91);
+      });
+
+      it('should correctly calculate average response time without double division', async () => {
+        // Mock a user with 3 questions, each taking 6 seconds
+        // Total time = 18 seconds, average = 6 seconds per question
+        mockPrisma.quizAttempt.findMany.mockResolvedValueOnce([
+          {
+            userId: 'user1',
+            totalScore: 100,
+            totalTime: 60,
+            user: { username: 'TestUser' },
+            questionAttempts: [
+              { timeSpent: 6 }, // 6 seconds
+              { timeSpent: 6 }, // 6 seconds  
+              { timeSpent: 6 }, // 6 seconds
+            ],
+          },
+        ]);
+
+        const result = await leaderboardService.getLeaderboard('weekly', 10);
+
+        // Should show 6.00 seconds average, not 2.00 (which would indicate double division)
+        expect(result).toHaveLength(1);
+        expect(result[0]?.averageResponseTime).toBe(6.00);
       });
     });
   });

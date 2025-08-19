@@ -59,6 +59,7 @@ export interface AnswerData {
   isCorrect: boolean;
   timeSpent: number; // Time spent in seconds
   pointsEarned: number;
+  questionStartedAt: Date; // When question was presented to user
   answeredAt: Date;
 }
 
@@ -72,6 +73,7 @@ export interface LeaderboardEntry {
   totalQuizzes: number;
   averageScore: number;
   bestTime: number | undefined;
+  averageResponseTime: number; // Average response time per question in seconds
   rank: number;
 }
 
