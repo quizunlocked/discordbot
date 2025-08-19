@@ -370,6 +370,7 @@ describe('QuizService', () => {
           isWaiting: false,
           isQuestionComplete: false,
           isPrivate: false,
+          answerSubmissionOrder: 0,
         };
 
         // Mock successful database operations
@@ -438,6 +439,7 @@ describe('QuizService', () => {
           isWaiting: false,
           isQuestionComplete: false,
           isPrivate: false,
+          answerSubmissionOrder: 0,
         };
 
         mockPrisma.quiz.findUnique.mockResolvedValueOnce(mockQuiz);
@@ -484,6 +486,7 @@ describe('QuizService', () => {
           isWaiting: false,
           isQuestionComplete: false,
           isPrivate: false,
+          answerSubmissionOrder: 0,
         };
 
         mockPrisma.quiz.findUnique.mockResolvedValueOnce(mockQuiz);
