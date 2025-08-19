@@ -65,10 +65,21 @@ class LeaderboardService {
       const userScores = attempts.reduce(
         (acc: any, attempt: any) => {
           const existing = acc.get(attempt.userId);
+
+          // Calculate total response time for this attempt
+          const questionAttempts = attempt.questionAttempts || [];
+          const validQuestionAttempts = questionAttempts.filter((qa: any) => qa.timeSpent != null);
+          const attemptTotalResponseTime =
+            validQuestionAttempts.length > 0
+              ? validQuestionAttempts.reduce((sum: number, qa: any) => sum + qa.timeSpent, 0)
+              : 0;
+
           if (existing) {
             existing.totalScore += attempt.totalScore;
             existing.totalQuizzes += 1;
             existing.totalTime += attempt.totalTime || 0;
+            existing.totalResponseTime += attemptTotalResponseTime;
+            existing.totalQuestions += validQuestionAttempts.length;
             if (
               attempt.totalTime &&
               (!existing.bestTime || attempt.totalTime < existing.bestTime)
@@ -83,6 +94,8 @@ class LeaderboardService {
               totalScore: attempt.totalScore,
               totalQuizzes: 1,
               totalTime: attempt.totalTime || 0,
+              totalResponseTime: attemptTotalResponseTime,
+              totalQuestions: validQuestionAttempts.length,
               bestTime: attempt.totalTime || undefined,
               attempts: [attempt],
             });
@@ -97,6 +110,8 @@ class LeaderboardService {
             totalScore: number;
             totalQuizzes: number;
             totalTime: number;
+            totalResponseTime: number;
+            totalQuestions: number;
             bestTime: number | undefined;
             attempts: any[];
           }
@@ -112,9 +127,23 @@ class LeaderboardService {
           totalQuizzes: user.totalQuizzes,
           averageScore: user.totalQuizzes > 0 ? Math.round(user.totalScore / user.totalQuizzes) : 0,
           bestTime: user.bestTime,
+          averageResponseTime:
+            user.totalQuestions > 0
+              ? Number((user.totalResponseTime / user.totalQuestions).toFixed(2))
+              : 0,
           rank: 0, // Will be set below
         }))
-        .sort((a, b) => b.totalScore - a.totalScore);
+        .sort((a, b) => {
+          // Primary sort: by total score (descending)
+          if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+
+          // Tie-breaking: by average response time (ascending - faster wins)
+          // If one has no response time data, they go last
+          if (a.averageResponseTime === 0 && b.averageResponseTime > 0) return 1;
+          if (b.averageResponseTime === 0 && a.averageResponseTime > 0) return -1;
+
+          return a.averageResponseTime - b.averageResponseTime;
+        });
 
       // Add ranks BEFORE slicing
       leaderboard.forEach((entry, index) => {
@@ -235,9 +264,8 @@ class LeaderboardService {
               : entry.rank === 3
                 ? '🥉'
                 : `${entry.rank}.`;
-        const timeText = entry.bestTime
-          ? ` (Best: ${Math.floor(entry.bestTime / 60)}m ${entry.bestTime % 60}s)`
-          : '';
+        const timeText =
+          entry.averageResponseTime > 0 ? ` (Avg time: ${entry.averageResponseTime}s)` : '';
         return `${medal} **${entry.username}** - ${entry.totalScore} pts (${entry.averageScore} avg)${timeText}`;
       })
       .join('\n');
@@ -294,6 +322,7 @@ class LeaderboardService {
     totalQuizzes: number;
     averageScore: number;
     bestTime: number | undefined;
+    averageResponseTime: number;
     rank: number;
   } | null> {
     try {
@@ -323,6 +352,21 @@ class LeaderboardService {
         (attempt: any) => attempt.totalTime!
       )?.totalTime;
 
+      // Calculate average response time across all question attempts
+      const allQuestionAttempts = attempts.flatMap(
+        (attempt: any) => attempt.questionAttempts || []
+      );
+      const validQuestionAttempts = allQuestionAttempts.filter((qa: any) => qa.timeSpent != null);
+      const averageResponseTime =
+        validQuestionAttempts.length > 0
+          ? Number(
+              (
+                validQuestionAttempts.reduce((sum: number, qa: any) => sum + qa.timeSpent, 0) /
+                validQuestionAttempts.length
+              ).toFixed(2)
+            )
+          : 0;
+
       const rank = allUsers.findIndex((user: any) => user.userId === userId) + 1;
 
       return {
@@ -330,6 +374,7 @@ class LeaderboardService {
         totalQuizzes,
         averageScore,
         bestTime: bestTime || undefined,
+        averageResponseTime,
         rank,
       };
     } catch (error) {

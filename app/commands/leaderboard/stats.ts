@@ -73,6 +73,13 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
             : 'N/A',
           inline: true,
         },
+        {
+          name: '⚡ Avg Response Time',
+          value: stats.averageResponseTime > 0 
+            ? `${stats.averageResponseTime}s`
+            : 'N/A',
+          inline: true,
+        },
         { name: '📈 Success Rate', value: `${successRate}%`, inline: true }
       );
 

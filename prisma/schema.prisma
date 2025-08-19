@@ -70,17 +70,18 @@ model QuizAttempt {
 }
 
 model QuestionAttempt {
-  id             String @id @default(cuid())
-  quizAttemptId  String
-  quizAttempt    QuizAttempt @relation(fields: [quizAttemptId], references: [id])
-  questionId     String
-  question       Question @relation(fields: [questionId], references: [id])
+  id               String @id @default(cuid())
+  quizAttemptId    String
+  quizAttempt      QuizAttempt @relation(fields: [quizAttemptId], references: [id])
+  questionId       String
+  question         Question @relation(fields: [questionId], references: [id])
   
-  selectedAnswer Int?
-  isCorrect      Boolean?
-  timeSpent      Int? // Time spent in seconds
-  pointsEarned   Int @default(0)
-  answeredAt     DateTime @default(now())
+  questionStartedAt DateTime?   // When question was presented to user
+  selectedAnswer   Int?
+  isCorrect        Boolean?
+  timeSpent        Int?        // Time spent in seconds (calculated as answeredAt - questionStartedAt)
+  pointsEarned     Int @default(0)
+  answeredAt       DateTime @default(now())
 }
 
 model Score {

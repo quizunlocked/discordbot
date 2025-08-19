@@ -568,6 +568,7 @@ export class QuizService {
       isCorrect,
       timeSpent,
       pointsEarned: basePoints + speedBonus,
+      questionStartedAt: session.questionStartTime || new Date(),
       answeredAt: new Date(),
     });
 
@@ -734,12 +735,24 @@ export class QuizService {
       const participants = Array.from(session.participants.values());
       const endTime = new Date();
 
-      // Sort participants by score (descending), then by time (ascending)
+      // Sort participants by score (descending), then by average response time (ascending - faster wins)
       participants.sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
-        const aTime = endTime.getTime() - a.startTime.getTime();
-        const bTime = endTime.getTime() - b.startTime.getTime();
-        return aTime - bTime;
+
+        // Calculate average response times for tie-breaking
+        const aAnswers = Array.from(a.answers.values());
+        const bAnswers = Array.from(b.answers.values());
+
+        const aAvgTime =
+          aAnswers.length > 0
+            ? aAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) / aAnswers.length
+            : Infinity; // If no answers, put at end
+        const bAvgTime =
+          bAnswers.length > 0
+            ? bAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) / bAnswers.length
+            : Infinity;
+
+        return aAvgTime - bAvgTime; // Lower average time wins
       });
 
       // Create results embed
@@ -752,11 +765,23 @@ export class QuizService {
         embed.setDescription('No participants joined the quiz.');
       } else {
         const totalTime = Math.floor((endTime.getTime() - session.startTime.getTime()) / 1000);
+
+        // Calculate overall average response time across all participants
+        const allAnswers = participants.flatMap(p => Array.from(p.answers.values()));
+        const overallAvgResponseTime =
+          allAnswers.length > 0
+            ? Number(
+                (
+                  allAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) / allAnswers.length
+                ).toFixed(2)
+              )
+            : 0;
+
         embed.addFields(
           { name: '📊 Final Results', value: 'Here are the final standings:', inline: false },
           {
-            name: '⏱️ Total Time',
-            value: `${Math.floor(totalTime / 60)}m ${totalTime % 60}s`,
+            name: '⏱️ Avg Response Time',
+            value: `${overallAvgResponseTime}s`,
             inline: true,
           },
           { name: '👥 Participants', value: participants.length.toString(), inline: true }
@@ -767,10 +792,20 @@ export class QuizService {
           .map((participant, index) => {
             const medal =
               index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`;
-            const participantTime = Math.floor(
-              (endTime.getTime() - participant.startTime.getTime()) / 1000
-            );
-            const timeText = `${Math.floor(participantTime / 60)}m ${participantTime % 60}s`;
+
+            // Calculate average response time per question
+            const answeredQuestions = Array.from(participant.answers.values());
+            const avgResponseTime =
+              answeredQuestions.length > 0
+                ? Number(
+                    (
+                      answeredQuestions.reduce((sum, answer) => sum + answer.timeSpent, 0) /
+                      answeredQuestions.length
+                    ).toFixed(2)
+                  )
+                : 0;
+
+            const timeText = `avg time: ${avgResponseTime}s`;
             return `${medal} **${participant.username}** - ${participant.score} pts (${timeText})`;
           })
           .join('\n');
@@ -874,6 +909,7 @@ export class QuizService {
             return {
               quizAttemptId: quizAttempt.id,
               questionId: question.id, // Use actual question ID
+              questionStartedAt: answer.questionStartedAt,
               selectedAnswer: answer.selectedAnswer,
               isCorrect: answer.isCorrect,
               timeSpent: answer.timeSpent,
