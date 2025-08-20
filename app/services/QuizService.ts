@@ -443,7 +443,7 @@ export class QuizService {
     if (message && !session.isPrivate) {
       session.currentQuestionMessageId = message.id;
       logger.info(
-        `Cached question message ID ${message.id} for session ${session.id}, question ${session.currentQuestionIndex + 1}`
+        `Cached question message ID ${message.id} for session ${session.id}, question ${session.currentQuestionIndex + 1} (Discord timestamp: ${message.createdAt.toISOString()})`
       );
     }
 
@@ -453,8 +453,8 @@ export class QuizService {
 
     logger.info(`Displayed question ${session.currentQuestionIndex + 1} for session ${session.id}`);
 
-    // Track when this question started
-    session.questionStartTime = new Date();
+    // Track when this question started - use Discord's message timestamp for accuracy
+    session.questionStartTime = message ? message.createdAt : new Date();
 
     // Schedule button cleanup for question
     if (message) {
@@ -560,7 +560,7 @@ export class QuizService {
     }
 
     const isCorrect = answerIdx === question.correctAnswer;
-    const answeredAt = new Date();
+    const answeredAt = interaction.createdAt; // Use Discord's server-side timestamp for fairness
 
     // Increment answer submission order
     session.answerSubmissionOrder++;
