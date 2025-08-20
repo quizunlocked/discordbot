@@ -82,6 +82,8 @@ model QuestionAttempt {
   timeSpent        Int?        // Time spent in seconds (calculated as answeredAt - questionStartedAt)
   pointsEarned     Int @default(0)
   answeredAt       DateTime @default(now())
+  wasFastestCorrect Boolean?   // Track if this was the fastest correct answer
+  answerRank       Int?        // Order in which this answer was submitted (1 = first, 2 = second, etc.)
 }
 
 model Score {

@@ -65,6 +65,7 @@ export class QuizService {
       isWaiting: true, // New field to track waiting state
       isQuestionComplete: false, // Track if current question has been completed
       isPrivate, // Track if this is a private quiz session
+      answerSubmissionOrder: 0, // Initialize answer submission counter
     };
 
     this.activeSessions.set(sessionId, session);
@@ -438,8 +439,22 @@ export class QuizService {
       message = await channel.send(messageOptions);
     }
 
-    // Track when this question started
-    session.questionStartTime = new Date();
+    // Cache the question message ID for real-time updates (public quizzes only)
+    if (message && !session.isPrivate) {
+      session.currentQuestionMessageId = message.id;
+      logger.info(
+        `Cached question message ID ${message.id} for session ${session.id}, question ${session.currentQuestionIndex + 1} (Discord timestamp: ${message.createdAt.toISOString()})`
+      );
+    }
+
+    // Reset answer submission order for new question
+    session.answerSubmissionOrder = 0;
+    delete session.fastestCorrectAnswerId;
+
+    logger.info(`Displayed question ${session.currentQuestionIndex + 1} for session ${session.id}`);
+
+    // Track when this question started - use Discord's message timestamp for accuracy
+    session.questionStartTime = message ? message.createdAt : new Date();
 
     // Schedule button cleanup for question
     if (message) {
@@ -545,10 +560,22 @@ export class QuizService {
     }
 
     const isCorrect = answerIdx === question.correctAnswer;
+    const answeredAt = interaction.createdAt; // Use Discord's server-side timestamp for fairness
+
+    // Increment answer submission order
+    session.answerSubmissionOrder++;
+    const answerRank = session.answerSubmissionOrder;
+
+    // Check if this is the fastest correct answer
+    let wasFastestCorrect = false;
+    if (isCorrect && !session.fastestCorrectAnswerId) {
+      session.fastestCorrectAnswerId = userId;
+      wasFastestCorrect = true;
+    }
 
     // Calculate points based on question start time, not quiz start time
     const timeSpent = session.questionStartTime
-      ? Math.floor((Date.now() - session.questionStartTime.getTime()) / 1000)
+      ? Math.floor((answeredAt.getTime() - session.questionStartTime.getTime()) / 1000)
       : 0;
     const basePoints = isCorrect ? question.points : 0;
     const speedBonus = isCorrect
@@ -569,16 +596,66 @@ export class QuizService {
       timeSpent,
       pointsEarned: basePoints + speedBonus,
       questionStartedAt: session.questionStartTime || new Date(),
-      answeredAt: new Date(),
+      answeredAt,
+      answerRank,
+      wasFastestCorrect,
     });
 
-    // Send feedback
+    // Send feedback with fastest answer notification
     const feedback = isCorrect ? '✅ Correct!' : '❌ Incorrect!';
     const pointsText = isCorrect ? ` (+${basePoints + speedBonus} points)` : '';
-    await interaction.reply({ content: `${feedback}${pointsText}`, ephemeral: true });
+    const fastestText = wasFastestCorrect ? ' 🏃‍♂️ **Fastest correct answer!**' : '';
+    await interaction.reply({ content: `${feedback}${pointsText}${fastestText}`, ephemeral: true });
+
+    // Update question embed with current progress (public quizzes only)
+    if (!session.isPrivate) {
+      await this.updateQuestionProgress(session, interaction.channel as TextChannel);
+    }
 
     // Note: Questions now only end when the timer expires, not when all participants answer
     // This allows participants to see the "already answered" message and wait for the full timer
+  }
+
+  /**
+   * Update question embed with current answer progress
+   */
+  private async updateQuestionProgress(session: QuizSession, channel: TextChannel): Promise<void> {
+    if (!session.currentQuestionMessageId || session.isPrivate) return;
+
+    // Rate limiting: Don't update more than once per second
+    const now = new Date();
+    if (session.lastEmbedUpdate && now.getTime() - session.lastEmbedUpdate.getTime() < 1000) {
+      logger.debug(
+        `Rate limiting embed update for session ${session.id} (last update ${now.getTime() - session.lastEmbedUpdate.getTime()}ms ago)`
+      );
+      return;
+    }
+
+    try {
+      const message = await channel.messages.fetch(session.currentQuestionMessageId);
+      const embed = message.embeds[0];
+
+      if (embed) {
+        const newEmbed = EmbedBuilder.from(embed);
+
+        // Count how many participants have answered this question
+        const answeredCount = Array.from(session.participants.values()).filter(participant =>
+          participant.answers.has(session.currentQuestionIndex)
+        ).length;
+
+        // Update the progress field (third field, index 2)
+        newEmbed.spliceFields(2, 1, {
+          name: 'Progress',
+          value: `${answeredCount} of ${session.participants.size} answered`,
+          inline: true,
+        });
+
+        await message.edit({ embeds: [newEmbed] });
+        session.lastEmbedUpdate = now;
+      }
+    } catch (error) {
+      logger.warn('Error updating question progress:', error);
+    }
   }
 
   /**
@@ -704,8 +781,12 @@ export class QuizService {
     }
 
     if (session.currentQuestionIndex >= quiz.questions.length) {
+      logger.info(`Quiz ${session.id} completed after ${session.currentQuestionIndex} questions`);
       await this.endQuiz(session, channel);
     } else {
+      logger.info(
+        `Moving to question ${session.currentQuestionIndex + 1} for session ${session.id} after 3s delay`
+      );
       // Wait a moment before showing next question
       setTimeout(() => {
         this.displayQuestion(session, quiz.questions, channel);
@@ -915,6 +996,8 @@ export class QuizService {
               timeSpent: answer.timeSpent,
               pointsEarned: answer.pointsEarned,
               answeredAt: answer.answeredAt,
+              wasFastestCorrect: answer.wasFastestCorrect || null,
+              answerRank: answer.answerRank || null,
             };
           })
           .filter((attempt): attempt is NonNullable<typeof attempt> => attempt !== null); // Type-safe filter

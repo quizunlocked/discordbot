@@ -42,6 +42,10 @@ export interface QuizSession {
   isWaiting: boolean; // Track if quiz is in waiting period
   isQuestionComplete: boolean; // Track if current question has been completed
   isPrivate: boolean; // Track if this is a private quiz session
+  currentQuestionMessageId?: string; // Track current question message for real-time updates
+  answerSubmissionOrder: number; // Counter for tracking answer submission order
+  fastestCorrectAnswerId?: string | undefined; // Track which participant submitted fastest correct answer
+  lastEmbedUpdate?: Date; // Track last embed update to prevent rate limiting
 }
 
 export interface ParticipantData {
@@ -61,6 +65,8 @@ export interface AnswerData {
   pointsEarned: number;
   questionStartedAt: Date; // When question was presented to user
   answeredAt: Date;
+  answerRank?: number; // Order in which this answer was submitted
+  wasFastestCorrect?: boolean; // True if this was the fastest correct answer
 }
 
 // Leaderboard types
