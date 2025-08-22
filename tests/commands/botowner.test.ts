@@ -1,4 +1,4 @@
-import { execute } from '../../app/commands/admin/dashboard';
+import { execute } from '../../app/commands/botowner';
 
 vi.mock('../../app/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
 vi.mock('../../app/services/DatabaseService', () => ({
@@ -23,6 +23,9 @@ describe('dashboard command', () => {
   beforeEach(() => {
     interaction = {
       isChatInputCommand: vi.fn().mockReturnValue(true),
+      options: {
+        getSubcommand: vi.fn(),
+      },
       deferReply: vi.fn().mockResolvedValue(undefined),
       editReply: vi.fn().mockResolvedValue(undefined),
       channelId: 'test-channel',

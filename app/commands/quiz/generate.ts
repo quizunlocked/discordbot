@@ -1,53 +1,6 @@
-import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { databaseService } from '../../services/DatabaseService.js';
-
-export const data = new SlashCommandBuilder()
-  .setName('generate-quiz')
-  .setDescription('Generate a quiz from a corpus')
-  .addStringOption(option =>
-    option
-      .setName('from-corpus')
-      .setDescription('Title of the corpus to generate from')
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option
-      .setName('quiz-title')
-      .setDescription('Title for the generated quiz')
-      .setRequired(true)
-      .setMaxLength(100)
-  )
-  .addIntegerOption(option =>
-    option
-      .setName('num-questions')
-      .setDescription('Number of questions to generate')
-      .setRequired(true)
-      .setMinValue(1)
-      .setMaxValue(50)
-  )
-  .addIntegerOption(option =>
-    option
-      .setName('num-choices')
-      .setDescription('Number of answer choices per question')
-      .setRequired(false)
-      .setMinValue(2)
-      .setMaxValue(6)
-  )
-  .addBooleanOption(option =>
-    option
-      .setName('show-hints')
-      .setDescription('Include hints in the generated quiz')
-      .setRequired(false)
-  )
-  .addBooleanOption(option =>
-    option
-      .setName('private')
-      .setDescription('Make the quiz private (only you can take it)')
-      .setRequired(false)
-  );
-
-export const cooldown = 10; // 10 second cooldown
 
 interface GeneratedQuestion {
   questionText: string;
@@ -58,7 +11,7 @@ interface GeneratedQuestion {
   hints: Array<{ title: string; text: string }>;
 }
 
-export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+export async function handleGenerate(interaction: ChatInputCommandInteraction): Promise<void> {
   try {
     await interaction.deferReply({ ephemeral: true });
 

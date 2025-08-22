@@ -8,7 +8,7 @@ export const data = new SlashCommandBuilder()
 
 export const cooldown = 5; // 5 second cooldown
 
-export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+export async function handleListCorpora(interaction: ChatInputCommandInteraction): Promise<void> {
   try {
     await interaction.deferReply({ ephemeral: true });
 

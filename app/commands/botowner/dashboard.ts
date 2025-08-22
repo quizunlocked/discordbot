@@ -17,7 +17,7 @@ export const data = new SlashCommandBuilder()
   .setDescription('Admin dashboard with bot overview and quick actions')
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
-export async function execute(interaction: CommandInteraction): Promise<void> {
+export async function handleDashboard(interaction: CommandInteraction): Promise<void> {
   if (!interaction.isChatInputCommand()) return;
 
   try {

@@ -41,7 +41,7 @@ function safeReturn(uploadKey: string): void {
   uploadInProgress.delete(uploadKey);
 }
 
-export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+export async function handleUpload(interaction: ChatInputCommandInteraction): Promise<void> {
   const uploadKey = `${interaction.user.id}-${interaction.id}`;
 
   // Prevent duplicate executions

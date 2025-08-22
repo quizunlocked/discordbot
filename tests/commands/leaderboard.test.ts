@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { execute } from '../../app/commands/leaderboard/leaderboard';
+import { execute } from '../../app/commands/leaderboard';
 
 vi.mock('../../app/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
 vi.mock('../../app/services/LeaderboardService', () => ({

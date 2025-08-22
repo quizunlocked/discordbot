@@ -1,5 +1,5 @@
 import { vi, type MockedFunction } from 'vitest';
-import { execute } from '../../app/commands/admin/admin';
+import { execute } from '../../app/commands/admin';
 
 vi.mock('../../app/utils/logger', () => ({ logger: { error: vi.fn(), info: vi.fn() } }));
 vi.mock('../../app/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
@@ -33,6 +33,7 @@ describe('admin command', () => {
       isChatInputCommand: vi.fn().mockReturnValue(true),
       options: {
         getSubcommand: vi.fn(),
+        getSubcommandGroup: vi.fn().mockReturnValue(null),
         getBoolean: vi.fn(),
         getString: vi.fn(),
         getUser: vi.fn(),
@@ -62,17 +63,35 @@ describe('admin command', () => {
     expect(interaction.editReply).toHaveBeenCalled();
   });
 
-  it('should check admin privileges for clear-user-data subcommand', async () => {
-    interaction.options.getSubcommand.mockReturnValue('clear-user-data');
+  it('should check admin privileges for delete userdata subcommand', async () => {
+    interaction.options.getSubcommandGroup.mockReturnValue('delete');
+    interaction.options.getSubcommand.mockReturnValue('userdata');
     interaction.options.getUser.mockReturnValue({ id: 'user123', username: 'testuser' });
     await execute(interaction as any);
     expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
   });
 
-  it('should not execute clear-user-data when user lacks admin privileges', async () => {
+  it('should not execute delete userdata when user lacks admin privileges', async () => {
     requireAdminPrivileges.mockResolvedValue(false);
-    interaction.options.getSubcommand.mockReturnValue('clear-user-data');
+    interaction.options.getSubcommandGroup.mockReturnValue('delete');
+    interaction.options.getSubcommand.mockReturnValue('userdata');
     interaction.options.getUser.mockReturnValue({ id: 'user123', username: 'testuser' });
+    await execute(interaction as any);
+    // The function should return early without calling any other functions
+    expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
+  });
+
+  it('should check admin privileges for delete everything subcommand', async () => {
+    interaction.options.getSubcommandGroup.mockReturnValue('delete');
+    interaction.options.getSubcommand.mockReturnValue('everything');
+    await execute(interaction as any);
+    expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
+  });
+
+  it('should not execute delete everything when user lacks admin privileges', async () => {
+    requireAdminPrivileges.mockResolvedValue(false);
+    interaction.options.getSubcommandGroup.mockReturnValue('delete');
+    interaction.options.getSubcommand.mockReturnValue('everything');
     await execute(interaction as any);
     // The function should return early without calling any other functions
     expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);

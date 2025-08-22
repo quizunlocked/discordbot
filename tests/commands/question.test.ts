@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { execute } from '../../app/commands/quiz/edit-question-add-hint';
+import { execute } from '../../app/commands/question';
 
 vi.mock('../../app/utils/logger', () => ({
   logger: {
@@ -28,11 +28,20 @@ describe('Edit Question Add Hint Command', () => {
     vi.clearAllMocks();
 
     interaction = {
+      isChatInputCommand: vi.fn().mockReturnValue(true),
       deferReply: vi.fn(),
       editReply: vi.fn(),
+      reply: vi.fn(),
       options: {
+        getSubcommand: vi.fn().mockReturnValue('add'),
+        getSubcommandGroup: vi.fn().mockReturnValue('hint'),
         getString: vi.fn(),
         getInteger: vi.fn(),
+      },
+      guild: { id: 'test-guild', name: 'Test Guild' },
+      channel: {
+        id: 'test-channel',
+        isDMBased: vi.fn().mockReturnValue(false),
       },
       user: {
         id: 'user123',
