@@ -24,22 +24,38 @@ export async function handleTemplate(interaction: ChatInputCommandInteraction): 
       // Create informative embed
       const embed = new EmbedBuilder()
         .setTitle('📋 Corpus CSV Template')
-        .setDescription('Download this template to create your own corpus for quiz generation.')
+        .setDescription(
+          'Download this template to create your own corpus for tag-based quiz generation.'
+        )
         .addFields(
-          { name: 'Format', value: 'CSV file with specific column structure', inline: true },
+          { name: 'Format', value: 'CSV file with flexible column structure', inline: true },
           {
             name: 'Required Columns',
-            value: '• `question_variants`\n• `correct_answer_variants`',
+            value: '• `questions` (or `question`)\n• `answers` (or `answer`)',
             inline: true,
           },
-          { name: 'Optional Columns', value: 'Add any number of hint columns', inline: true },
+          {
+            name: 'Optional Columns',
+            value: '• `tags` (or `tag`)\n• Custom hint columns',
+            inline: true,
+          },
+          {
+            name: '🏷️ Tags Feature',
+            value:
+              '• Tag entries to group related questions\n' +
+              '• Tagged questions get distractors from same tags\n' +
+              '• Untagged questions use entire corpus\n' +
+              '• Use newlines to separate multiple tags',
+            inline: false,
+          },
           {
             name: 'Instructions',
             value:
               '• Use newlines to separate variants within cells\n' +
-              '• First column: Different ways to ask the question\n' +
-              '• Second column: Correct answer variants/synonyms\n' +
-              '• Additional columns: Hint types with multiple variants\n' +
+              '• **Questions**: Different ways to ask the question\n' +
+              '• **Answers**: Correct answer variants/synonyms\n' +
+              '• **Tags**: Categories like "geography", "history" (optional)\n' +
+              '• **Hints**: Custom columns for different hint types\n' +
               '• Each row represents one corpus entry (question group)',
             inline: false,
           },
@@ -48,8 +64,8 @@ export async function handleTemplate(interaction: ChatInputCommandInteraction): 
             value:
               '1. Download this template\n' +
               '2. Edit it with your corpus data\n' +
-              '3. Upload with `/upload-corpus-csv`\n' +
-              '4. Generate quizzes with `/generate-quiz`',
+              '3. Upload with `/corpus upload`\n' +
+              '4. Generate tag-aware quizzes with `/quiz generate`',
             inline: false,
           }
         )

@@ -15,6 +15,7 @@ vi.mock('../../app/services/DatabaseService', () => ({
       quiz: { create: vi.fn(), findFirst: vi.fn() },
       question: { createMany: vi.fn() },
       image: { findMany: vi.fn() },
+      corpus: { findUnique: vi.fn() },
       $transaction: vi.fn(),
     },
   },
@@ -86,13 +87,15 @@ describe('quiz command', () => {
         getAttachment: vi.fn(),
       },
       reply: vi.fn().mockResolvedValue(undefined),
+      deferReply: vi.fn().mockResolvedValue(undefined),
+      editReply: vi.fn().mockResolvedValue(undefined),
       showModal: mockShowModal,
       channel: {
         isDMBased: vi.fn().mockReturnValue(false),
       },
       channelId: 'test-channel',
       guild: { id: 'test-guild', name: 'TestGuild' },
-      user: { id: 'user1', tag: 'user#1' },
+      user: { id: 'user1', tag: 'user#1', username: 'testuser' },
       id: 'interaction_123',
     };
     mockShowModal.mockReset();
@@ -514,6 +517,346 @@ describe('quiz command', () => {
           }),
         ]),
       });
+    });
+  });
+
+  describe('generate subcommand with tags', () => {
+    beforeEach(() => {
+      interaction.options.getSubcommand.mockReturnValue('generate');
+      interaction.options.getString.mockImplementation((name: string) => {
+        switch (name) {
+          case 'from-corpus':
+            return 'test-corpus';
+          case 'quiz-title':
+            return 'Generated Quiz';
+          default:
+            return null;
+        }
+      });
+      interaction.options.getInteger.mockImplementation((name: string) => {
+        switch (name) {
+          case 'num-questions':
+            return 2;
+          case 'num-choices':
+            return 4;
+          default:
+            return null;
+        }
+      });
+      interaction.options.getBoolean.mockReturnValue(false);
+    });
+
+    it('should use entire corpus for untagged entries', async () => {
+      // Mock corpus with mixed tagged and untagged entries
+      const mockCorpus = {
+        id: 'corpus_123',
+        title: 'test-corpus',
+        entries: [
+          {
+            id: 'entry_1',
+            tags: [], // No tags
+            questionVariants: ['What is 2+2?'],
+            answerVariants: ['4'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+          {
+            id: 'entry_2',
+            tags: ['europe', 'geography'],
+            questionVariants: ['Capital of France?'],
+            answerVariants: ['Paris'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+          {
+            id: 'entry_3',
+            tags: ['europe', 'geography'],
+            questionVariants: ['Capital of Italy?'],
+            answerVariants: ['Rome'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+          {
+            id: 'entry_4',
+            tags: ['math', 'arithmetic'],
+            questionVariants: ['What is 5+5?'],
+            answerVariants: ['10'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+        ],
+      };
+
+      mockPrisma.corpus.findUnique.mockResolvedValue(mockCorpus);
+      mockPrisma.quiz.findFirst.mockResolvedValue(null);
+
+      mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+        return await callback({
+          user: { upsert: vi.fn().mockResolvedValue({ id: 'user1', username: 'testuser' }) },
+          quiz: { create: vi.fn().mockResolvedValue({ id: 'quiz_123' }) },
+          question: { create: vi.fn().mockResolvedValue({ id: 'question_123' }) },
+          hint: { createMany: vi.fn() },
+        });
+      });
+
+      await execute(interaction as any);
+
+      expect(mockPrisma.corpus.findUnique).toHaveBeenCalledWith({
+        where: { title: 'test-corpus' },
+        include: { entries: true },
+      });
+
+      expect(interaction.editReply).toHaveBeenCalledWith({
+        embeds: expect.arrayContaining([
+          expect.objectContaining({
+            data: expect.objectContaining({
+              title: '✅ Quiz Generated Successfully',
+            }),
+          }),
+        ]),
+      });
+    });
+
+    it('should filter distractors by tag intersection for tagged entries', async () => {
+      const mockCorpus = {
+        id: 'corpus_123',
+        title: 'test-corpus',
+        entries: [
+          {
+            id: 'entry_1',
+            tags: ['europe', 'geography'],
+            questionVariants: ['Capital of France?'],
+            answerVariants: ['Paris'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+          {
+            id: 'entry_2',
+            tags: ['europe', 'geography'],
+            questionVariants: ['Capital of Italy?'],
+            answerVariants: ['Rome'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+          {
+            id: 'entry_3',
+            tags: ['asia', 'geography'],
+            questionVariants: ['Capital of Japan?'],
+            answerVariants: ['Tokyo'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+          {
+            id: 'entry_4',
+            tags: ['math', 'arithmetic'],
+            questionVariants: ['What is 2+2?'],
+            answerVariants: ['4'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+        ],
+      };
+
+      mockPrisma.corpus.findUnique.mockResolvedValue(mockCorpus);
+      mockPrisma.quiz.findFirst.mockResolvedValue(null);
+
+      mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+        return await callback({
+          user: { upsert: vi.fn().mockResolvedValue({ id: 'user1', username: 'testuser' }) },
+          quiz: { create: vi.fn().mockResolvedValue({ id: 'quiz_123' }) },
+          question: { create: vi.fn().mockResolvedValue({ id: 'question_123' }) },
+          hint: { createMany: vi.fn() },
+        });
+      });
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith({
+        embeds: expect.arrayContaining([
+          expect.objectContaining({
+            data: expect.objectContaining({
+              title: '✅ Quiz Generated Successfully',
+            }),
+          }),
+        ]),
+      });
+    });
+
+    it('should fallback to entire corpus when insufficient tagged matches', async () => {
+      const mockCorpus = {
+        id: 'corpus_123',
+        title: 'test-corpus',
+        entries: [
+          {
+            id: 'entry_1',
+            tags: ['rare-tag'],
+            questionVariants: ['Unique question?'],
+            answerVariants: ['Unique answer'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+          {
+            id: 'entry_2',
+            tags: ['common', 'tag'],
+            questionVariants: ['Common question 1?'],
+            answerVariants: ['Answer 1'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+          {
+            id: 'entry_3',
+            tags: ['common', 'tag'],
+            questionVariants: ['Common question 2?'],
+            answerVariants: ['Answer 2'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+          {
+            id: 'entry_4',
+            tags: ['common', 'tag'],
+            questionVariants: ['Common question 3?'],
+            answerVariants: ['Answer 3'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+        ],
+      };
+
+      // Request 4 choices but rare-tag entry only has itself
+      interaction.options.getInteger.mockImplementation((name: string) => {
+        switch (name) {
+          case 'num-questions':
+            return 1;
+          case 'num-choices':
+            return 4; // Need 3 distractors
+          default:
+            return null;
+        }
+      });
+
+      mockPrisma.corpus.findUnique.mockResolvedValue(mockCorpus);
+      mockPrisma.quiz.findFirst.mockResolvedValue(null);
+
+      mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+        return await callback({
+          user: { upsert: vi.fn().mockResolvedValue({ id: 'user1', username: 'testuser' }) },
+          quiz: { create: vi.fn().mockResolvedValue({ id: 'quiz_123' }) },
+          question: { create: vi.fn().mockResolvedValue({ id: 'question_123' }) },
+          hint: { createMany: vi.fn() },
+        });
+      });
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith({
+        embeds: expect.arrayContaining([
+          expect.objectContaining({
+            data: expect.objectContaining({
+              title: '✅ Quiz Generated Successfully',
+            }),
+          }),
+        ]),
+      });
+    });
+
+    it('should handle corpus not found', async () => {
+      mockPrisma.corpus.findUnique.mockResolvedValue(null);
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith(
+        '❌ Corpus "test-corpus" not found. Please check the corpus title.'
+      );
+    });
+
+    it('should handle corpus with no entries', async () => {
+      const mockCorpus = {
+        id: 'corpus_123',
+        title: 'test-corpus',
+        entries: [],
+      };
+
+      mockPrisma.corpus.findUnique.mockResolvedValue(mockCorpus);
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith(
+        '❌ Corpus "test-corpus" has no entries. Please upload corpus data first.'
+      );
+    });
+
+    it('should handle insufficient entries for questions', async () => {
+      const mockCorpus = {
+        id: 'corpus_123',
+        title: 'test-corpus',
+        entries: [
+          {
+            id: 'entry_1',
+            tags: ['tag'],
+            questionVariants: ['Question?'],
+            answerVariants: ['Answer'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+        ],
+      };
+
+      // Request 2 questions but only have 1 entry
+      interaction.options.getInteger.mockImplementation((name: string) => {
+        switch (name) {
+          case 'num-questions':
+            return 2;
+          case 'num-choices':
+            return 4;
+          default:
+            return null;
+        }
+      });
+
+      mockPrisma.corpus.findUnique.mockResolvedValue(mockCorpus);
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith(
+        '❌ Not enough entries in corpus. Requested 2 questions but corpus only has 1 entries.'
+      );
+    });
+
+    it('should handle insufficient entries for answer choices', async () => {
+      const mockCorpus = {
+        id: 'corpus_123',
+        title: 'test-corpus',
+        entries: [
+          {
+            id: 'entry_1',
+            tags: ['tag'],
+            questionVariants: ['Question?'],
+            answerVariants: ['Answer'],
+            hintTitles: [],
+            hintVariants: {},
+          },
+        ],
+      };
+
+      // Request 4 choices but only have 1 entry
+      interaction.options.getInteger.mockImplementation((name: string) => {
+        switch (name) {
+          case 'num-questions':
+            return 1;
+          case 'num-choices':
+            return 4; // Need 4 total entries for 4 choices
+          default:
+            return null;
+        }
+      });
+
+      mockPrisma.corpus.findUnique.mockResolvedValue(mockCorpus);
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith(
+        '❌ Not enough entries for 4 answer choices. Corpus has only 1 entries. Need at least 4 entries.'
+      );
     });
   });
 });

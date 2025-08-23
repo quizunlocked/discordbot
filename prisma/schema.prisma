@@ -139,6 +139,7 @@ model CorpusEntry {
   corpusId        String
   corpus          Corpus   @relation(fields: [corpusId], references: [id])
   
+  tags            String[] // Array of tags for grouping related entries
   questionVariants String[] // JSON array of question variants
   answerVariants   String[] // JSON array of answer variants
   hintTitles       String[] // Array of hint column headers
