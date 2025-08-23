@@ -24,7 +24,9 @@ export async function handleTemplate(interaction: ChatInputCommandInteraction): 
       // Create informative embed
       const embed = new EmbedBuilder()
         .setTitle('📋 Corpus CSV Template')
-        .setDescription('Download this template to create your own corpus for tag-based quiz generation.')
+        .setDescription(
+          'Download this template to create your own corpus for tag-based quiz generation.'
+        )
         .addFields(
           { name: 'Format', value: 'CSV file with flexible column structure', inline: true },
           {
@@ -32,7 +34,11 @@ export async function handleTemplate(interaction: ChatInputCommandInteraction): 
             value: '• `questions` (or `question`)\n• `answers` (or `answer`)',
             inline: true,
           },
-          { name: 'Optional Columns', value: '• `tags` (or `tag`)\n• Custom hint columns', inline: true },
+          {
+            name: 'Optional Columns',
+            value: '• `tags` (or `tag`)\n• Custom hint columns',
+            inline: true,
+          },
           {
             name: '🏷️ Tags Feature',
             value:

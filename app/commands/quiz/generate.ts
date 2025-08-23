@@ -205,14 +205,14 @@ async function generateQuizFromCorpus(
 
       // Generate distractors using tag-aware selection
       let candidateEntries: any[];
-      
+
       if (!tags || tags.length === 0) {
         // No tags = use entire corpus for distractors
         candidateEntries = entries;
       } else {
         // Has tags = filter by tag intersection first
         candidateEntries = filterEntriesByTagIntersection(entry, entries);
-        
+
         // Fallback to entire corpus if insufficient tagged matches
         if (candidateEntries.length < numChoices) {
           candidateEntries = entries;
@@ -224,10 +224,10 @@ async function generateQuizFromCorpus(
 
       // Create pool of answer variants from candidate entries
       const candidateAnswers = candidateEntries.flatMap(e => e.answerVariants as string[]);
-      
+
       // Filter out the correct answers for this question
       const otherAnswers = candidateAnswers.filter(answer => !answerVariants.includes(answer));
-      
+
       // Select distractors
       const distractors = shuffleArray(otherAnswers).slice(0, numChoices - 1);
 
@@ -291,25 +291,22 @@ function hasTagIntersection(tags1: string[], tags2: string[]): boolean {
   if (tags1.length === 0 || tags2.length === 0) {
     return false;
   }
-  
+
   // Normalize tags to lowercase for comparison
   const normalizedTags1 = tags1.map(tag => tag.toLowerCase().trim());
   const normalizedTags2 = tags2.map(tag => tag.toLowerCase().trim());
-  
+
   return normalizedTags1.some(tag => normalizedTags2.includes(tag));
 }
 
-function filterEntriesByTagIntersection(
-  selectedEntry: any,
-  allEntries: any[]
-): any[] {
+function filterEntriesByTagIntersection(selectedEntry: any, allEntries: any[]): any[] {
   const selectedTags = selectedEntry.tags as string[];
-  
+
   // If selected entry has no tags, return all entries
   if (!selectedTags || selectedTags.length === 0) {
     return allEntries;
   }
-  
+
   // Filter entries that have tag intersection with selected entry
   return allEntries.filter(entry => {
     const entryTags = entry.tags as string[];
