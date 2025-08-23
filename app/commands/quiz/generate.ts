@@ -187,13 +187,11 @@ async function generateQuizFromCorpus(
     // Randomly select entries for the quiz (without replacement)
     const selectedEntries = shuffleArray([...entries]).slice(0, numQuestions);
 
-    // Create a pool of all answer variants for distractor generation
-    const allAnswerVariants = entries.flatMap(entry => entry.answerVariants as string[]);
-
     const generatedQuestions: GeneratedQuestion[] = [];
 
     for (const entry of selectedEntries) {
       // Parse the stored arrays
+      const tags = entry.tags as string[];
       const questionVariants = entry.questionVariants as string[];
       const answerVariants = entry.answerVariants as string[];
       const hintTitles = entry.hintTitles as string[];
@@ -205,8 +203,32 @@ async function generateQuizFromCorpus(
       // Randomly select one correct answer variant
       const correctAnswer = getRandomElement(answerVariants);
 
-      // Generate distractors (incorrect answers) from other entries
-      const otherAnswers = allAnswerVariants.filter(answer => !answerVariants.includes(answer));
+      // Generate distractors using tag-aware selection
+      let candidateEntries: any[];
+      
+      if (!tags || tags.length === 0) {
+        // No tags = use entire corpus for distractors
+        candidateEntries = entries;
+      } else {
+        // Has tags = filter by tag intersection first
+        candidateEntries = filterEntriesByTagIntersection(entry, entries);
+        
+        // Fallback to entire corpus if insufficient tagged matches
+        if (candidateEntries.length < numChoices) {
+          candidateEntries = entries;
+          logger.info(
+            `Insufficient tagged entries (${candidateEntries.length}) for quiz question, falling back to entire corpus (${entries.length} entries)`
+          );
+        }
+      }
+
+      // Create pool of answer variants from candidate entries
+      const candidateAnswers = candidateEntries.flatMap(e => e.answerVariants as string[]);
+      
+      // Filter out the correct answers for this question
+      const otherAnswers = candidateAnswers.filter(answer => !answerVariants.includes(answer));
+      
+      // Select distractors
       const distractors = shuffleArray(otherAnswers).slice(0, numChoices - 1);
 
       // Combine correct answer and distractors
@@ -263,4 +285,35 @@ function getRandomElement<T>(array: T[]): T {
     throw new Error('Cannot get random element from empty array');
   }
   return element;
+}
+
+function hasTagIntersection(tags1: string[], tags2: string[]): boolean {
+  if (tags1.length === 0 || tags2.length === 0) {
+    return false;
+  }
+  
+  // Normalize tags to lowercase for comparison
+  const normalizedTags1 = tags1.map(tag => tag.toLowerCase().trim());
+  const normalizedTags2 = tags2.map(tag => tag.toLowerCase().trim());
+  
+  return normalizedTags1.some(tag => normalizedTags2.includes(tag));
+}
+
+function filterEntriesByTagIntersection(
+  selectedEntry: any,
+  allEntries: any[]
+): any[] {
+  const selectedTags = selectedEntry.tags as string[];
+  
+  // If selected entry has no tags, return all entries
+  if (!selectedTags || selectedTags.length === 0) {
+    return allEntries;
+  }
+  
+  // Filter entries that have tag intersection with selected entry
+  return allEntries.filter(entry => {
+    const entryTags = entry.tags as string[];
+    // Only include entries that have tags AND share at least one tag
+    return entryTags && entryTags.length > 0 && hasTagIntersection(selectedTags, entryTags);
+  });
 }

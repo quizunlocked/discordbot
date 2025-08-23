@@ -5,6 +5,7 @@ import { partition } from '../../utils/arrayUtils.js';
 import Papa from 'papaparse';
 
 interface CSVCorpusEntry {
+  tags: string[];
   questionVariants: string[];
   answerVariants: string[];
   hintTitles: string[];
@@ -175,6 +176,7 @@ export async function handleUpload(interaction: ChatInputCommandInteraction): Pr
       // Create corpus entries
       const entryData = entries.map(entry => ({
         corpusId: corpus.id,
+        tags: entry.tags,
         questionVariants: entry.questionVariants,
         answerVariants: entry.answerVariants,
         hintTitles: entry.hintTitles,
@@ -265,6 +267,59 @@ async function downloadAttachment(url: string): Promise<string | null> {
   }
 }
 
+function identifyColumns(headers: string[]): {
+  questionCol: string | null;
+  answerCol: string | null;
+  tagCol: string | null;
+  hintCols: string[];
+  errors: ValidationError[];
+} {
+  const questionPatterns = /^questions?$/i;
+  const answerPatterns = /^answers?$/i;
+  const tagPatterns = /^tags?$/i;
+
+  let questionCol: string | null = null;
+  let answerCol: string | null = null;
+  let tagCol: string | null = null;
+  const hintCols: string[] = [];
+  const errors: ValidationError[] = [];
+
+  // Find question column
+  questionCol = headers.find(h => questionPatterns.test(h)) || null;
+
+  // Find answer column
+  answerCol = headers.find(h => answerPatterns.test(h)) || null;
+
+  // Find tag column (optional)
+  tagCol = headers.find(h => tagPatterns.test(h)) || null;
+
+  // Validation
+  if (!questionCol) {
+    errors.push({
+      row: 1,
+      field: 'Headers',
+      message: 'CSV must contain a "question" or "questions" column (case-insensitive)',
+    });
+  }
+
+  if (!answerCol) {
+    errors.push({
+      row: 1,
+      field: 'Headers',
+      message: 'CSV must contain an "answer" or "answers" column (case-insensitive)',
+    });
+  }
+
+  // Remaining columns are hint columns
+  for (const header of headers) {
+    if (header !== questionCol && header !== answerCol && header !== tagCol) {
+      hintCols.push(header);
+    }
+  }
+
+  return { questionCol, answerCol, tagCol, hintCols, errors };
+}
+
 function parseCorpusCSV(csvContent: string): {
   entries: CSVCorpusEntry[];
   errors: ValidationError[];
@@ -284,7 +339,7 @@ function parseCorpusCSV(csvContent: string): {
     return { entries: [], errors };
   }
 
-  // Get column headers to identify hint columns
+  // Get column headers and identify column types
   const headers = Object.keys(parseResult.data[0] || {});
   if (headers.length < 2) {
     return {
@@ -293,32 +348,29 @@ function parseCorpusCSV(csvContent: string): {
         {
           row: 1,
           field: 'Headers',
-          message: 'CSV must have at least question_variants and correct_answer_variants columns',
+          message: 'CSV must have at least question and answer columns',
         },
       ],
     };
   }
 
-  // First two columns must be question_variants and correct_answer_variants
-  const [questionCol, answerCol, ...hintCols] = headers;
-  if (!questionCol || !answerCol) {
-    return {
-      entries: [],
-      errors: [
-        {
-          row: 1,
-          field: 'Headers',
-          message: 'First two columns must be question_variants and correct_answer_variants',
-        },
-      ],
-    };
+  const {
+    questionCol,
+    answerCol,
+    tagCol,
+    hintCols,
+    errors: columnErrors,
+  } = identifyColumns(headers);
+
+  if (columnErrors.length > 0) {
+    return { entries: [], errors: columnErrors };
   }
 
   // Process rows functionally
   const rowsWithValidation = parseResult.data.map((row: any, index: number) => ({
     row,
     index: index + 1,
-    errors: validateCorpusRow(row, index + 1, questionCol, answerCol, hintCols),
+    errors: validateCorpusRow(row, index + 1, questionCol!, answerCol!, tagCol, hintCols),
   }));
 
   // Partition into valid and invalid rows
@@ -329,7 +381,7 @@ function parseCorpusCSV(csvContent: string): {
 
   // Extract entries from valid rows
   const entries = validRows.map(({ row }: { row: any }) =>
-    transformRowToCorpusEntry(row, questionCol, answerCol, hintCols)
+    transformRowToCorpusEntry(row, questionCol!, answerCol!, tagCol, hintCols)
   );
 
   // Extract errors from invalid rows
@@ -342,8 +394,19 @@ function transformRowToCorpusEntry(
   row: any,
   questionCol: string,
   answerCol: string,
+  tagCol: string | null,
   hintCols: string[]
 ): CSVCorpusEntry {
+  // Parse tag variants (newline-delimited, optional)
+  const tags =
+    tagCol && row[tagCol]
+      ? (row[tagCol] || '')
+          .trim()
+          .split('\n')
+          .map((t: string) => t.trim().toLowerCase()) // Normalize to lowercase
+          .filter((t: string) => t.length > 0)
+      : [];
+
   // Parse question variants (newline-delimited)
   const questionVariants = (row[questionCol] || '')
     .trim()
@@ -378,6 +441,7 @@ function transformRowToCorpusEntry(
   }
 
   return {
+    tags,
     questionVariants,
     answerVariants,
     hintTitles: validHintTitles,
@@ -390,6 +454,7 @@ function validateCorpusRow(
   rowNumber: number,
   questionCol: string,
   answerCol: string,
+  tagCol: string | null,
   hintCols: string[]
 ): ValidationError[] {
   const errors: ValidationError[] = [];
@@ -405,8 +470,8 @@ function validateCorpusRow(
   } else {
     const questionVariants = questionText
       .split('\n')
-      .map(q => q.trim())
-      .filter(q => q.length > 0);
+      .map((q: string) => q.trim())
+      .filter((q: string) => q.length > 0);
     if (questionVariants.length === 0) {
       errors.push({
         row: rowNumber,
@@ -426,8 +491,8 @@ function validateCorpusRow(
   } else {
     const answerVariants = answerText
       .split('\n')
-      .map(a => a.trim())
-      .filter(a => a.length > 0);
+      .map((a: string) => a.trim())
+      .filter((a: string) => a.length > 0);
     if (answerVariants.length === 0) {
       errors.push({
         row: rowNumber,
@@ -437,14 +502,45 @@ function validateCorpusRow(
     }
   }
 
+  // Validate tag column (optional)
+  if (tagCol && row[tagCol]) {
+    const tagText = (row[tagCol] || '').trim();
+    if (tagText) {
+      const tags = tagText
+        .split('\n')
+        .map((t: string) => t.trim())
+        .filter((t: string) => t.length > 0);
+
+      // Check for excessively long tags
+      for (const tag of tags) {
+        if (tag.length > 50) {
+          errors.push({
+            row: rowNumber,
+            field: tagCol,
+            message: `Tag "${tag}" is too long (max 50 characters)`,
+          });
+        }
+
+        // Check for empty tags after trimming
+        if (tag.length === 0) {
+          errors.push({
+            row: rowNumber,
+            field: tagCol,
+            message: 'Empty tags are not allowed',
+          });
+        }
+      }
+    }
+  }
+
   // Validate hint columns (optional, but if present must have content)
   for (const hintCol of hintCols) {
     const hintContent = (row[hintCol] || '').trim();
     if (hintContent) {
       const hintVariants = hintContent
         .split('\n')
-        .map(h => h.trim())
-        .filter(h => h.length > 0);
+        .map((h: string) => h.trim())
+        .filter((h: string) => h.length > 0);
       if (hintVariants.length === 0) {
         errors.push({
           row: rowNumber,

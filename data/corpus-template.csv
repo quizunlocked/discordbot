@@ -1,16 +1,36 @@
-question_variants,correct_answer_variants,Definition,Example,Grammar Tip
+questions,answers,tags,Definition,Example,Grammar Tip
 "What is ""hello"" in Polish?
 How do you say ""hello"" in Polish?","Cześć
-Dzień dobry","A common greeting used in Polish
+Dzień dobry","polish
+greetings
+basic","A common greeting used in Polish
 Standard greeting in Polish language","Cześć - informal greeting
 Dzień dobry - formal greeting","Use ""Cześć"" with friends, ""Dzień dobry"" in formal situations"
 "What does ""dziękuję"" mean?
 How do you say ""thank you"" in Polish?","Thank you
-Thanks","Expression of gratitude in Polish
+Thanks","polish
+greetings
+politeness","Expression of gratitude in Polish
 Polish word for expressing thanks","Dziękuję means ""thank you""
 It's pronounced ""jen-KOO-yeh""","Remember the ""ę"" makes a nasal sound"
 "What is ""proszę"" in English?
 Translate ""proszę"" to English","Please
-You're welcome","Polite word used when asking for something
+You're welcome","polish
+politeness
+basic","Polite word used when asking for something
 Can also mean ""you're welcome""","Proszę can mean both ""please"" and ""you're welcome""
 Context determines the meaning","Very versatile word - listen to context for meaning"
+"What is the capital of Poland?
+Name Poland's capital city","Warsaw
+Warszawa","geography
+poland
+capitals","The largest city and capital of Poland
+Major political and economic center","Warsaw is called ""Warszawa"" in Polish
+Population over 1.7 million","Remember it's ""Warszawa"" in Polish, ""Warsaw"" in English"
+"What does ""tak"" mean in Polish?
+How do you say ""yes"" in Polish?","Yes
+Yeah","polish
+basic
+responses","Simple affirmative response in Polish
+Basic word for agreeing","Tak - the most common way to say yes
+Very straightforward pronunciation","One of the first words to learn in any language"
