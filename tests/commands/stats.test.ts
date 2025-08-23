@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { execute } from '../../app/commands/leaderboard/stats';
+import { execute } from '../../app/commands/stats';
 
 describe('stats command', () => {
   let interaction: any;

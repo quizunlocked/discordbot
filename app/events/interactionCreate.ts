@@ -14,7 +14,7 @@ import { leaderboardService } from '../services/LeaderboardService.js';
 import { buttonCleanupService } from '../services/ButtonCleanupService.js';
 import { databaseService } from '../services/DatabaseService.js';
 import { requireAdminPrivileges, canManageQuiz, hasAdminPrivileges } from '../utils/permissions.js';
-import { autocomplete as quizAutocomplete } from '../commands/quiz/start.js';
+import { autocomplete as quizAutocomplete } from '../commands/quiz/index.js';
 import * as fs from 'fs/promises';
 
 export const name = Events.InteractionCreate;
@@ -332,6 +332,11 @@ async function handleModalSubmit(interaction: ModalSubmitInteraction): Promise<v
       return;
     }
 
+    if (customId.startsWith('quiz_edit_modal_')) {
+      await handleQuizEditModal(interaction);
+      return;
+    }
+
     if (customId.startsWith('add_question_modal_')) {
       await handleAddQuestionModal(interaction);
       return;
@@ -416,6 +421,93 @@ async function handleQuizCreationModal(interaction: ModalSubmitInteraction): Pro
     logger.error('Error creating quiz from modal:', error);
     await interaction.reply({
       content: '❌ Error creating quiz. Please try again.',
+      ephemeral: true,
+    });
+  }
+}
+
+async function handleQuizEditModal(interaction: ModalSubmitInteraction): Promise<void> {
+  try {
+    const quizId = interaction.customId.replace('quiz_edit_modal_', '');
+    const title = interaction.fields.getTextInputValue('quiz_title');
+    const description = interaction.fields.getTextInputValue('quiz_description') || null;
+    const timeLimitStr = interaction.fields.getTextInputValue('quiz_time_limit');
+
+    const timeLimit = timeLimitStr ? parseInt(timeLimitStr, 10) : null;
+
+    if (timeLimit && (isNaN(timeLimit) || timeLimit < 60 || timeLimit > 3600)) {
+      await interaction.reply({
+        content: '❌ Invalid time limit. Please enter a number between 60 and 3600 seconds.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    // Get the quiz to verify ownership
+    const quiz = await databaseService.prisma.quiz.findUnique({
+      where: { id: quizId },
+    });
+
+    if (!quiz) {
+      await interaction.reply({
+        content: '❌ Quiz not found.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    // Check if user can manage this quiz
+    const isAdmin =
+      interaction.guild?.members.cache.get(interaction.user.id)?.permissions.has('Administrator') ||
+      false;
+    const userCanManage = canManageQuiz(interaction.user.id, (quiz as any).quizOwnerId, isAdmin);
+
+    if (!userCanManage) {
+      await interaction.reply({
+        content: '❌ You can only edit quizzes you own or have admin privileges for.',
+        ephemeral: true,
+      });
+      return;
+    }
+
+    // Update the quiz in database
+    await databaseService.prisma.quiz.update({
+      where: { id: quizId },
+      data: {
+        title,
+        description,
+        timeLimit: timeLimit || null,
+      },
+    });
+
+    const embed = new EmbedBuilder()
+      .setTitle('✅ Quiz Updated Successfully')
+      .setDescription(`**${title}** has been updated!`)
+      .addFields(
+        { name: 'Quiz ID', value: quizId, inline: true },
+        { name: 'Title', value: title, inline: true }
+      )
+      .setColor('#00ff00')
+      .setTimestamp();
+
+    if (description) {
+      embed.addFields({ name: 'Description', value: description, inline: false });
+    }
+
+    if (timeLimit) {
+      embed.addFields({ name: 'Time Limit', value: `${timeLimit}s`, inline: true });
+    }
+
+    await interaction.reply({
+      embeds: [embed],
+      ephemeral: true,
+    });
+
+    logger.info(`Quiz "${title}" (${quizId}) updated by ${interaction.user.tag}`);
+  } catch (error) {
+    logger.error('Error updating quiz from modal:', error);
+    await interaction.reply({
+      content: '❌ Error updating quiz. Please try again.',
       ephemeral: true,
     });
   }
@@ -855,13 +947,16 @@ async function handleQuizDeleteAllConfirm(interaction: ButtonInteraction): Promi
       0
     );
 
-    // Delete all quizzes and related data
+    // Delete all quizzes and related data in correct order
     await databaseService.prisma.$transaction(async (tx: any) => {
       // Delete question attempts first (due to foreign key constraints)
       await tx.questionAttempt.deleteMany();
 
       // Delete quiz attempts
       await tx.quizAttempt.deleteMany();
+
+      // Delete hints (they reference questions)
+      await tx.hint.deleteMany();
 
       // Delete questions
       await tx.question.deleteMany();
@@ -890,12 +985,13 @@ async function handleQuizDeleteAllConfirm(interaction: ButtonInteraction): Promi
   } catch (error) {
     logger.error('Error deleting all quizzes:', error);
     try {
-      await interaction.followUp({
+      await interaction.update({
         content: '❌ Error deleting all quizzes. Please try again.',
-        ephemeral: true,
+        embeds: [],
+        components: [],
       });
-    } catch (followUpError) {
-      logger.error('Error sending followUp message:', followUpError);
+    } catch (updateError) {
+      logger.error('Error sending update message:', updateError);
     }
   }
 }

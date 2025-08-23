@@ -1,16 +1,12 @@
-import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { databaseService } from '../../services/DatabaseService.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('list-corpora')
-  .setDescription('List all available corpora for quiz generation');
-
 export const cooldown = 5; // 5 second cooldown
 
-export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+export async function handleListCorpora(interaction: ChatInputCommandInteraction): Promise<void> {
   try {
-    await interaction.deferReply({ ephemeral: true });
+    // Note: interaction is already deferred in the main admin command
 
     // Get all corpora with entry counts
     const corpora = await databaseService.prisma.corpus.findMany({

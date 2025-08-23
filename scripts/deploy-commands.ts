@@ -22,20 +22,19 @@ async function loadCommands(): Promise<any[]> {
 
   for (const folder of commandFolders) {
     const folderPath = path.join(commandsPath, folder);
-    const commandFiles = fs
-      .readdirSync(folderPath)
-      .filter(file => file.endsWith(fileExtension) && !file.endsWith('.d.ts'));
+    const indexFile = `index${fileExtension}`;
+    const indexPath = path.join(folderPath, indexFile);
 
-    for (const file of commandFiles) {
-      const filePath = path.join(folderPath, file);
-      const command = await import(filePath);
+    // Only load index.ts/index.js files
+    if (fs.existsSync(indexPath)) {
+      const command = await import(indexPath);
 
       if ('data' in command && 'execute' in command) {
         commands.push(command.data.toJSON());
         logger.info(`Loaded command: ${command.data.name}`);
       } else {
         logger.warn(
-          `The command at ${filePath} is missing a required "data" or "execute" property.`
+          `The command at ${indexPath} is missing a required "data" or "execute" property.`
         );
       }
     }

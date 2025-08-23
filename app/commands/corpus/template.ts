@@ -1,20 +1,11 @@
-import {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  AttachmentBuilder,
-  ChatInputCommandInteraction,
-} from 'discord.js';
+import { EmbedBuilder, AttachmentBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-export const data = new SlashCommandBuilder()
-  .setName('get-corpus-template')
-  .setDescription('Download a CSV template for corpus upload with examples');
-
 export const cooldown = 5; // 5 second cooldown
 
-export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+export async function handleTemplate(interaction: ChatInputCommandInteraction): Promise<void> {
   try {
     await interaction.deferReply({ ephemeral: true });
 

@@ -1,8 +1,11 @@
-import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { databaseService } from '../../services/DatabaseService.js';
 import { partition } from '../../utils/arrayUtils.js';
 import Papa from 'papaparse';
+
+// Use global fetch (Node.js 18+)
+declare const fetch: typeof globalThis.fetch;
 
 interface CSVQuestion {
   questionText: string;
@@ -19,21 +22,6 @@ interface ValidationError {
   message: string;
 }
 
-export const data = new SlashCommandBuilder()
-  .setName('upload-quiz-csv')
-  .setDescription('Upload a CSV file to create a custom quiz')
-  .addAttachmentOption(option =>
-    option.setName('file').setDescription('CSV file with quiz questions').setRequired(true)
-  )
-  .addStringOption(option =>
-    option
-      .setName('title')
-      .setDescription('Optional quiz title (defaults to filename)')
-      .setRequired(false)
-  );
-
-export const cooldown = 10; // 10 second cooldown
-
 // Track in-progress uploads to prevent duplicates
 const uploadInProgress = new Map<string, boolean>();
 
@@ -42,7 +30,7 @@ function safeReturn(uploadKey: string): void {
   uploadInProgress.delete(uploadKey);
 }
 
-export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
+export async function handleUpload(interaction: ChatInputCommandInteraction): Promise<void> {
   const uploadKey = `${interaction.user.id}-${interaction.id}`;
 
   // Prevent duplicate executions

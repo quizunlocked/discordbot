@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { execute } from '../../app/commands/quiz/ping';
+import { execute } from '../../app/commands/ping';
 
 describe('quiz ping command', () => {
   let interaction: any;

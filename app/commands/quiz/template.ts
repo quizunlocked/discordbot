@@ -1,18 +1,9 @@
-import {
-  SlashCommandBuilder,
-  CommandInteraction,
-  AttachmentBuilder,
-  EmbedBuilder,
-} from 'discord.js';
+import { CommandInteraction, AttachmentBuilder, EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-
-export const data = new SlashCommandBuilder()
-  .setName('get-quiz-template')
-  .setDescription('Get a CSV template for creating custom quizzes');
 
 export const cooldown = 5; // 5 second cooldown
 
-export async function execute(interaction: CommandInteraction): Promise<void> {
+export async function handleTemplate(interaction: CommandInteraction): Promise<void> {
   try {
     await interaction.deferReply({ ephemeral: true });
 

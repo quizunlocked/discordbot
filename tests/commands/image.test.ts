@@ -1,5 +1,5 @@
 import { vi, type MockedFunction } from 'vitest';
-import { execute } from '../../app/commands/image/image';
+import { execute } from '../../app/commands/image';
 import * as fs from 'fs/promises';
 
 vi.mock('../../app/utils/logger', () => ({
