@@ -127,7 +127,7 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand(subcommand =>
     subcommand
-      .setName('upload-csv')
+      .setName('upload')
       .setDescription('Upload a CSV file to create a custom quiz')
       .addAttachmentOption(option =>
         option.setName('file').setDescription('CSV file with quiz questions').setRequired(true)
@@ -141,21 +141,6 @@ export const data = new SlashCommandBuilder()
   )
   .addSubcommand(subcommand =>
     subcommand
-      .setName('upload-corpus')
-      .setDescription('Upload a CSV file to create a corpus for quiz generation')
-      .addAttachmentOption(option =>
-        option.setName('file').setDescription('CSV file with corpus data').setRequired(true)
-      )
-      .addStringOption(option =>
-        option
-          .setName('title')
-          .setDescription('Corpus title for identification')
-          .setRequired(true)
-          .setMaxLength(100)
-      )
-  )
-  .addSubcommand(subcommand =>
-    subcommand
       .setName('get-template')
       .setDescription('Get a CSV template for creating custom quizzes')
   )
@@ -163,43 +148,6 @@ export const data = new SlashCommandBuilder()
     subcommand
       .setName('get-corpus-template')
       .setDescription('Download a CSV template for corpus upload with examples')
-  )
-  .addSubcommand(subcommand =>
-    subcommand
-      .setName('list-corpora')
-      .setDescription('List all available corpora for quiz generation')
-  )
-  .addSubcommand(subcommand =>
-    subcommand
-      .setName('edit-question')
-      .setDescription('Add a hint to a specific question in a quiz')
-      .addStringOption(option =>
-        option
-          .setName('quiz-id')
-          .setDescription('ID of the quiz containing the question')
-          .setRequired(true)
-      )
-      .addIntegerOption(option =>
-        option
-          .setName('question-number')
-          .setDescription('Question number in the quiz (1-based index)')
-          .setRequired(true)
-          .setMinValue(1)
-      )
-      .addStringOption(option =>
-        option
-          .setName('hint-title')
-          .setDescription('Title for the hint button (e.g., "Example", "Grammar tip")')
-          .setRequired(true)
-          .setMaxLength(80)
-      )
-      .addStringOption(option =>
-        option
-          .setName('hint-text')
-          .setDescription('The hint content shown when clicked')
-          .setRequired(true)
-          .setMaxLength(2000)
-      )
   )
   .addSubcommandGroup(group =>
     group
