@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { databaseService } from '../../../app/services/DatabaseService';
+import { databaseService } from '../../app/services/DatabaseService';
 
 // Integration tests for foreign key constraints
 // These tests use the actual database to verify FK relationships work correctly
@@ -62,36 +62,43 @@ describe('DatabaseService Foreign Key Constraints Integration', () => {
   async function cleanupTestData() {
     // Clean up in reverse order of foreign key dependencies
     try {
-      // Delete question attempts first (they reference questions through quizAttempt)
-      await databaseService.prisma.questionAttempt.deleteMany({
-        where: {
-          questionId: testQuestionId,
-        },
-      });
+      // Only clean up if we have test IDs (safety check)
+      if (testQuestionId) {
+        // Delete question attempts first (they reference questions through quizAttempt)
+        await databaseService.prisma.questionAttempt.deleteMany({
+          where: {
+            questionId: testQuestionId,
+          },
+        });
 
-      // Delete quiz attempts (they reference users and quizzes)
-      await databaseService.prisma.quizAttempt.deleteMany({
-        where: {
-          quizId: testQuizId,
-        },
-      });
+        // Delete hints (they reference questions)
+        await databaseService.prisma.hint.deleteMany({
+          where: { questionId: testQuestionId },
+        });
+      }
 
-      // Delete hints (they reference questions)
-      await databaseService.prisma.hint.deleteMany({
-        where: { questionId: testQuestionId },
-      });
+      if (testQuizId) {
+        // Delete quiz attempts (they reference users and quizzes)
+        await databaseService.prisma.quizAttempt.deleteMany({
+          where: {
+            quizId: testQuizId,
+          },
+        });
 
-      // Delete questions (they reference quizzes)
-      await databaseService.prisma.question.deleteMany({
-        where: { quizId: testQuizId },
-      });
+        // Delete questions (they reference quizzes)
+        await databaseService.prisma.question.deleteMany({
+          where: { quizId: testQuizId },
+        });
+      }
 
-      // Delete quizzes (they reference users)
-      await databaseService.prisma.quiz.deleteMany({
-        where: { quizOwnerId: testUserId },
-      });
+      if (testUserId) {
+        // Delete quizzes (they reference users)
+        await databaseService.prisma.quiz.deleteMany({
+          where: { quizOwnerId: testUserId },
+        });
+      }
 
-      // Delete users last
+      // Delete users last - use startsWith for safety
       await databaseService.prisma.user.deleteMany({
         where: { id: { startsWith: 'test-user-fk-' } },
       });
@@ -213,37 +220,58 @@ describe('DatabaseService Foreign Key Constraints Integration', () => {
       });
 
       // Test the EXACT deletion order from admin delete everything command
+      // BUT ONLY DELETE TEST DATA, NOT ALL DATA!
       await expect(
         databaseService.prisma.$transaction(async tx => {
           // 1. Delete question attempts first (due to foreign key constraints)
-          await tx.questionAttempt.deleteMany();
+          await tx.questionAttempt.deleteMany({
+            where: { questionId: testQuestionId },
+          });
 
           // 2. Delete quiz attempts
-          await tx.quizAttempt.deleteMany();
+          await tx.quizAttempt.deleteMany({
+            where: { quizId: testQuizId },
+          });
 
           // 3. Delete hints (they reference questions)
-          await tx.hint.deleteMany();
+          await tx.hint.deleteMany({
+            where: { questionId: testQuestionId },
+          });
 
           // 4. Delete questions
-          await tx.question.deleteMany();
+          await tx.question.deleteMany({
+            where: { quizId: testQuizId },
+          });
 
-          // 5. Delete all quizzes
-          await tx.quiz.deleteMany();
+          // 5. Delete test quizzes only
+          await tx.quiz.deleteMany({
+            where: { quizOwnerId: testUserId },
+          });
         })
       ).resolves.not.toThrow();
 
-      // Verify all quiz data was deleted (but users should remain)
-      const quizCount = await databaseService.prisma.quiz.count();
-      const questionCount = await databaseService.prisma.question.count();
-      const hintCount = await databaseService.prisma.hint.count();
-      const questionAttemptCount = await databaseService.prisma.questionAttempt.count();
-      const quizAttemptCount = await databaseService.prisma.quizAttempt.count();
+      // Verify test data was deleted (but other data should remain)
+      const testQuizCount = await databaseService.prisma.quiz.count({
+        where: { quizOwnerId: testUserId },
+      });
+      const testQuestionCount = await databaseService.prisma.question.count({
+        where: { quizId: testQuizId },
+      });
+      const testHintCount = await databaseService.prisma.hint.count({
+        where: { questionId: testQuestionId },
+      });
+      const testQuestionAttemptCount = await databaseService.prisma.questionAttempt.count({
+        where: { questionId: testQuestionId },
+      });
+      const testQuizAttemptCount = await databaseService.prisma.quizAttempt.count({
+        where: { quizId: testQuizId },
+      });
 
-      expect(quizCount).toBe(0);
-      expect(questionCount).toBe(0);
-      expect(hintCount).toBe(0);
-      expect(questionAttemptCount).toBe(0);
-      expect(quizAttemptCount).toBe(0);
+      expect(testQuizCount).toBe(0);
+      expect(testQuestionCount).toBe(0);
+      expect(testHintCount).toBe(0);
+      expect(testQuestionAttemptCount).toBe(0);
+      expect(testQuizAttemptCount).toBe(0);
 
       // Users should still exist
       const userCount = await databaseService.prisma.user.count({
@@ -288,14 +316,24 @@ describe('DatabaseService Foreign Key Constraints Integration', () => {
       // Delete all data first
       await cleanupTestData();
 
-      // Deletion order should work even with empty tables
+      // Deletion order should work even with empty tables (but only delete test data!)
       await expect(
         databaseService.prisma.$transaction(async tx => {
-          await tx.questionAttempt.deleteMany();
-          await tx.quizAttempt.deleteMany();
-          await tx.hint.deleteMany();
-          await tx.question.deleteMany();
-          await tx.quiz.deleteMany();
+          await tx.questionAttempt.deleteMany({
+            where: { questionId: testQuestionId },
+          });
+          await tx.quizAttempt.deleteMany({
+            where: { quizId: testQuizId },
+          });
+          await tx.hint.deleteMany({
+            where: { questionId: testQuestionId },
+          });
+          await tx.question.deleteMany({
+            where: { quizId: testQuizId },
+          });
+          await tx.quiz.deleteMany({
+            where: { quizOwnerId: testUserId },
+          });
         })
       ).resolves.not.toThrow();
     });
