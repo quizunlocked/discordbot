@@ -947,13 +947,16 @@ async function handleQuizDeleteAllConfirm(interaction: ButtonInteraction): Promi
       0
     );
 
-    // Delete all quizzes and related data
+    // Delete all quizzes and related data in correct order
     await databaseService.prisma.$transaction(async (tx: any) => {
       // Delete question attempts first (due to foreign key constraints)
       await tx.questionAttempt.deleteMany();
 
       // Delete quiz attempts
       await tx.quizAttempt.deleteMany();
+
+      // Delete hints (they reference questions)
+      await tx.hint.deleteMany();
 
       // Delete questions
       await tx.question.deleteMany();
@@ -982,12 +985,13 @@ async function handleQuizDeleteAllConfirm(interaction: ButtonInteraction): Promi
   } catch (error) {
     logger.error('Error deleting all quizzes:', error);
     try {
-      await interaction.followUp({
+      await interaction.update({
         content: '❌ Error deleting all quizzes. Please try again.',
-        ephemeral: true,
+        embeds: [],
+        components: [],
       });
-    } catch (followUpError) {
-      logger.error('Error sending followUp message:', followUpError);
+    } catch (updateError) {
+      logger.error('Error sending update message:', updateError);
     }
   }
 }
