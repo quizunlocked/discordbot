@@ -1,7 +1,5 @@
 import {
-  SlashCommandBuilder,
   CommandInteraction,
-  PermissionFlagsBits,
   EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
@@ -12,16 +10,11 @@ import { databaseService } from '../../services/DatabaseService.js';
 import { quizService } from '../../services/QuizService.js';
 import { buttonCleanupService } from '../../services/ButtonCleanupService.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('dashboard')
-  .setDescription('Admin dashboard with bot overview and quick actions')
-  .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
-
 export async function handleDashboard(interaction: CommandInteraction): Promise<void> {
   if (!interaction.isChatInputCommand()) return;
 
   try {
-    await interaction.deferReply({ ephemeral: true });
+    // Note: interaction is already deferred in the main botowner command
 
     // Validate channel type - admin commands must be run in guild channels
     if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {

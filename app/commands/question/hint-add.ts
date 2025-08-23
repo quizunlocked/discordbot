@@ -1,37 +1,6 @@
-import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { databaseService } from '../../services/DatabaseService.js';
-
-export const data = new SlashCommandBuilder()
-  .setName('edit-question-add-hint')
-  .setDescription('Add a hint to a specific question in a quiz')
-  .addStringOption(option =>
-    option
-      .setName('quiz-id')
-      .setDescription('ID of the quiz containing the question')
-      .setRequired(true)
-  )
-  .addIntegerOption(option =>
-    option
-      .setName('question-number')
-      .setDescription('Question number in the quiz (1-based index)')
-      .setRequired(true)
-      .setMinValue(1)
-  )
-  .addStringOption(option =>
-    option
-      .setName('hint-title')
-      .setDescription('Title for the hint button (e.g., "Example", "Grammar tip")')
-      .setRequired(true)
-      .setMaxLength(80)
-  )
-  .addStringOption(option =>
-    option
-      .setName('hint-text')
-      .setDescription('The hint content shown when clicked')
-      .setRequired(true)
-      .setMaxLength(2000)
-  );
 
 export const cooldown = 5; // 5 second cooldown
 

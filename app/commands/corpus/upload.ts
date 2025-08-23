@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { EmbedBuilder, ChatInputCommandInteraction } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { databaseService } from '../../services/DatabaseService.js';
 import { partition } from '../../utils/arrayUtils.js';
@@ -17,21 +17,10 @@ interface ValidationError {
   message: string;
 }
 
-export const data = new SlashCommandBuilder()
-  .setName('upload-corpus-csv')
-  .setDescription('Upload a CSV file to create a corpus for quiz generation')
-  .addAttachmentOption(option =>
-    option.setName('file').setDescription('CSV file with corpus data').setRequired(true)
-  )
-  .addStringOption(option =>
-    option
-      .setName('title')
-      .setDescription('Corpus title for identification')
-      .setRequired(true)
-      .setMaxLength(100)
-  );
-
 export const cooldown = 10; // 10 second cooldown
+
+// Use global fetch (Node.js 18+)
+declare const fetch: typeof globalThis.fetch;
 
 // Track in-progress uploads to prevent duplicates
 const uploadInProgress = new Map<string, boolean>();

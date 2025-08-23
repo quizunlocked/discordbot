@@ -25,7 +25,7 @@ export async function handleDeleteEverything(interaction: CommandInteraction): P
     });
 
     if (quizStats.length === 0) {
-      await interaction.reply({ content: '❌ No quizzes found to delete.', ephemeral: true });
+      await interaction.editReply({ content: '❌ No quizzes found to delete.' });
       return;
     }
 
@@ -52,9 +52,9 @@ export async function handleDeleteEverything(interaction: CommandInteraction): P
         .setStyle(ButtonStyle.Secondary)
     );
 
-    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+    await interaction.editReply({ embeds: [embed], components: [row] });
   } catch (error) {
     logger.error('Error preparing delete all quizzes:', error);
-    await interaction.reply({ content: '❌ Error preparing delete all quizzes.', ephemeral: true });
+    await interaction.editReply({ content: '❌ Error preparing delete all quizzes.' });
   }
 }
