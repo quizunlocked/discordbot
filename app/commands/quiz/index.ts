@@ -140,14 +140,7 @@ export const data = new SlashCommandBuilder()
       )
   )
   .addSubcommand(subcommand =>
-    subcommand
-      .setName('get-template')
-      .setDescription('Get a CSV template for creating custom quizzes')
-  )
-  .addSubcommand(subcommand =>
-    subcommand
-      .setName('get-corpus-template')
-      .setDescription('Download a CSV template for corpus upload with examples')
+    subcommand.setName('template').setDescription('Get a CSV template for creating custom quizzes')
   )
   .addSubcommandGroup(group =>
     group
