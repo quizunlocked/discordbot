@@ -1,9 +1,9 @@
 import {
   CommandInteraction,
-  EmbedBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
 } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { databaseService } from '../../services/DatabaseService.js';
@@ -40,59 +40,40 @@ export async function handleEdit(interaction: CommandInteraction): Promise<void>
       return;
     }
 
-    const isPrivate = (quiz as any).private || false;
-    const privacyStatus = isPrivate ? '🔒 Private' : '🌐 Public';
+    // Create modal with current values pre-filled
+    const modal = new ModalBuilder().setCustomId(`quiz_edit_modal_${quizId}`).setTitle('Edit Quiz');
 
-    const embed = new EmbedBuilder()
-      .setTitle(`📝 Edit Quiz: ${quiz.title}`)
-      .setDescription(quiz.description || 'No description')
-      .addFields(
-        { name: 'Questions', value: quiz.questions.length.toString(), inline: true },
-        { name: 'Status', value: quiz.isActive ? '🟢 Active' : '🔴 Inactive', inline: true },
-        { name: 'Privacy', value: privacyStatus, inline: true },
-        {
-          name: 'Time Limit',
-          value: (quiz as any).timeLimit ? `${(quiz as any).timeLimit}s` : 'None',
-          inline: true,
-        }
-      )
-      .setColor('#0099ff')
-      .setTimestamp();
+    const titleInput = new TextInputBuilder()
+      .setCustomId('quiz_title')
+      .setLabel('Quiz Title')
+      .setStyle(TextInputStyle.Short)
+      .setValue(quiz.title)
+      .setRequired(true)
+      .setMaxLength(100);
 
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`quiz_edit_title_${quizId}`)
-        .setLabel('Edit Title')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`quiz_edit_description_${quizId}`)
-        .setLabel('Edit Description')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`quiz_edit_time_limit_${quizId}`)
-        .setLabel('Edit Time Limit')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`quiz_toggle_status_${quizId}`)
-        .setLabel(quiz.isActive ? 'Disable' : 'Enable')
-        .setStyle(quiz.isActive ? ButtonStyle.Danger : ButtonStyle.Success)
+    const descriptionInput = new TextInputBuilder()
+      .setCustomId('quiz_description')
+      .setLabel('Quiz Description (Optional)')
+      .setStyle(TextInputStyle.Paragraph)
+      .setValue(quiz.description || '')
+      .setRequired(false)
+      .setMaxLength(1000);
+
+    const timeLimitInput = new TextInputBuilder()
+      .setCustomId('quiz_time_limit')
+      .setLabel('Time Limit in Seconds (Optional)')
+      .setStyle(TextInputStyle.Short)
+      .setValue(((quiz as any).timeLimit || '').toString())
+      .setRequired(false)
+      .setPlaceholder('e.g., 300 for 5 minutes, leave empty for no limit');
+
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(titleInput),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(descriptionInput),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(timeLimitInput)
     );
 
-    // Add private toggle button if user owns the quiz or is admin
-    const privateToggleButton = new ButtonBuilder()
-      .setCustomId(`quiz_toggle_private_${quizId}`)
-      .setLabel(isPrivate ? 'Make Public' : 'Make Private')
-      .setStyle(isPrivate ? ButtonStyle.Success : ButtonStyle.Secondary);
-
-    const components = [row];
-
-    // Only show private toggle if user owns the quiz or is admin
-    if (userCanManage) {
-      const privateRow = new ActionRowBuilder<ButtonBuilder>().addComponents(privateToggleButton);
-      components.push(privateRow);
-    }
-
-    await interaction.reply({ embeds: [embed], components, ephemeral: true });
+    await interaction.showModal(modal);
   } catch (error) {
     logger.error('Error editing quiz:', error);
     await interaction.reply({ content: '❌ Error editing quiz.', ephemeral: true });
