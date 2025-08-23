@@ -30,7 +30,7 @@ export async function handleGet(interaction: CommandInteraction): Promise<void> 
     });
 
     if (!quiz) {
-      await interaction.editReply('❌ Quiz not found.');
+      await interaction.reply({ content: '❌ Quiz not found.', ephemeral: true });
       return;
     }
 
@@ -70,9 +70,9 @@ export async function handleGet(interaction: CommandInteraction): Promise<void> 
       });
     }
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed], ephemeral: true });
   } catch (error) {
     logger.error('Error getting quiz info:', error);
-    await interaction.editReply('❌ Error getting quiz information.');
+    await interaction.reply({ content: '❌ Error getting quiz information.', ephemeral: true });
   }
 }
