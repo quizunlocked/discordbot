@@ -54,8 +54,8 @@ Roma","europe
 geography
 capitals","Rome has ancient history"`;
 
-      // Create a test corpus
-      const testCorpus = await databaseService.prisma.corpus.create({
+      // Create a test corpus (unused in this test but needed for cleanup)
+      await databaseService.prisma.corpus.create({
         data: {
           id: 'test-template-corpus',
           title: 'test-template-corpus',
@@ -168,21 +168,23 @@ category2","Hint for tagged question"
       };
 
       // Polish entries should intersect
-      expect(hasTagIntersection(entries[0].tags, entries[1].tags)).toBe(true); // both have 'polish' and 'basic'
+      expect(hasTagIntersection(entries[0]!.tags, entries[1]!.tags)).toBe(true); // both have 'polish' and 'basic'
 
       // Polish and geography shouldn't intersect
-      expect(hasTagIntersection(entries[0].tags, entries[2].tags)).toBe(false);
+      expect(hasTagIntersection(entries[0]!.tags, entries[2]!.tags)).toBe(false);
 
       // Untagged entry doesn't intersect with anything
-      expect(hasTagIntersection(entries[0].tags, entries[3].tags)).toBe(false);
-      expect(hasTagIntersection(entries[3].tags, entries[2].tags)).toBe(false);
+      expect(hasTagIntersection(entries[0]!.tags, entries[3]!.tags)).toBe(false);
+      expect(hasTagIntersection(entries[3]!.tags, entries[2]!.tags)).toBe(false);
 
       // Filter entries by tag intersection for a polish question
-      const polishEntry = entries[0];
+      const polishEntry = entries[0]!;
       const candidateEntries = entries.filter(entry => {
         const entryTags = entry.tags;
         // Only include entries that have tags AND share at least one tag
-        return entryTags && entryTags.length > 0 && hasTagIntersection(polishEntry.tags, entryTags);
+        return (
+          entryTags && entryTags.length > 0 && hasTagIntersection(polishEntry!.tags, entryTags)
+        );
       });
 
       // Should include both polish entries but not geography or untagged

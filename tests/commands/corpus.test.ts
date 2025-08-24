@@ -1,6 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { execute } from '../../app/commands/corpus';
 
-// Mock the upload function to test it in isolation
+vi.mock('../../app/utils/logger', () => ({
+  logger: {
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+  },
+}));
+
 vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
@@ -16,208 +24,373 @@ vi.mock('../../app/services/DatabaseService', () => ({
   },
 }));
 
-vi.mock('../../app/utils/logger', () => ({
-  logger: {
-    error: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-  },
-}));
-
-// Import the functions we want to test - we'll need to expose them or test through the handler
-describe('Corpus CSV Parsing', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  describe('Column Identification', () => {
-    it('should identify question and answer columns (case-insensitive)', () => {
-      // We need to access the identifyColumns function - for now, let's test through integration
-      const testCases = [
-        {
-          headers: ['Question', 'Answer', 'hint1'],
-          expected: { questionCol: 'Question', answerCol: 'Answer' },
-        },
-        {
-          headers: ['questions', 'answers', 'hint1'],
-          expected: { questionCol: 'questions', answerCol: 'answers' },
-        },
-        {
-          headers: ['QUESTIONS', 'ANSWERS'],
-          expected: { questionCol: 'QUESTIONS', answerCol: 'ANSWERS' },
-        },
-      ];
-
-      // This test validates that our regex patterns work correctly
-      const questionPatterns = /^questions?$/i;
-      const answerPatterns = /^answers?$/i;
-
-      testCases.forEach(({ headers, expected }) => {
-        const questionCol = headers.find(h => questionPatterns.test(h));
-        const answerCol = headers.find(h => answerPatterns.test(h));
-
-        expect(questionCol).toBe(expected.questionCol);
-        expect(answerCol).toBe(expected.answerCol);
-      });
-    });
-
-    it('should identify tag column (case-insensitive)', () => {
-      const tagPatterns = /^tags?$/i;
-      const testCases = ['tag', 'tags', 'Tag', 'Tags', 'TAG', 'TAGS'];
-
-      testCases.forEach(header => {
-        expect(tagPatterns.test(header)).toBe(true);
-      });
-
-      // Negative cases
-      expect(tagPatterns.test('tagged')).toBe(false);
-      expect(tagPatterns.test('tagline')).toBe(false);
-    });
-  });
-
-  describe('Tag Processing', () => {
-    it('should parse newline-separated tags and normalize to lowercase', () => {
-      const tagText = 'Europe\nGeography\nHISTORY\n  math  ';
-      const expectedTags = ['europe', 'geography', 'history', 'math'];
-
-      const actualTags = tagText
-        .trim()
-        .split('\n')
-        .map(t => t.trim().toLowerCase())
-        .filter(t => t.length > 0);
-
-      expect(actualTags).toEqual(expectedTags);
-    });
-
-    it('should handle empty tag columns', () => {
-      const tagText = '';
-      const actualTags = tagText
-        ? tagText
-            .trim()
-            .split('\n')
-            .map(t => t.trim().toLowerCase())
-            .filter(t => t.length > 0)
-        : [];
-
-      expect(actualTags).toEqual([]);
-    });
-
-    it('should filter out empty tags after trimming', () => {
-      const tagText = 'europe\n\n  \ngeography\n';
-      const actualTags = tagText
-        .trim()
-        .split('\n')
-        .map(t => t.trim().toLowerCase())
-        .filter(t => t.length > 0);
-
-      expect(actualTags).toEqual(['europe', 'geography']);
-    });
-  });
-
-  describe('Tag Validation', () => {
-    it('should reject excessively long tags', () => {
-      const longTag = 'a'.repeat(51); // 51 characters
-      const isValid = longTag.length <= 50;
-
-      expect(isValid).toBe(false);
-    });
-
-    it('should accept tags within length limit', () => {
-      const validTag = 'a'.repeat(50); // 50 characters
-      const isValid = validTag.length <= 50;
-
-      expect(isValid).toBe(true);
-    });
-  });
+vi.mock('papaparse', () => {
+  const mockPapaparse = {
+    parse: vi.fn(),
+  };
+  return {
+    default: mockPapaparse,
+    ...mockPapaparse,
+  };
 });
 
-describe('Quiz Generation with Tags', () => {
-  describe('Tag Intersection Logic', () => {
-    it('should detect tag intersection correctly', () => {
-      // Test the hasTagIntersection logic
-      const hasTagIntersection = (tags1: string[], tags2: string[]) => {
-        if (tags1.length === 0 || tags2.length === 0) {
-          return false;
-        }
+// Mock fetch globally
+global.fetch = vi.fn();
 
-        const normalizedTags1 = tags1.map(tag => tag.toLowerCase().trim());
-        const normalizedTags2 = tags2.map(tag => tag.toLowerCase().trim());
+describe('corpus command', () => {
+  let interaction: any;
+  let mockPrisma: any;
+  let mockPapa: any;
 
-        return normalizedTags1.some(tag => normalizedTags2.includes(tag));
+  beforeEach(async () => {
+    const { databaseService } = await import('../../app/services/DatabaseService');
+    const mockPapaImport = await import('papaparse');
+
+    mockPrisma = databaseService.prisma;
+    mockPapa = mockPapaImport.default || mockPapaImport;
+
+    vi.clearAllMocks();
+
+    interaction = {
+      isChatInputCommand: vi.fn().mockReturnValue(true),
+      options: {
+        getSubcommand: vi.fn(),
+        getString: vi.fn(),
+        getAttachment: vi.fn(),
+      },
+      reply: vi.fn().mockResolvedValue(undefined),
+      deferReply: vi.fn().mockResolvedValue(undefined),
+      editReply: vi.fn().mockResolvedValue(undefined),
+      channel: {
+        isDMBased: vi.fn().mockReturnValue(false),
+      },
+      channelId: 'test-channel',
+      guild: { id: 'test-guild', name: 'TestGuild' },
+      user: { id: 'user1', tag: 'user#1', username: 'testuser' },
+      id: 'interaction_123',
+    };
+  });
+
+  describe('general corpus functionality', () => {
+    it('should handle unknown subcommand', async () => {
+      interaction.options.getSubcommand.mockReturnValue('unknown');
+
+      await execute(interaction as any);
+
+      expect(interaction.reply).toHaveBeenCalledWith({
+        content: 'Unknown subcommand.',
+        ephemeral: true,
+      });
+    });
+
+    it('should reject corpus commands in DM channels', async () => {
+      interaction.channel.isDMBased.mockReturnValue(true);
+      interaction.options.getSubcommand.mockReturnValue('upload');
+
+      await execute(interaction as any);
+
+      expect(interaction.reply).toHaveBeenCalledWith({
+        content: '❌ Corpus commands can only be used in server channels, not in direct messages.',
+        ephemeral: true,
+      });
+    });
+
+    it('should reject corpus commands when guild is null', async () => {
+      interaction.guild = null;
+      interaction.options.getSubcommand.mockReturnValue('upload');
+
+      await execute(interaction as any);
+
+      expect(interaction.reply).toHaveBeenCalledWith({
+        content: '❌ Corpus commands can only be used in server channels, not in direct messages.',
+        ephemeral: true,
+      });
+    });
+  });
+
+  describe('template subcommand', () => {
+    it('should handle template command', async () => {
+      interaction.options.getSubcommand.mockReturnValue('template');
+
+      await execute(interaction as any);
+
+      expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+    });
+  });
+
+  describe('upload subcommand with tags', () => {
+    beforeEach(() => {
+      interaction.options.getSubcommand.mockReturnValue('upload');
+      interaction.options.getString.mockReturnValue('Test Corpus');
+      interaction.options.getAttachment.mockReturnValue({
+        name: 'test.csv',
+        size: 1000,
+        url: 'https://example.com/test.csv',
+        contentType: 'text/csv',
+      });
+    });
+
+    it('should successfully parse CSV with tag column and flexible headers', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            'questions,answers,tag,hint1\n"Test question","Test answer","test-tag","Test hint"'
+          ),
+      });
+
+      mockPapa.parse.mockReturnValue({
+        data: [
+          {
+            questions: 'Test question',
+            answers: 'Test answer',
+            tag: 'test-tag',
+            hint1: 'Test hint',
+          },
+        ],
+        errors: [],
+      });
+
+      mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+        return await callback({
+          corpus: {
+            create: vi.fn().mockResolvedValue({ id: 'corpus_123', title: 'Test Corpus' }),
+          },
+          corpusEntry: {
+            createMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+        });
+      });
+
+      await execute(interaction as any);
+
+      expect(mockPapa.parse).toHaveBeenCalled();
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(interaction.editReply).toHaveBeenCalledWith(
+        expect.objectContaining({
+          embeds: expect.any(Array),
+        })
+      );
+
+      // Verify the embeds contain success title (Discord.js EmbedBuilder stores data in .data property)
+      const editReplyCall = interaction.editReply.mock.calls[0][0];
+      const embed = editReplyCall.embeds[0];
+      expect(embed.data.title).toBe('✅ Corpus Created Successfully');
+    });
+
+    it('should handle CSV with singular "tag" column header', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            'answer,question,Example,tag\n"Paris","Capital of France","French capital","geography"'
+          ),
+      });
+
+      mockPapa.parse.mockReturnValue({
+        data: [
+          {
+            answer: 'Paris',
+            question: 'Capital of France',
+            Example: 'French capital',
+            tag: 'geography',
+          },
+        ],
+        errors: [],
+      });
+
+      mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+        return await callback({
+          corpus: {
+            create: vi.fn().mockResolvedValue({ id: 'corpus_123', title: 'Test Corpus' }),
+          },
+          corpusEntry: {
+            createMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+        });
+      });
+
+      await execute(interaction as any);
+
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+
+      // Verify the transaction was called with correct data structure
+      const transactionCallback = mockPrisma.$transaction.mock.calls[0][0];
+      const mockTx = {
+        corpus: { create: vi.fn().mockResolvedValue({ id: 'corpus_123', title: 'Test Corpus' }) },
+        corpusEntry: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
       };
 
-      // Test cases
-      expect(hasTagIntersection(['europe', 'geography'], ['europe', 'history'])).toBe(true);
-      expect(hasTagIntersection(['Europe', 'Geography'], ['europe', 'history'])).toBe(true);
-      expect(hasTagIntersection(['math', 'science'], ['history', 'geography'])).toBe(false);
-      expect(hasTagIntersection([], ['europe'])).toBe(false);
-      expect(hasTagIntersection(['europe'], [])).toBe(false);
-      expect(hasTagIntersection([], [])).toBe(false);
+      await transactionCallback(mockTx);
+
+      // Should create corpus entry with tags field populated
+      expect(mockTx.corpusEntry.createMany).toHaveBeenCalledWith({
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            tags: expect.arrayContaining(['geography']),
+            questionVariants: expect.arrayContaining(['Capital of France']),
+            answerVariants: expect.arrayContaining(['Paris']),
+            hintTitles: expect.arrayContaining(['Example']),
+          }),
+        ]),
+      });
     });
 
-    it('should filter entries by tag intersection', () => {
-      const allEntries = [
-        { id: 1, tags: ['europe', 'geography'], answerVariants: ['Paris'] },
-        { id: 2, tags: ['europe', 'geography'], answerVariants: ['Rome'] },
-        { id: 3, tags: ['math', 'arithmetic'], answerVariants: ['4'] },
-        { id: 4, tags: [], answerVariants: ['Jupiter'] }, // No tags
-      ];
-
-      const selectedEntry = { tags: ['europe', 'history'] };
-
-      // Implement the filtering logic
-      const candidateEntries = allEntries.filter(entry => {
-        const entryTags = entry.tags as string[];
-        if (!entryTags || entryTags.length === 0) return false;
-
-        const selectedTags = selectedEntry.tags;
-        if (!selectedTags || selectedTags.length === 0) return true;
-
-        const normalizedSelected = selectedTags.map(tag => tag.toLowerCase().trim());
-        const normalizedEntry = entryTags.map(tag => tag.toLowerCase().trim());
-
-        return normalizedSelected.some(tag => normalizedEntry.includes(tag));
+    it('should handle CSV with multiple tags separated by newlines', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            'questions,answers,tags,hint\n"Test question","Test answer","tag1\\ntag2\\ntag3","Test hint"'
+          ),
       });
 
-      expect(candidateEntries).toHaveLength(2); // Only Europe entries
-      expect(candidateEntries.map(e => e.id)).toEqual([1, 2]);
-    });
-
-    it('should use entire corpus for untagged entries', () => {
-      const allEntries = [
-        { id: 1, tags: ['europe'], answerVariants: ['Paris'] },
-        { id: 2, tags: ['math'], answerVariants: ['4'] },
-      ];
-
-      const selectedEntry = { tags: [] }; // No tags
-
-      // For untagged entries, should return all entries
-      const candidateEntries = selectedEntry.tags.length === 0 ? allEntries : [];
-
-      expect(candidateEntries).toHaveLength(2);
-    });
-
-    it('should exclude entries without tags when selected entry has tags', () => {
-      const allEntries = [
-        { id: 1, tags: ['europe'], answerVariants: ['Paris'] },
-        { id: 2, tags: [], answerVariants: ['Jupiter'] }, // No tags
-        { id: 3, tags: ['europe'], answerVariants: ['Rome'] },
-      ];
-
-      const selectedEntry = { tags: ['europe'] };
-
-      const candidateEntries = allEntries.filter(entry => {
-        const entryTags = entry.tags as string[];
-        // Only include entries that have tags AND share at least one tag
-        return (
-          entryTags &&
-          entryTags.length > 0 &&
-          entryTags.some(tag => selectedEntry.tags.includes(tag))
-        );
+      mockPapa.parse.mockReturnValue({
+        data: [
+          {
+            questions: 'Test question',
+            answers: 'Test answer',
+            tags: 'tag1\ntag2\ntag3',
+            hint: 'Test hint',
+          },
+        ],
+        errors: [],
       });
 
-      expect(candidateEntries).toHaveLength(2); // Exclude untagged entry
-      expect(candidateEntries.map(e => e.id)).toEqual([1, 3]);
+      mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+        return await callback({
+          corpus: {
+            create: vi.fn().mockResolvedValue({ id: 'corpus_123', title: 'Test Corpus' }),
+          },
+          corpusEntry: {
+            createMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+        });
+      });
+
+      await execute(interaction as any);
+
+      const transactionCallback = mockPrisma.$transaction.mock.calls[0][0];
+      const mockTx = {
+        corpus: { create: vi.fn().mockResolvedValue({ id: 'corpus_123', title: 'Test Corpus' }) },
+        corpusEntry: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      };
+
+      await transactionCallback(mockTx);
+
+      // Should normalize tags to lowercase and parse newline-separated values
+      expect(mockTx.corpusEntry.createMany).toHaveBeenCalledWith({
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            tags: ['tag1', 'tag2', 'tag3'],
+          }),
+        ]),
+      });
+    });
+
+    it('should handle CSV without tag column', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve('questions,answers,hint1\n"Test question","Test answer","Test hint"'),
+      });
+
+      mockPapa.parse.mockReturnValue({
+        data: [
+          {
+            questions: 'Test question',
+            answers: 'Test answer',
+            hint1: 'Test hint',
+          },
+        ],
+        errors: [],
+      });
+
+      mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+        return await callback({
+          corpus: {
+            create: vi.fn().mockResolvedValue({ id: 'corpus_123', title: 'Test Corpus' }),
+          },
+          corpusEntry: {
+            createMany: vi.fn().mockResolvedValue({ count: 1 }),
+          },
+        });
+      });
+
+      await execute(interaction as any);
+
+      const transactionCallback = mockPrisma.$transaction.mock.calls[0][0];
+      const mockTx = {
+        corpus: { create: vi.fn().mockResolvedValue({ id: 'corpus_123', title: 'Test Corpus' }) },
+        corpusEntry: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      };
+
+      await transactionCallback(mockTx);
+
+      // Should create entry with empty tags array when no tag column
+      expect(mockTx.corpusEntry.createMany).toHaveBeenCalledWith({
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            tags: [],
+            hintTitles: expect.arrayContaining(['hint1']),
+          }),
+        ]),
+      });
+    });
+
+    it('should validate CSV has required question and answer columns', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve('column1,column2,column3\n"value1","value2","value3"'),
+      });
+
+      mockPapa.parse.mockReturnValue({
+        data: [
+          {
+            column1: 'value1',
+            column2: 'value2',
+            column3: 'value3',
+          },
+        ],
+        errors: [],
+      });
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Corpus CSV validation failed')
+      );
+    });
+
+    it('should handle fetch errors gracefully', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: false,
+        status: 404,
+      });
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith(
+        '❌ Failed to download the CSV file. Please try again.'
+      );
+    });
+
+    it('should handle Papa Parse errors', async () => {
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve('invalid,csv,content'),
+      });
+
+      mockPapa.parse.mockReturnValue({
+        data: [],
+        errors: [{ message: 'Invalid CSV format', row: 1 }],
+      });
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith(
+        expect.stringContaining('❌ Corpus CSV validation failed')
+      );
     });
   });
 });
