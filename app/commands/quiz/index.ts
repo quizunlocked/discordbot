@@ -32,7 +32,7 @@ export const data = new SlashCommandBuilder()
           .setDescription('Time to wait for participants to join (seconds)')
           .setRequired(false)
           .setMinValue(10)
-          .setMaxValue(300)
+          .setMaxValue(3600)
       )
       .addIntegerOption(option =>
         option
@@ -123,6 +123,14 @@ export const data = new SlashCommandBuilder()
           .setName('private')
           .setDescription('Make the quiz private (only you can take it)')
           .setRequired(false)
+      )
+      .addIntegerOption(option =>
+        option
+          .setName('question_time_limit')
+          .setDescription('Time limit for each question (5-30 seconds)')
+          .setRequired(false)
+          .setMinValue(5)
+          .setMaxValue(30)
       )
   )
   .addSubcommand(subcommand =>

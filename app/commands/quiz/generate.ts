@@ -21,6 +21,13 @@ export async function handleGenerate(interaction: ChatInputCommandInteraction): 
     const numChoices = interaction.options.getInteger('num-choices') || 4;
     const showHints = interaction.options.getBoolean('show-hints') ?? true;
     const isPrivate = interaction.options.getBoolean('private') ?? false;
+    const questionTimeLimit = interaction.options.getInteger('question_time_limit') || 30;
+
+    // Validate question time limit range
+    if (questionTimeLimit < 5 || questionTimeLimit > 30) {
+      await interaction.editReply('❌ Question time limit must be between 5 and 30 seconds.');
+      return;
+    }
 
     // Find the corpus
     const corpus = await databaseService.prisma.corpus.findUnique({
@@ -78,7 +85,8 @@ export async function handleGenerate(interaction: ChatInputCommandInteraction): 
       corpus.entries,
       numQuestions,
       numChoices,
-      showHints
+      showHints,
+      questionTimeLimit
     );
 
     if (generatedQuestions.length === 0) {
@@ -181,7 +189,8 @@ async function generateQuizFromCorpus(
   entries: any[],
   numQuestions: number,
   numChoices: number,
-  includeHints: boolean
+  includeHints: boolean,
+  questionTimeLimit: number
 ): Promise<GeneratedQuestion[]> {
   try {
     // Randomly select entries for the quiz (without replacement)
@@ -258,7 +267,7 @@ async function generateQuizFromCorpus(
         options: shuffledOptions,
         correctAnswer: correctIndex,
         points: 10, // Default points
-        timeLimit: 30, // Default time limit
+        timeLimit: questionTimeLimit,
         hints,
       });
     }
