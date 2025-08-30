@@ -54,4 +54,118 @@ describe('stats command', () => {
         '❌ Leaderboard commands can only be used in server channels, not in direct messages.',
     });
   });
+
+  it('should display success rate correctly for various scenarios', async () => {
+    const { leaderboardService } = await import('../../app/services/LeaderboardService');
+
+    // Test perfect score scenario
+    vi.spyOn(leaderboardService, 'getUserStats').mockResolvedValue({
+      totalScore: 100,
+      totalQuizzes: 2,
+      averageScore: 50,
+      bestTime: 120,
+      averageResponseTime: 15.5,
+      rank: 1,
+      correctAnswers: 10,
+      totalAnswers: 10,
+    });
+
+    interaction.options.getUser.mockReturnValue(null);
+    await execute(interaction as any);
+
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      embeds: [
+        expect.objectContaining({
+          data: expect.objectContaining({
+            fields: expect.arrayContaining([
+              expect.objectContaining({
+                name: '📈 Success Rate',
+                value: '100%',
+              }),
+              expect.objectContaining({
+                name: '✅ Correct Answers',
+                value: '10/10',
+              }),
+            ]),
+          }),
+        }),
+      ],
+    });
+  });
+
+  it('should handle partial success rate correctly', async () => {
+    const { leaderboardService } = await import('../../app/services/LeaderboardService');
+
+    // Test 75% success rate scenario
+    vi.spyOn(leaderboardService, 'getUserStats').mockResolvedValue({
+      totalScore: 75,
+      totalQuizzes: 1,
+      averageScore: 75,
+      bestTime: 180,
+      averageResponseTime: 20.0,
+      rank: 2,
+      correctAnswers: 6,
+      totalAnswers: 8,
+    });
+
+    interaction.options.getUser.mockReturnValue(null);
+    await execute(interaction as any);
+
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      embeds: [
+        expect.objectContaining({
+          data: expect.objectContaining({
+            fields: expect.arrayContaining([
+              expect.objectContaining({
+                name: '📈 Success Rate',
+                value: '75%',
+              }),
+              expect.objectContaining({
+                name: '✅ Correct Answers',
+                value: '6/8',
+              }),
+            ]),
+          }),
+        }),
+      ],
+    });
+  });
+
+  it('should handle zero answers scenario', async () => {
+    const { leaderboardService } = await import('../../app/services/LeaderboardService');
+
+    // Test zero answers scenario (quiz started but no questions answered)
+    vi.spyOn(leaderboardService, 'getUserStats').mockResolvedValue({
+      totalScore: 0,
+      totalQuizzes: 1,
+      averageScore: 0,
+      bestTime: undefined,
+      averageResponseTime: 0,
+      rank: 10,
+      correctAnswers: 0,
+      totalAnswers: 0,
+    });
+
+    interaction.options.getUser.mockReturnValue(null);
+    await execute(interaction as any);
+
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      embeds: [
+        expect.objectContaining({
+          data: expect.objectContaining({
+            fields: expect.arrayContaining([
+              expect.objectContaining({
+                name: '📈 Success Rate',
+                value: '0%',
+              }),
+              expect.objectContaining({
+                name: '✅ Correct Answers',
+                value: '0/0',
+              }),
+            ]),
+          }),
+        }),
+      ],
+    });
+  });
 });

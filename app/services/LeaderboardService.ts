@@ -324,6 +324,8 @@ class LeaderboardService {
     bestTime: number | undefined;
     averageResponseTime: number;
     rank: number;
+    correctAnswers: number;
+    totalAnswers: number;
   } | null> {
     try {
       // Parallel database queries for better performance
@@ -367,6 +369,10 @@ class LeaderboardService {
             )
           : 0;
 
+      // Calculate correct and total answers for success rate
+      const correctAnswers = allQuestionAttempts.filter((qa: any) => qa.isCorrect).length;
+      const totalAnswers = allQuestionAttempts.length;
+
       const rank = allUsers.findIndex((user: any) => user.userId === userId) + 1;
 
       return {
@@ -376,6 +382,8 @@ class LeaderboardService {
         bestTime: bestTime || undefined,
         averageResponseTime,
         rank,
+        correctAnswers,
+        totalAnswers,
       };
     } catch (error) {
       logger.error('Error getting user stats:', error);

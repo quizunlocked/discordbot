@@ -2,7 +2,6 @@ import { SlashCommandBuilder, CommandInteraction, EmbedBuilder } from 'discord.j
 import { Command } from '../../types/index.js';
 import { leaderboardService } from '../../services/LeaderboardService.js';
 import { logger } from '../../utils/logger.js';
-import { config } from '../../utils/config.js';
 
 export const data = new SlashCommandBuilder()
   .setName('stats')
@@ -43,17 +42,9 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
       return;
     }
 
-    // Configurable max possible score per quiz
-    // TODO: Make this dynamic based on actual quiz data if needed
-    const questionsPerQuiz = 5; // Default/fallback value
-    const pointsPerQuestion = config.quiz?.pointsPerCorrectAnswer ?? 10;
-    const maxPossibleScorePerQuiz = questionsPerQuiz * pointsPerQuestion;
-    let successRate = 0;
-    if (maxPossibleScorePerQuiz > 0) {
-      successRate = Math.round((stats.averageScore / maxPossibleScorePerQuiz) * 100);
-    }
-    // Clamp to 0-100%
-    successRate = Math.max(0, Math.min(100, successRate));
+    // Calculate success rate based on actual question attempts
+    const successRate =
+      stats.totalAnswers > 0 ? Math.round((stats.correctAnswers / stats.totalAnswers) * 100) : 0;
 
     const embed = new EmbedBuilder()
       .setTitle('📊 Quiz Statistics')
@@ -78,7 +69,12 @@ export const execute: Command['execute'] = async (interaction: CommandInteractio
           value: stats.averageResponseTime > 0 ? `${stats.averageResponseTime}s` : 'N/A',
           inline: true,
         },
-        { name: '📈 Success Rate', value: `${successRate}%`, inline: true }
+        { name: '📈 Success Rate', value: `${successRate}%`, inline: true },
+        {
+          name: '✅ Correct Answers',
+          value: `${stats.correctAnswers}/${stats.totalAnswers}`,
+          inline: true,
+        }
       );
 
     await interaction.editReply({ embeds: [embed] });
