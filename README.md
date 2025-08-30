@@ -1,27 +1,33 @@
-# Learn Polish Bot
+# Quiz Unlocked Free Open Source
 
-A feature-rich Discord bot for hosting interactive quizzes with leaderboards, built with Discord.js and TypeScript.
+A feature-rich Discord bot for easily generating and hosting quizzes with up to hundreds of users.
 
 ## Features
 
-- **Interactive Quizzes**: Host multiple-choice quizzes with customizable questions
-- **Real-time Scoring**: Score participants based on correctness and speed
-- **Leaderboards**: Track weekly, monthly, and yearly statistics
-- **Admin Controls**: Manage quizzes and bot settings
-- **Database Persistence**: Store quiz data and user statistics using PostgreSQL
-- **Modern Architecture**: Built with TypeScript, Discord.js v14, and Prisma ORM
+- **Generate endless quizzes**: Create a spreadsheet anywhere, upload it to Quiz Unlocked, and randomly generate quizzes using all the info contained in it. You can also manually write a quiz or a question bank.
+- **Engaging real-time competition**: your Discord community plays along together in a real time trivia game with dynamic updating embeds, a customizable hint system, and extra points for speed.
+- **Leaderboards, stats, and study modes**: participants can check their weekly/monthly/yearly/overall ranking and save study materials to practice and improve their performance.
+- **Admin controls**: lock down any commands to require "Manage Server" permissions.
+- **Sophisticated architecture**: Built with strictly-typed TypeScript, Discord.js v14, and Prisma ORM. Database persistence with PostgreSQL. Hundreds of unit and integration tests with vitest.
 
-## Prerequisites
+**Want advanced role support, Google sheets integration, or a web editor? Join the waitlist for [Quiz Unlocked Pro](https://quizunlocked.com/)**
+
+## Host your own
+
+Quiz Unlocked Free Open Source can be hosted on your own computer or server.
+
+### Hosting Prerequisites
 
 - Node.js 18.0.0 or higher
 - npm or yarn
-- A Discord bot token (from [Discord Developer Portal](https://discord.com/developers/applications))
+- PostgreSQL
+- your own Discord bot token (from [Discord Developer Portal](https://discord.com/developers/applications))
 
-## OAuth2 Scopes and Permissions
+**Don't know how to self-host? You can still [add Quiz Unlocked to your Discord server for free](https://discord.gg/invite)**
+
+### OAuth2 Scopes and Permissions
 
 When setting up your Discord bot, you'll need to configure the following OAuth2 scopes and permissions:
-
-### OAuth2 Scopes
 
 - `bot` - Required for bot functionality
 - `applications.commands` - Required for slash commands
@@ -30,12 +36,7 @@ When setting up your Discord bot, you'll need to configure the following OAuth2 
 
 The bot requires the following Gateway Intents to be enabled in your Discord application:
 
-**Required Intents:**
-
 - `Server Members Intent` - Required to access member information for leaderboards and user management
-- `Message Content Intent` - **Privileged Intent** - Required to read message content for quiz interactions
-
-**Important:** The `Message Content Intent` is a privileged intent that must be manually enabled in the Discord Developer Portal under your application's "Bot" section. This intent is required for the bot to read message content and respond to quiz interactions.
 
 ### Bot Permissions
 
@@ -45,15 +46,8 @@ The bot requires the following permissions:
 
 - `Send Messages` - To send quiz questions and responses
 - `Use Slash Commands` - To respond to slash command interactions
-- `Read Message History` - To read previous messages in channels
-- `Add Reactions` - To add reactions to quiz messages
 - `Embed Links` - To send rich embeds for leaderboards and quiz information
 - `Attach Files` - To potentially send quiz results or images
-
-**Server Management (for Admin Commands):**
-
-- `Manage Server` - Required for admin commands that manage server settings
-- `Administrator` - Required for admin commands (set via `setDefaultMemberPermissions`)
 
 ### Invite URL
 
@@ -62,8 +56,6 @@ When creating your bot invite URL, include these scopes and permissions:
 ```console
 https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&scope=bot%20applications.commands
 ```
-
-**Note:** The permission value `8` represents Administrator permissions. For production, you may want to use more specific permissions instead of Administrator.
 
 ## Installation
 
@@ -88,8 +80,6 @@ https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&
 
    Edit `.env` and add your Discord bot token and other configuration:
 
-   **For Development (PostgreSQL):**
-
    ```env
    DISCORD_TOKEN=your_discord_bot_token_here
    DISCORD_CLIENT_ID=your_discord_client_id_here
@@ -99,16 +89,10 @@ https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=8&
 
 4. **Set up the database**
 
-   **Development (PostgreSQL with migrations):**
+   **Development:**
 
    ```bash
    npm run db:deploy:dev
-   ```
-
-5. **Build the project**
-
-   ```bash
-   npm run build
    ```
 
 ## Usage
@@ -132,7 +116,6 @@ npm start
 **Notes:**
 
 - The `start` command automatically deploys Discord slash commands and then starts the bot
-- `db:deploy` uses PostgreSQL with proper migrations (`schema.prisma`)
 - Ensure your `DATABASE_URL` is a valid PostgreSQL connection string
 
 ## Commands
@@ -142,30 +125,26 @@ npm start
 - `/quiz start <quiz_name>` - Start a new quiz session
 - `/quiz stop` - Stop the current quiz
 - `/quiz status` - Check current quiz status
-- `/upload-quiz-csv [title] [file]` - Upload a CSV file to create a custom quiz
-- `/get-quiz-template` - Get a CSV template for creating custom quizzes
+- `/quiz upload [title] [file]` - Upload a CSV file to create a custom quiz
+- `/quiz template` - Get a CSV template for creating custom quizzes
+- `/quiz create` - Create a new quiz with interactive form
+- `/quiz edit <quiz_id>` - Edit an existing quiz
+- `/quiz delete <quiz_id>` - Delete a specific quiz
 
-### Leaderboard Commands
+### Leaderboard and stats commands
 
-- `/leaderboard weekly` - View weekly leaderboard
-- `/leaderboard monthly` - View monthly leaderboard
-- `/leaderboard yearly` - View yearly leaderboard
-- `/leaderboard overall` - View overall leaderboard
+- `/leaderboard` - View leaderboard
+- `/stats` - View your own performance stats
+- `/user stats @username` - View another user's performance stats
 
 ### Admin Commands
 
-- `/admin create-quiz <title> [description]` - Create a new quiz
-- `/admin add-question` - Add questions to a quiz
-- `/admin status` - Check bot and database status
+- `/admin delete everything` - Delete all the data in the database
+- `/admin delete userdata @username` - Delete all data by one user
 
-### Quiz Manager Commands
+### Botowner Commands
 
-- `/quiz-manager create` - Create a new quiz with interactive form
-- `/quiz-manager edit <quiz_id>` - Edit an existing quiz
-- `/quiz-manager delete <quiz_id>` - Delete a specific quiz (⚠️ DESTRUCTIVE)
-- `/quiz-manager delete-all` - Delete all quizzes (⚠️ DESTRUCTIVE)
-
-**Note:** All quiz-manager commands require administrator privileges and include confirmation prompts for destructive actions.
+- `/botowner status` - Check bot and database status
 
 ## CSV Quiz Upload Feature
 
@@ -192,12 +171,6 @@ questionText,options,correctAnswer,points,timeLimit
 "What is 2 + 2 in Polish?","[""Dwa"",""Trzy"",""Cztery"",""Pięć""]",2,5,15
 ```
 
-### CSV Feature Usage
-
-1. **Get a template**: Use `/get-quiz-template` to download a sample CSV file
-2. **Edit the template**: Replace the example questions with your own
-3. **Upload your quiz**: Use `/upload-quiz-csv [title] [file]` to create your quiz
-
 ### Validation Rules
 
 - **File size**: Maximum 25MB
@@ -208,32 +181,25 @@ questionText,options,correctAnswer,points,timeLimit
 - **Points**: Must be between 1-100 (optional, default: 10)
 - **Time limit**: Must be between 10-300 seconds (optional, default: 30)
 
-### Error Handling
-
-The bot provides detailed error messages for validation failures, including:
-
-- Row-specific error reporting
-- Field-specific validation messages
-- Format examples and suggestions
-
 ## Project Structure
 
 ```bash
 app/
 ├── commands/          # Slash command handlers
-│   ├── quiz/         # Quiz-related commands
-│   ├── leaderboard/  # Leaderboard commands
-│   └── admin/        # Admin commands
 ├── events/           # Discord event handlers
 ├── services/         # Business logic services
 ├── types/           # TypeScript type definitions
 ├── utils/           # Utility functions
 └── index.ts         # Main entry point
+data/
+docs/
+prisma/
+public/
+scripts/
+tests/
 ```
 
-## Development
-
-### Available Scripts
+### Available npm Scripts
 
 - `npm run dev` - Start development server with hot reload
 - `npm run build` - Build the project
@@ -247,8 +213,8 @@ app/
 - `npm run db:studio` - Open Prisma Studio
 - `npm run deploy-commands` - (Re)deploy bot commands to your configured dev server
 - `npm run deploy-commands -- --guildId=1234567890` - (Re)deploy bot commands to the given server
-- `npm run reset-commands` - Clear all registered Discord commands (global and guild)
-- `npm run reset-commands -- --guildId=1234567890` - Clear commands for a specific guild
+- `npm run reset-commands` - Clear all registered Discord commands (global and server-specific)
+- `npm run reset-commands -- --guildId=1234567890` - Clear commands for a specific server
 
 ### Code Quality
 
@@ -257,7 +223,7 @@ This project uses:
 - **TypeScript** with strict mode enabled
 - **ESLint** for code linting
 - **Prettier** for code formatting
-- **Jest** for testing
+- **vitest** for testing
 - **Husky** for git hooks
 
 ### Database

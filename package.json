@@ -23,7 +23,10 @@
     "db:deploy": "npm run db:generate && npm run db:migrate:deploy",
     "prepare": "husky install",
     "deploy-commands": "tsx scripts/deploy-commands.ts",
-    "reset-commands": "tsx scripts/reset-commands.ts"
+    "reset-commands": "tsx scripts/reset-commands.ts",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   },
   "keywords": [
     "discord",
@@ -61,6 +64,7 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.6.2",
     "typescript": "^5.3.3",
+    "vitepress": "^2.0.0-alpha.12",
     "vitest": "^3.2.4"
   },
   "engines": {
