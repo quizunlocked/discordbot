@@ -8,6 +8,8 @@ import { canAccessQuiz } from '../../utils/permissions.js';
 export async function handleStart(interaction: CommandInteraction): Promise<void> {
   if (!interaction.isChatInputCommand()) return;
 
+  await interaction.deferReply();
+
   const quizId = interaction.options.getString('quiz_id', true);
   const waitTime = interaction.options.getInteger('wait_time') || 30;
   const totalTimeLimit = interaction.options.getInteger('total_time_limit');
@@ -17,10 +19,9 @@ export async function handleStart(interaction: CommandInteraction): Promise<void
     // Check if there's already an active quiz in this channel
     const activeSession = quizService.getActiveSessionByChannel(interaction.channelId);
     if (activeSession) {
-      await interaction.reply({
-        content: 'There is already an active quiz in this channel. Please wait for it to finish.',
-        ephemeral: true,
-      });
+      await interaction.editReply(
+        'There is already an active quiz in this channel. Please wait for it to finish.'
+      );
       return;
     }
 
@@ -31,10 +32,7 @@ export async function handleStart(interaction: CommandInteraction): Promise<void
     });
 
     if (!existingQuiz) {
-      await interaction.reply({
-        content: `Quiz not found. Please select a valid quiz.`,
-        ephemeral: true,
-      });
+      await interaction.editReply(`Quiz not found. Please select a valid quiz.`);
       return;
     }
 
@@ -47,10 +45,7 @@ export async function handleStart(interaction: CommandInteraction): Promise<void
           (existingQuiz as any).private
         )
       ) {
-        await interaction.reply({
-          content: '❌ This is a private quiz. Only the creator can start it.',
-          ephemeral: true,
-        });
+        await interaction.editReply('❌ This is a private quiz. Only the creator can start it.');
         return;
       }
     }
@@ -73,10 +68,9 @@ export async function handleStart(interaction: CommandInteraction): Promise<void
       quizConfig.timeLimit = totalTimeLimit;
     }
 
-    await interaction.reply({
-      content: `Starting quiz: **${quizConfig.title}**\nGet ready to answer some questions!`,
-      ephemeral: false,
-    });
+    await interaction.editReply(
+      `Starting quiz: **${quizConfig.title}**\nGet ready to answer some questions!`
+    );
 
     // Start the quiz with waiting period
     await quizService.startQuiz(
@@ -94,10 +88,7 @@ export async function handleStart(interaction: CommandInteraction): Promise<void
     );
   } catch (error) {
     logger.error('Error starting quiz:', error);
-    await interaction.reply({
-      content: 'There was an error starting the quiz. Please try again.',
-      ephemeral: true,
-    });
+    await interaction.editReply('There was an error starting the quiz. Please try again.');
   }
 }
 

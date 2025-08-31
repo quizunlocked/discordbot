@@ -47,16 +47,17 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction: CommandInteraction): Promise<void> {
   if (!interaction.isChatInputCommand()) return;
 
+  await interaction.deferReply({ ephemeral: true });
+
   const subcommandGroup = interaction.options.getSubcommandGroup();
   const subcommand = interaction.options.getSubcommand();
 
   try {
     // Validate channel type - question commands must be run in guild channels
     if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {
-      await interaction.reply({
-        content: '❌ Question commands can only be used in server channels, not in direct messages.',
-        ephemeral: true,
-      });
+      await interaction.editReply(
+        '❌ Question commands can only be used in server channels, not in direct messages.'
+      );
       return;
     }
 
@@ -66,16 +67,15 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
           await handleHintAdd(interaction);
           break;
         default:
-          await interaction.reply({ content: 'Unknown hint subcommand.', ephemeral: true });
+          await interaction.editReply('Unknown hint subcommand.');
       }
     } else {
-      await interaction.reply({ content: 'Unknown subcommand group.', ephemeral: true });
+      await interaction.editReply('Unknown subcommand group.');
     }
   } catch (error) {
     logger.error('Error in question command:', error);
-    await interaction.reply({
-      content: 'There was an error executing the question command. Please check the logs.',
-      ephemeral: true,
-    });
+    await interaction.editReply(
+      'There was an error executing the question command. Please check the logs.'
+    );
   }
 }

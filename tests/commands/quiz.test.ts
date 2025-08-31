@@ -105,10 +105,8 @@ describe('quiz command', () => {
     it('should handle unknown subcommand', async () => {
       interaction.options.getSubcommand.mockReturnValue('unknown');
       await execute(interaction as any);
-      expect(interaction.reply).toHaveBeenCalledWith({
-        content: 'Unknown subcommand.',
-        ephemeral: true,
-      });
+      expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+      expect(interaction.editReply).toHaveBeenCalledWith('Unknown subcommand.');
     });
 
     it('should handle errors gracefully', async () => {
@@ -117,6 +115,7 @@ describe('quiz command', () => {
         throw new Error('fail');
       });
       await execute(interaction as any);
+      expect(interaction.deferReply).not.toHaveBeenCalled();
       expect(interaction.reply).toHaveBeenCalled();
     });
 
@@ -128,6 +127,7 @@ describe('quiz command', () => {
 
       await execute(interaction as any);
 
+      expect(interaction.deferReply).not.toHaveBeenCalled();
       expect(interaction.reply).toHaveBeenCalledWith({
         content: '❌ Quiz commands can only be used in server channels, not in direct messages.',
         ephemeral: true,
@@ -143,6 +143,7 @@ describe('quiz command', () => {
 
       await execute(interaction as any);
 
+      expect(interaction.deferReply).not.toHaveBeenCalled();
       expect(interaction.reply).toHaveBeenCalledWith({
         content: '❌ Quiz commands can only be used in server channels, not in direct messages.',
         ephemeral: true,
@@ -181,7 +182,8 @@ describe('quiz command', () => {
         throw new Error('fail');
       });
       await execute(interaction as any);
-      expect(interaction.reply).toHaveBeenCalled();
+      expect(interaction.deferReply).toHaveBeenCalledWith();
+      expect(interaction.editReply).toHaveBeenCalled();
     });
   });
 
@@ -857,6 +859,42 @@ describe('quiz command', () => {
       expect(interaction.editReply).toHaveBeenCalledWith(
         '❌ Not enough entries for 4 answer choices. Corpus has only 1 entries. Need at least 4 entries.'
       );
+    });
+  });
+
+  describe('reply pattern verification', () => {
+    it('should use deferReply for non-modal subcommands like stop', async () => {
+      const { quizService } = await import('../../app/services/QuizService');
+      (quizService.getActiveSessionByChannel as any).mockReturnValue(null);
+      
+      interaction.options.getSubcommand.mockReturnValue('stop');
+
+      await execute(interaction as any);
+
+      expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+      expect(interaction.editReply).toHaveBeenCalledWith('There is no active quiz in this channel.');
+    });
+
+    it('should use deferReply for template subcommand', async () => {
+      interaction.options.getSubcommand.mockReturnValue('template');
+
+      await execute(interaction as any);
+
+      expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+      expect(interaction.editReply).toHaveBeenCalled();
+    });
+
+    it('should NOT use deferReply for modal commands like create', async () => {
+      interaction.options.getSubcommand.mockReturnValue('create');
+      mockShowModal.mockRejectedValue(new Error('Modal error'));
+
+      await execute(interaction as any);
+
+      expect(interaction.deferReply).not.toHaveBeenCalled();
+      expect(interaction.reply).toHaveBeenCalledWith({
+        content: '❌ Error creating quiz form.',
+        ephemeral: true,
+      });
     });
   });
 });

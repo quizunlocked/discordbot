@@ -175,12 +175,27 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
 
   try {
+    // Special handling for commands that don't defer reply 
+    // (start command defers on its own, create/question-add commands show modal immediately)
+    const modalCommands = ['create', 'edit'];
+    const questionModalCommands = subcommandGroup === 'question' && subcommand === 'add';
+    
+    if (subcommand !== 'start' && !modalCommands.includes(subcommand) && !questionModalCommands) {
+      await interaction.deferReply({ ephemeral: true });
+    }
+
     // Validate channel type - quiz commands must be run in guild channels
     if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {
-      await interaction.reply({
-        content: '❌ Quiz commands can only be used in server channels, not in direct messages.',
-        ephemeral: true,
-      });
+      if (subcommand === 'start' || modalCommands.includes(subcommand) || (subcommandGroup === 'question' && subcommand === 'add')) {
+        await interaction.reply({
+          content: '❌ Quiz commands can only be used in server channels, not in direct messages.',
+          ephemeral: true,
+        });
+      } else {
+        await interaction.editReply(
+          '❌ Quiz commands can only be used in server channels, not in direct messages.'
+        );
+      }
       return;
     }
 
@@ -190,7 +205,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
           await handleQuestionAdd(interaction);
           break;
         default:
-          await interaction.reply({ content: 'Unknown question subcommand.', ephemeral: true });
+          await interaction.editReply('Unknown question subcommand.');
       }
     } else {
       switch (subcommand) {
@@ -223,15 +238,21 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
           await handleUpload(interaction);
           break;
         default:
-          await interaction.reply({ content: 'Unknown subcommand.', ephemeral: true });
+          await interaction.editReply('Unknown subcommand.');
       }
     }
   } catch (error) {
     logger.error('Error in quiz command:', error);
-    await interaction.reply({
-      content: 'There was an error executing the quiz command. Please check the logs.',
-      ephemeral: true,
-    });
+    if (subcommand === 'start' || modalCommands.includes(subcommand) || (subcommandGroup === 'question' && subcommand === 'add')) {
+      await interaction.reply({
+        content: 'There was an error executing the quiz command. Please check the logs.',
+        ephemeral: true,
+      });
+    } else {
+      await interaction.editReply(
+        'There was an error executing the quiz command. Please check the logs.'
+      );
+    }
   }
 }
 

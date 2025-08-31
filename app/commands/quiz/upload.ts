@@ -44,8 +44,6 @@ export async function handleUpload(interaction: ChatInputCommandInteraction): Pr
   // Mark upload as in progress
   uploadInProgress.set(uploadKey, true);
 
-  let isDeferred = false;
-
   try {
     // Quick validation that the interaction is still valid
     if (interaction.replied || interaction.deferred) {
@@ -54,45 +52,28 @@ export async function handleUpload(interaction: ChatInputCommandInteraction): Pr
       return;
     }
 
-    // Try to defer the reply, but don't fail if the interaction is already expired
-    try {
-      await interaction.deferReply({ ephemeral: true });
-      isDeferred = true;
-      logger.info(`CSV upload started for user ${interaction.user.tag} (${interaction.id})`);
-    } catch (deferError) {
-      logger.warn('Failed to defer reply, will attempt direct reply instead:', deferError);
-      isDeferred = false;
-    }
+    await interaction.deferReply({ ephemeral: true });
+    logger.info(`CSV upload started for user ${interaction.user.tag} (${interaction.id})`);
 
     const title = interaction.options.getString('title') || null;
     const attachment = interaction.options.getAttachment('file');
 
     if (!attachment) {
-      await safeEditReply(
-        interaction,
-        isDeferred,
-        '❌ No file was provided. Please attach a CSV file.'
-      );
+      await interaction.editReply('❌ No file was provided. Please attach a CSV file.');
       safeReturn(uploadKey);
       return;
     }
 
     // Validate file type and size
     if (!attachment.contentType?.includes('text/csv') && !attachment.name?.endsWith('.csv')) {
-      await safeEditReply(
-        interaction,
-        isDeferred,
-        '❌ Invalid file type. Please upload a CSV file.'
-      );
+      await interaction.editReply('❌ Invalid file type. Please upload a CSV file.');
       safeReturn(uploadKey);
       return;
     }
 
     if (attachment.size > 25 * 1024 * 1024) {
       // 25MB limit
-      await safeEditReply(
-        interaction,
-        isDeferred,
+      await interaction.editReply(
         '❌ File too large. Please upload a CSV file smaller than 25MB.'
       );
       safeReturn(uploadKey);
@@ -102,11 +83,7 @@ export async function handleUpload(interaction: ChatInputCommandInteraction): Pr
     // Download and parse the CSV file
     const csvContent = await downloadAttachment(attachment.url);
     if (!csvContent) {
-      await safeEditReply(
-        interaction,
-        isDeferred,
-        '❌ Failed to download the CSV file. Please try again.'
-      );
+      await interaction.editReply('❌ Failed to download the CSV file. Please try again.');
       safeReturn(uploadKey);
       return;
     }
@@ -116,7 +93,7 @@ export async function handleUpload(interaction: ChatInputCommandInteraction): Pr
 
     if (parseErrors.length > 0) {
       const errorMessage = formatValidationErrors(parseErrors);
-      await safeEditReply(interaction, isDeferred, `❌ CSV validation failed:\n\n${errorMessage}`);
+      await interaction.editReply(`❌ CSV validation failed:\n\n${errorMessage}`);
       safeReturn(uploadKey);
       return;
     }
@@ -125,25 +102,19 @@ export async function handleUpload(interaction: ChatInputCommandInteraction): Pr
     const imageErrors = await validateImageIds(questions);
     if (imageErrors.length > 0) {
       const errorMessage = formatValidationErrors(imageErrors);
-      await safeEditReply(
-        interaction,
-        isDeferred,
-        `❌ Image validation failed:\n\n${errorMessage}`
-      );
+      await interaction.editReply(`❌ Image validation failed:\n\n${errorMessage}`);
       safeReturn(uploadKey);
       return;
     }
 
     if (questions.length === 0) {
-      await safeEditReply(interaction, isDeferred, '❌ No valid questions found in the CSV file.');
+      await interaction.editReply('❌ No valid questions found in the CSV file.');
       safeReturn(uploadKey);
       return;
     }
 
     if (questions.length > 100) {
-      await safeEditReply(
-        interaction,
-        isDeferred,
+      await interaction.editReply(
         '❌ Too many questions. Maximum allowed is 100 questions per quiz.'
       );
       safeReturn(uploadKey);
@@ -168,7 +139,7 @@ export async function handleUpload(interaction: ChatInputCommandInteraction): Pr
       logger.warn(
         `Quiz already exists for interaction ${interaction.id}, skipping duplicate creation`
       );
-      await safeEditReply(interaction, isDeferred, {
+      await interaction.editReply({
         embeds: [
           new EmbedBuilder()
             .setTitle('✅ Quiz Already Created')
@@ -234,56 +205,19 @@ export async function handleUpload(interaction: ChatInputCommandInteraction): Pr
       .setColor('#00ff00')
       .setTimestamp();
 
-    await safeEditReply(interaction, isDeferred, { embeds: [embed] });
+    await interaction.editReply({ embeds: [embed] });
 
     logger.info(
       `Quiz "${quizTitle}" created from CSV by ${interaction.user.tag} with ${questions.length} questions`
     );
   } catch (error) {
     logger.error('Error uploading CSV quiz:', error);
-    await safeEditReply(
-      interaction,
-      isDeferred,
+    await interaction.editReply(
       '❌ An error occurred while processing your CSV file. Please check the format and try again.'
     );
   } finally {
     // Always clean up the tracking map
     uploadInProgress.delete(uploadKey);
-  }
-}
-
-async function safeEditReply(
-  interaction: ChatInputCommandInteraction,
-  isDeferred: boolean,
-  content: string | any
-): Promise<void> {
-  try {
-    // Check if we can still respond to the interaction
-    if (interaction.replied) {
-      logger.warn('Interaction already replied to, cannot send response');
-      return;
-    }
-
-    if (isDeferred) {
-      // Try to edit the deferred reply
-      await interaction.editReply(content);
-    } else {
-      // Try to send a direct reply
-      const replyContent =
-        typeof content === 'string'
-          ? { content, ephemeral: true }
-          : { ...content, ephemeral: true };
-      await interaction.reply(replyContent);
-    }
-  } catch (error) {
-    // Log the error but don't throw - we don't want to crash the command
-    logger.error('Failed to send interaction response:', error);
-
-    // If this is an "Unknown interaction" error, the user won't see any response
-    // but at least we won't crash the bot
-    if (error instanceof Error && error.message.includes('Unknown interaction')) {
-      logger.warn('Interaction expired - user will not receive response');
-    }
   }
 }
 

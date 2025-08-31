@@ -12,6 +12,8 @@ export async function handleDelete(interaction: CommandInteraction): Promise<voi
   try {
     if (!interaction.isChatInputCommand()) return;
 
+    await interaction.deferReply({ ephemeral: true });
+
     const quizId = interaction.options.getString('quiz_id', true);
 
     const quiz = await databaseService.prisma.quiz.findUnique({
@@ -27,7 +29,7 @@ export async function handleDelete(interaction: CommandInteraction): Promise<voi
     });
 
     if (!quiz) {
-      await interaction.reply({ content: '❌ Quiz not found.', ephemeral: true });
+      await interaction.editReply('❌ Quiz not found.');
       return;
     }
 
@@ -50,9 +52,9 @@ export async function handleDelete(interaction: CommandInteraction): Promise<voi
         .setStyle(ButtonStyle.Secondary)
     );
 
-    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+    await interaction.editReply({ embeds: [embed], components: [row] });
   } catch (error) {
     logger.error('Error deleting quiz:', error);
-    await interaction.reply({ content: '❌ Error deleting quiz.', ephemeral: true });
+    await interaction.editReply('❌ Error deleting quiz.');
   }
 }

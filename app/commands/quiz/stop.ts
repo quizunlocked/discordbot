@@ -7,27 +7,18 @@ export async function handleStop(interaction: CommandInteraction): Promise<void>
     // Check if there's an active quiz in this channel
     const activeSession = quizService.getActiveSessionByChannel(interaction.channelId);
     if (!activeSession) {
-      await interaction.reply({
-        content: 'There is no active quiz in this channel.',
-        ephemeral: true,
-      });
+      await interaction.editReply('There is no active quiz in this channel.');
       return;
     }
 
     // Stop the quiz
     await quizService.stopQuiz(activeSession.id);
 
-    await interaction.reply({
-      content: '✅ Quiz has been stopped.',
-      ephemeral: false,
-    });
+    await interaction.editReply('✅ Quiz has been stopped.');
 
     logger.info(`Quiz stopped by ${interaction.user.tag} in ${interaction.guild?.name}`);
   } catch (error) {
     logger.error('Error stopping quiz:', error);
-    await interaction.reply({
-      content: 'There was an error stopping the quiz. Please try again.',
-      ephemeral: true,
-    });
+    await interaction.editReply('There was an error stopping the quiz. Please try again.');
   }
 }
