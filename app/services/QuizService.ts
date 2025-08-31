@@ -13,7 +13,7 @@ import { leaderboardService } from './LeaderboardService.js';
 import { buttonCleanupService } from './ButtonCleanupService.js';
 import { logger } from '../utils/logger.js';
 import { config } from '../utils/config.js';
-import { QuizSession, ParticipantData, QuizConfig } from '../types/index.js';
+import { QuizSession, ParticipantData, QuizConfig, DiscordMessageOptions } from '../types/index.js';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -270,19 +270,14 @@ export class QuizService {
     }
 
     // Set total quiz timeout if timeLimit is specified
-    if ((quiz as any).timeLimit) {
-      const totalTimeoutId = setTimeout(
-        () => {
-          this.handleTotalQuizTimeout(session, channel);
-        },
-        (quiz as any).timeLimit * 1000
-      );
+    if (quiz?.timeLimit) {
+      const totalTimeoutId = setTimeout(() => {
+        this.handleTotalQuizTimeout(session, channel);
+      }, quiz.timeLimit * 1000);
 
       this.totalQuizTimeouts.set(session.id, totalTimeoutId);
 
-      logger.info(
-        `Total quiz timeout set for ${(quiz as any).timeLimit}s for session ${session.id}`
-      );
+      logger.info(`Total quiz timeout set for ${quiz.timeLimit}s for session ${session.id}`);
     }
 
     // Start the first question
@@ -319,12 +314,25 @@ export class QuizService {
    */
   private async displayQuestion(
     session: QuizSession,
-    questions: any[],
+    questions: Array<{
+      id: string;
+      questionText: string;
+      options: string;
+      correctAnswer: number;
+      points: number;
+      timeLimit?: number | null;
+      hints: Array<{ id: string; title: string; text: string }>;
+      image?: { id: string; path: string; title?: string | null; altText?: string | null } | null;
+    }>,
     channel: TextChannel
   ): Promise<void> {
     if (!session.isActive) return;
 
     const question = questions[session.currentQuestionIndex];
+    if (!question) {
+      logger.error('Question not found at index:', session.currentQuestionIndex);
+      return;
+    }
     const options = JSON.parse(question.options);
 
     // Use question's individual time limit or fall back to default
@@ -379,7 +387,7 @@ export class QuizService {
 
     // Add hint buttons if they exist
     if (question.hints && question.hints.length > 0) {
-      const hintButtons = question.hints.map((hint: any) =>
+      const hintButtons = question.hints.map(hint =>
         new ButtonBuilder()
           .setCustomId(`quiz_hint_${session.id}_${session.currentQuestionIndex}_${hint.id}`)
           .setLabel(`💡 ${hint.title}`)
@@ -396,7 +404,7 @@ export class QuizService {
     }
 
     // Prepare message options
-    const messageOptions: any = {
+    const messageOptions: DiscordMessageOptions = {
       embeds: [embed],
       components: rows,
     };
@@ -700,7 +708,16 @@ export class QuizService {
    */
   private async showQuestionResults(
     session: QuizSession,
-    question: any,
+    question: {
+      id: string;
+      questionText: string;
+      options: string;
+      correctAnswer: number;
+      points: number;
+      timeLimit?: number | null;
+      hints: Array<{ id: string; title: string; text: string }>;
+      image?: { id: string; path: string; title?: string | null; altText?: string | null } | null;
+    },
     options: string[],
     channel: TextChannel
   ): Promise<void> {
@@ -1075,24 +1092,29 @@ export class QuizService {
     userId?: string
   ): Promise<void> {
     try {
+      const createData: any = {
+        id: quizId,
+        title: quizConfig.title,
+        description: quizConfig.description || null,
+        timeLimit: quizConfig.timeLimit || null,
+        private: isPrivate,
+        questions: {
+          create: quizConfig.questions.map(q => ({
+            questionText: q.questionText,
+            options: JSON.stringify(q.options),
+            correctAnswer: q.correctAnswer,
+            points: q.points || config.quiz.pointsPerCorrectAnswer,
+            timeLimit: q.timeLimit || config.quiz.defaultQuestionTimeout,
+          })),
+        },
+      };
+
+      if (userId) {
+        createData.quizOwnerId = userId;
+      }
+
       await databaseService.prisma.quiz.create({
-        data: {
-          id: quizId,
-          title: quizConfig.title,
-          description: quizConfig.description || null,
-          timeLimit: quizConfig.timeLimit || null,
-          private: isPrivate,
-          quizOwnerId: userId,
-          questions: {
-            create: quizConfig.questions.map(q => ({
-              questionText: q.questionText,
-              options: JSON.stringify(q.options),
-              correctAnswer: q.correctAnswer,
-              points: q.points || config.quiz.pointsPerCorrectAnswer,
-              timeLimit: q.timeLimit || config.quiz.defaultQuestionTimeout,
-            })),
-          },
-        } as any,
+        data: createData,
       });
     } catch (error) {
       logger.error('Error saving quiz to database:', error);
@@ -1320,7 +1342,7 @@ export class QuizService {
   /**
    * Seed example quizzes if the Quiz table is empty
    */
-  public static async seedQuizzesIfEmpty() {
+  public static async seedQuizzesIfEmpty(): Promise<void> {
     const quizCount = await databaseService.prisma.quiz.count();
     if (quizCount > 0) {
       logger.info('Quiz table is not empty, skipping seeding.');
@@ -1340,7 +1362,7 @@ export class QuizService {
   /**
    * Seed example users with quiz attempts if the User table is empty
    */
-  public static async seedUsersIfEmpty() {
+  public static async seedUsersIfEmpty(): Promise<void> {
     const userCount = await databaseService.prisma.user.count();
     if (userCount > 0) {
       logger.info('User table is not empty, skipping user seeding.');

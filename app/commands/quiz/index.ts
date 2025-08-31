@@ -174,11 +174,12 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
   const subcommandGroup = interaction.options.getSubcommandGroup();
   const subcommand = interaction.options.getSubcommand();
 
+  // Special handling for commands that don't defer reply 
+  // (start command defers on its own, create/question-add commands show modal immediately)
+  const modalCommands = ['create', 'edit'];
+  const questionModalCommands = subcommandGroup === 'question' && subcommand === 'add';
+
   try {
-    // Special handling for commands that don't defer reply 
-    // (start command defers on its own, create/question-add commands show modal immediately)
-    const modalCommands = ['create', 'edit'];
-    const questionModalCommands = subcommandGroup === 'question' && subcommand === 'add';
     
     if (subcommand !== 'start' && !modalCommands.includes(subcommand) && !questionModalCommands) {
       await interaction.deferReply({ ephemeral: true });

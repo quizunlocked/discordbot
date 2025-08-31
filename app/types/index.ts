@@ -1,4 +1,20 @@
-import { Client, Collection, CommandInteraction, SlashCommandBuilder } from 'discord.js';
+import {
+  Client,
+  Collection,
+  CommandInteraction,
+  SlashCommandBuilder,
+  AutocompleteInteraction,
+} from 'discord.js';
+import {
+  User as PrismaUser,
+  Quiz as PrismaQuiz,
+  Question as PrismaQuestion,
+  QuizAttempt as PrismaQuizAttempt,
+  QuestionAttempt as PrismaQuestionAttempt,
+  Image as PrismaImage,
+  Hint as PrismaHint,
+  Prisma,
+} from '@prisma/client';
 
 // Bot Client with custom properties
 export interface BotClient extends Client {
@@ -157,4 +173,73 @@ export interface Score {
   totalQuizzes: number;
   averageScore: number;
   bestTime?: number;
+}
+
+// Enhanced Prisma types with relations
+export type QuizWithRelations = PrismaQuiz & {
+  questions: PrismaQuestion[];
+  attempts: PrismaQuizAttempt[];
+  quizOwner?: PrismaUser | null;
+};
+
+export type QuizAttemptWithRelations = PrismaQuizAttempt & {
+  user: PrismaUser;
+  quiz: PrismaQuiz;
+  questionAttempts: QuestionAttemptWithRelations[];
+};
+
+export type QuestionAttemptWithRelations = PrismaQuestionAttempt & {
+  question: PrismaQuestion;
+  quizAttempt: PrismaQuizAttempt;
+};
+
+export type QuestionWithRelations = PrismaQuestion & {
+  quiz: PrismaQuiz;
+  hints: PrismaHint[];
+  image?: PrismaImage | null;
+};
+
+// Database operation types
+export type QuizWhereClause = Prisma.QuizWhereInput;
+export type ScoreWhereClause = Prisma.ScoreWhereInput;
+export type ScoreCreateData = Prisma.ScoreCreateInput;
+export type ScoreUpdateData = Prisma.ScoreUpdateInput;
+
+// Leaderboard aggregation types
+export interface UserScoreAggregation {
+  userId: string;
+  username: string;
+  totalScore: number;
+  totalQuizzes: number;
+  totalTime: number;
+  totalResponseTime: number;
+  totalQuestions: number;
+  bestTime: number | undefined;
+  attempts: QuizAttemptWithRelations[];
+}
+
+// CSV parsing types
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+export interface RowWithValidation<T = Record<string, unknown>> {
+  row: T;
+  errors: ValidationError[];
+  isValid: boolean;
+  rowNumber: number;
+}
+
+// Autocomplete interaction type
+export type AutocompleteHandler = (interaction: AutocompleteInteraction) => Promise<void>;
+
+// Transaction callback type
+export type TransactionCallback<T> = (tx: Prisma.TransactionClient) => Promise<T>;
+
+// Discord message options type
+export interface DiscordMessageOptions {
+  embeds?: any[];
+  components?: any[];
+  files?: any[];
 }

@@ -63,15 +63,15 @@ class LeaderboardService {
 
       // Aggregate scores by user using functional reduce
       const userScores = attempts.reduce(
-        (acc: any, attempt: any) => {
+        (acc: Map<string, any>, attempt: any) => {
           const existing = acc.get(attempt.userId);
 
           // Calculate total response time for this attempt
           const questionAttempts = attempt.questionAttempts || [];
-          const validQuestionAttempts = questionAttempts.filter((qa: any) => qa.timeSpent != null);
+          const validQuestionAttempts = questionAttempts.filter(qa => qa.timeSpent != null);
           const attemptTotalResponseTime =
             validQuestionAttempts.length > 0
-              ? validQuestionAttempts.reduce((sum: number, qa: any) => sum + qa.timeSpent, 0)
+              ? validQuestionAttempts.reduce((sum: number, qa) => sum + (qa.timeSpent || 0), 0)
               : 0;
 
           if (existing) {
@@ -113,7 +113,7 @@ class LeaderboardService {
             totalResponseTime: number;
             totalQuestions: number;
             bestTime: number | undefined;
-            attempts: any[];
+            attempts: typeof attempts;
           }
         >()
       );
@@ -363,7 +363,7 @@ class LeaderboardService {
         validQuestionAttempts.length > 0
           ? Number(
               (
-                validQuestionAttempts.reduce((sum: number, qa: any) => sum + qa.timeSpent, 0) /
+                validQuestionAttempts.reduce((sum: number, qa) => sum + (qa.timeSpent || 0), 0) /
                 validQuestionAttempts.length
               ).toFixed(2)
             )

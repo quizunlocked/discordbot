@@ -2,7 +2,7 @@ import { CommandInteraction } from 'discord.js';
 import { logger } from './logger.js';
 
 export const withErrorHandling =
-  <T extends [CommandInteraction, ...any[]]>(fn: (...args: T) => Promise<void>) =>
+  <T extends [CommandInteraction, ...unknown[]]>(fn: (...args: T) => Promise<void>) =>
   async (...args: T): Promise<void> => {
     const [interaction] = args;
     try {

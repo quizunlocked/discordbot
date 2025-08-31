@@ -14,6 +14,7 @@ import { leaderboardService } from '../services/LeaderboardService.js';
 import { buttonCleanupService } from '../services/ButtonCleanupService.js';
 import { databaseService } from '../services/DatabaseService.js';
 import { requireAdminPrivileges, canManageQuiz, hasAdminPrivileges } from '../utils/permissions.js';
+import { LeaderboardPeriod } from '../types/index.js';
 import { autocomplete as quizAutocomplete } from '../commands/quiz/index.js';
 import * as fs from 'fs/promises';
 
@@ -136,7 +137,7 @@ async function handleLeaderboardButton(interaction: ButtonInteraction): Promise<
     await interaction.deferUpdate();
 
     // Get leaderboard data
-    const entries = await leaderboardService.getLeaderboard(period as any, 50);
+    const entries = await leaderboardService.getLeaderboard(period as LeaderboardPeriod, 50);
     const ENTRIES_PER_PAGE = 10;
     const totalPages = Math.ceil(entries.length / ENTRIES_PER_PAGE);
     const startIndex = (page - 1) * ENTRIES_PER_PAGE;
@@ -144,7 +145,7 @@ async function handleLeaderboardButton(interaction: ButtonInteraction): Promise<
 
     // Create embed
     const embed = leaderboardService.createLeaderboardEmbed(
-      period as any,
+      period as LeaderboardPeriod,
       pageEntries,
       page,
       totalPages
@@ -257,7 +258,7 @@ async function handleUserDataDeletion(
     });
 
     // Delete user data
-    await databaseService.prisma.$transaction(async (tx: any) => {
+    await databaseService.prisma.$transaction(async tx => {
       // Delete question attempts first (due to foreign key constraints)
       await tx.questionAttempt.deleteMany({
         where: {
@@ -460,7 +461,7 @@ async function handleQuizEditModal(interaction: ModalSubmitInteraction): Promise
     const isAdmin =
       interaction.guild?.members.cache.get(interaction.user.id)?.permissions.has('Administrator') ||
       false;
-    const userCanManage = canManageQuiz(interaction.user.id, (quiz as any).quizOwnerId, isAdmin);
+    const userCanManage = canManageQuiz(interaction.user.id, quiz?.quizOwnerId || null, isAdmin);
 
     if (!userCanManage) {
       await interaction.reply({
@@ -609,7 +610,7 @@ async function handleDashboardQuizzes(interaction: ButtonInteraction): Promise<v
       .setColor('#0099ff')
       .setDescription(
         quizzes
-          .map((quiz: any) => {
+          .map(quiz => {
             const status = quiz.isActive ? '🟢 Active' : '🔴 Inactive';
             return `**${quiz.title}** (${quiz.id})\n${status} • ${quiz._count.questions} questions • ${quiz._count.attempts} attempts`;
           })
@@ -653,7 +654,7 @@ async function handleDashboardUsers(interaction: ButtonInteraction): Promise<voi
       .setDescription(
         users
           .map(
-            (user: any) =>
+            user =>
               `**${user.username}**\n${user._count.quizAttempts} attempts • ${user._count.scores} score records`
           )
           .join('\n\n')
@@ -704,7 +705,7 @@ async function handleDashboardDatabase(interaction: ButtonInteraction): Promise<
 
     if (recentAttempts.length > 0) {
       const recentActivity = recentAttempts
-        .map((a: any) => `${a.user.username}: ${a.quiz.title} (${a.totalScore} pts)`)
+        .map(a => `${a.user.username}: ${a.quiz.title} (${a.totalScore} pts)`)
         .join('\n');
 
       embed.addFields({
@@ -834,7 +835,7 @@ async function handleQuizDeleteConfirm(interaction: ButtonInteraction): Promise<
     }
 
     // Delete the quiz and all related data
-    await databaseService.prisma.$transaction(async (tx: any) => {
+    await databaseService.prisma.$transaction(async tx => {
       // Delete question attempts first (due to foreign key constraints)
       await tx.questionAttempt.deleteMany({
         where: {
@@ -938,17 +939,11 @@ async function handleQuizDeleteAllConfirm(interaction: ButtonInteraction): Promi
     }
 
     const totalQuizzes = quizStats.length;
-    const totalQuestions = quizStats.reduce(
-      (sum: number, quiz: any) => sum + quiz._count.questions,
-      0
-    );
-    const totalAttempts = quizStats.reduce(
-      (sum: number, quiz: any) => sum + quiz._count.attempts,
-      0
-    );
+    const totalQuestions = quizStats.reduce((sum: number, quiz) => sum + quiz._count.questions, 0);
+    const totalAttempts = quizStats.reduce((sum: number, quiz) => sum + quiz._count.attempts, 0);
 
     // Delete all quizzes and related data in correct order
-    await databaseService.prisma.$transaction(async (tx: any) => {
+    await databaseService.prisma.$transaction(async tx => {
       // Delete question attempts first (due to foreign key constraints)
       await tx.questionAttempt.deleteMany();
 
@@ -1066,7 +1061,7 @@ async function handleQuizTogglePrivate(interaction: ButtonInteraction): Promise<
     // Check if user can manage this quiz
     const userCanManage = canManageQuiz(
       interaction.user.id,
-      (quiz as any).quizOwnerId,
+      quiz?.quizOwnerId || null,
       hasAdminPrivileges(interaction)
     );
 
@@ -1079,12 +1074,12 @@ async function handleQuizTogglePrivate(interaction: ButtonInteraction): Promise<
     }
 
     // Toggle the private status
-    const currentPrivate = (quiz as any).private || false;
+    const currentPrivate = quiz?.private || false;
     const newPrivate = !currentPrivate;
 
     await databaseService.prisma.quiz.update({
       where: { id: quizId },
-      data: { private: newPrivate } as any,
+      data: { private: newPrivate },
     });
 
     const embed = new EmbedBuilder()
@@ -1219,7 +1214,7 @@ async function handleAddQuestionModal(interaction: ModalSubmitInteraction): Prom
     // Check if user can manage this quiz
     const userCanManage = canManageQuiz(
       interaction.user.id,
-      (quiz as any).quizOwnerId,
+      quiz?.quizOwnerId || null,
       interaction.guild?.members.cache.get(interaction.user.id)?.permissions.has('Administrator') ||
         false
     );
