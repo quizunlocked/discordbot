@@ -645,7 +645,7 @@ export class QuizService {
 
         // Update the progress field (third field, index 2)
         newEmbed.spliceFields(2, 1, {
-          name: 'Progress',
+          name: 'Participants',
           value: `${answeredCount} of ${session.participants.size} answered`,
           inline: true,
         });
