@@ -1,4 +1,4 @@
-import { CommandInteraction } from 'discord.js';
+import { CommandInteraction, AutocompleteInteraction } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { quizService } from '../../services/QuizService.js';
 import { databaseService } from '../../services/DatabaseService.js';
@@ -95,7 +95,7 @@ export async function handleStart(interaction: CommandInteraction): Promise<void
 /**
  * Autocomplete handler for quiz_id
  */
-export async function handleStartAutocomplete(interaction: any) {
+export async function handleStartAutocomplete(interaction: AutocompleteInteraction): Promise<void> {
   if (!interaction.isAutocomplete()) return;
   const focusedValue = interaction.options.getFocused();
   // Fetch up to 25 quizzes matching the input

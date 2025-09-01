@@ -1,4 +1,9 @@
-import { SlashCommandBuilder, CommandInteraction, PermissionFlagsBits } from 'discord.js';
+import {
+  SlashCommandBuilder,
+  CommandInteraction,
+  PermissionFlagsBits,
+  AutocompleteInteraction,
+} from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { requireAdminPrivileges } from '../../utils/permissions.js';
 import { handleStart, handleStartAutocomplete } from './start.js';
@@ -174,20 +179,23 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
   const subcommandGroup = interaction.options.getSubcommandGroup();
   const subcommand = interaction.options.getSubcommand();
 
-  // Special handling for commands that don't defer reply 
+  // Special handling for commands that don't defer reply
   // (start command defers on its own, create/question-add commands show modal immediately)
   const modalCommands = ['create', 'edit'];
   const questionModalCommands = subcommandGroup === 'question' && subcommand === 'add';
 
   try {
-    
     if (subcommand !== 'start' && !modalCommands.includes(subcommand) && !questionModalCommands) {
       await interaction.deferReply({ ephemeral: true });
     }
 
     // Validate channel type - quiz commands must be run in guild channels
     if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {
-      if (subcommand === 'start' || modalCommands.includes(subcommand) || (subcommandGroup === 'question' && subcommand === 'add')) {
+      if (
+        subcommand === 'start' ||
+        modalCommands.includes(subcommand) ||
+        (subcommandGroup === 'question' && subcommand === 'add')
+      ) {
         await interaction.reply({
           content: '❌ Quiz commands can only be used in server channels, not in direct messages.',
           ephemeral: true,
@@ -244,7 +252,11 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
     }
   } catch (error) {
     logger.error('Error in quiz command:', error);
-    if (subcommand === 'start' || modalCommands.includes(subcommand) || (subcommandGroup === 'question' && subcommand === 'add')) {
+    if (
+      subcommand === 'start' ||
+      modalCommands.includes(subcommand) ||
+      (subcommandGroup === 'question' && subcommand === 'add')
+    ) {
       await interaction.reply({
         content: 'There was an error executing the quiz command. Please check the logs.',
         ephemeral: true,
@@ -260,8 +272,9 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
 /**
  * Autocomplete handler for quiz_id
  */
-export async function autocomplete(interaction: any) {
+export async function autocomplete(interaction: AutocompleteInteraction): Promise<void> {
   // For quiz start subcommand, use the start handler's autocomplete
+
   const subcommand = interaction.options.getSubcommand();
   if (subcommand === 'start') {
     return handleStartAutocomplete(interaction);
