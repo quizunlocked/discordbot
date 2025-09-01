@@ -224,15 +224,26 @@ describe('Image Button Interactions', () => {
   });
 
   describe('error handling', () => {
-    it.skip('should handle general button interaction errors', async () => {
+    it('should handle image deletion transaction errors', async () => {
       interaction.customId = 'image_delete_confirm_img_123';
-      requireAdminPrivileges.mockRejectedValue(new Error('Permission error'));
+
+      const mockImage = {
+        id: 'img_123',
+        userId: 'user1',
+        path: 'public/images/user1/img_123.png',
+        title: 'Test Image',
+        user: { username: 'testuser' },
+        questions: [],
+      };
+
+      mockPrisma.image.findUnique.mockResolvedValue(mockImage);
+      mockPrisma.$transaction.mockRejectedValue(new Error('Database transaction failed'));
 
       await execute(interaction as any);
 
-      // The error handling happens at the top level, so the interaction should be handled normally
-      expect(interaction.reply).toHaveBeenCalledWith({
-        content: 'There was an error while processing your request.',
+      // Should call followUp with error message due to transaction failure
+      expect(interaction.followUp).toHaveBeenCalledWith({
+        content: '❌ Error deleting image. Please try again.',
         ephemeral: true,
       });
     });

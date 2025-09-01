@@ -8,11 +8,11 @@ describe('DatabaseService Foreign Key Constraints Integration', () => {
   let testQuestionId: string;
   let testUserId: string;
 
-  // Skip these tests if not in test environment or no database connection
-  const shouldSkipTests = process.env['NODE_ENV'] !== 'test' || !process.env['DATABASE_URL'];
+  // Skip these tests if no database connection
+  const noDatabaseUrl = !process.env['DATABASE_URL'];
 
   beforeEach(async () => {
-    if (shouldSkipTests) return;
+    if (noDatabaseUrl) return;
 
     // Clean up any existing test data
     await cleanupTestData();
@@ -55,7 +55,7 @@ describe('DatabaseService Foreign Key Constraints Integration', () => {
   });
 
   afterEach(async () => {
-    if (shouldSkipTests) return;
+    if (noDatabaseUrl) return;
     await cleanupTestData();
   });
 
@@ -110,7 +110,7 @@ describe('DatabaseService Foreign Key Constraints Integration', () => {
 
   describe('Foreign Key Violations', () => {
     it('should fail to delete quiz while questions exist', async () => {
-      if (shouldSkipTests) {
+      if (noDatabaseUrl) {
         console.log('Skipping FK test - no test database configured');
         return;
       }
@@ -123,7 +123,7 @@ describe('DatabaseService Foreign Key Constraints Integration', () => {
     });
 
     it('should fail to delete question while hints exist', async () => {
-      if (shouldSkipTests) {
+      if (noDatabaseUrl) {
         console.log('Skipping FK test - no test database configured');
         return;
       }
@@ -146,7 +146,7 @@ describe('DatabaseService Foreign Key Constraints Integration', () => {
     });
 
     it('should fail to delete question while question attempts exist', async () => {
-      if (shouldSkipTests) {
+      if (noDatabaseUrl) {
         console.log('Skipping FK test - no test database configured');
         return;
       }
@@ -183,7 +183,7 @@ describe('DatabaseService Foreign Key Constraints Integration', () => {
 
   describe('Safe Deletion Order - Admin Delete Everything', () => {
     it('should successfully delete all quiz data using correct deletion order', async () => {
-      if (shouldSkipTests) {
+      if (noDatabaseUrl) {
         console.log('Skipping FK test - no test database configured');
         return;
       }
@@ -281,7 +281,7 @@ describe('DatabaseService Foreign Key Constraints Integration', () => {
     });
 
     it('should fail when using wrong deletion order', async () => {
-      if (shouldSkipTests) {
+      if (noDatabaseUrl) {
         console.log('Skipping FK test - no test database configured');
         return;
       }
@@ -308,7 +308,7 @@ describe('DatabaseService Foreign Key Constraints Integration', () => {
 
   describe('Edge Cases', () => {
     it('should handle deletion when no data exists', async () => {
-      if (shouldSkipTests) {
+      if (noDatabaseUrl) {
         console.log('Skipping FK test - no test database configured');
         return;
       }
