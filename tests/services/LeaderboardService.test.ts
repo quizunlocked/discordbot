@@ -477,7 +477,7 @@ describe('LeaderboardService', () => {
             user: { username: 'TestUser' },
             questionAttempts: [
               { timeSpent: 6 }, // 6 seconds
-              { timeSpent: 6 }, // 6 seconds  
+              { timeSpent: 6 }, // 6 seconds
               { timeSpent: 6 }, // 6 seconds
             ],
           },
@@ -487,7 +487,7 @@ describe('LeaderboardService', () => {
 
         // Should show 6.00 seconds average, not 2.00 (which would indicate double division)
         expect(result).toHaveLength(1);
-        expect(result[0]?.averageResponseTime).toBe(6.00);
+        expect(result[0]?.averageResponseTime).toBe(6.0);
       });
     });
   });

@@ -866,13 +866,15 @@ describe('quiz command', () => {
     it('should use deferReply for non-modal subcommands like stop', async () => {
       const { quizService } = await import('../../app/services/QuizService');
       (quizService.getActiveSessionByChannel as any).mockReturnValue(null);
-      
+
       interaction.options.getSubcommand.mockReturnValue('stop');
 
       await execute(interaction as any);
 
       expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
-      expect(interaction.editReply).toHaveBeenCalledWith('There is no active quiz in this channel.');
+      expect(interaction.editReply).toHaveBeenCalledWith(
+        'There is no active quiz in this channel.'
+      );
     });
 
     it('should use deferReply for template subcommand', async () => {

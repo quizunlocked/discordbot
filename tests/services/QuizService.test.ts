@@ -506,8 +506,7 @@ describe('QuizService', () => {
     });
 
     describe('average response time calculations', () => {
-      test('should correctly calculate average response time in quiz results', async () => {
-        
+      it('should correctly calculate average response time in quiz results', async () => {
         // Mock participants with different response times
         const mockParticipants = [
           {
@@ -517,24 +516,30 @@ describe('QuizService', () => {
             streak: 2,
             startTime: new Date(Date.now() - 60000),
             answers: new Map([
-              [0, {
-                questionIndex: 0,
-                selectedAnswer: 0,
-                isCorrect: true,
-                timeSpent: 5, // 5 seconds
-                pointsEarned: 10,
-                questionStartedAt: new Date(Date.now() - 5000),
-                answeredAt: new Date(),
-              }],
-              [1, {
-                questionIndex: 1,
-                selectedAnswer: 1,
-                isCorrect: true,
-                timeSpent: 7, // 7 seconds
-                pointsEarned: 15,
-                questionStartedAt: new Date(Date.now() - 7000),
-                answeredAt: new Date(),
-              }],
+              [
+                0,
+                {
+                  questionIndex: 0,
+                  selectedAnswer: 0,
+                  isCorrect: true,
+                  timeSpent: 5, // 5 seconds
+                  pointsEarned: 10,
+                  questionStartedAt: new Date(Date.now() - 5000),
+                  answeredAt: new Date(),
+                },
+              ],
+              [
+                1,
+                {
+                  questionIndex: 1,
+                  selectedAnswer: 1,
+                  isCorrect: true,
+                  timeSpent: 7, // 7 seconds
+                  pointsEarned: 15,
+                  questionStartedAt: new Date(Date.now() - 7000),
+                  answeredAt: new Date(),
+                },
+              ],
             ]),
           },
           {
@@ -544,45 +549,64 @@ describe('QuizService', () => {
             streak: 1,
             startTime: new Date(Date.now() - 60000),
             answers: new Map([
-              [0, {
-                questionIndex: 0,
-                selectedAnswer: 0,
-                isCorrect: true,
-                timeSpent: 15, // 15 seconds
-                pointsEarned: 10,
-                questionStartedAt: new Date(Date.now() - 15000),
-                answeredAt: new Date(),
-              }],
-              [1, {
-                questionIndex: 1,
-                selectedAnswer: 2,
-                isCorrect: false,
-                timeSpent: 25, // 25 seconds
-                pointsEarned: 0,
-                questionStartedAt: new Date(Date.now() - 25000),
-                answeredAt: new Date(),
-              }],
+              [
+                0,
+                {
+                  questionIndex: 0,
+                  selectedAnswer: 0,
+                  isCorrect: true,
+                  timeSpent: 15, // 15 seconds
+                  pointsEarned: 10,
+                  questionStartedAt: new Date(Date.now() - 15000),
+                  answeredAt: new Date(),
+                },
+              ],
+              [
+                1,
+                {
+                  questionIndex: 1,
+                  selectedAnswer: 2,
+                  isCorrect: false,
+                  timeSpent: 25, // 25 seconds
+                  pointsEarned: 0,
+                  questionStartedAt: new Date(Date.now() - 25000),
+                  answeredAt: new Date(),
+                },
+              ],
             ]),
           },
         ];
 
-
         // Verify average response time calculation with 2 decimal precision
         const fastUserAnswers = Array.from(mockParticipants[0]!.answers.values());
-        const fastUserAvg = Number((fastUserAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) / fastUserAnswers.length).toFixed(2));
-        expect(fastUserAvg).toBe(6.00); // (5 + 7) / 2 = 6.00
+        const fastUserAvg = Number(
+          (
+            fastUserAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) /
+            fastUserAnswers.length
+          ).toFixed(2)
+        );
+        expect(fastUserAvg).toBe(6.0); // (5 + 7) / 2 = 6.00
 
         const slowUserAnswers = Array.from(mockParticipants[1]!.answers.values());
-        const slowUserAvg = Number((slowUserAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) / slowUserAnswers.length).toFixed(2));
-        expect(slowUserAvg).toBe(20.00); // (15 + 25) / 2 = 20.00
+        const slowUserAvg = Number(
+          (
+            slowUserAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) /
+            slowUserAnswers.length
+          ).toFixed(2)
+        );
+        expect(slowUserAvg).toBe(20.0); // (15 + 25) / 2 = 20.00
 
         // Verify overall average
         const allAnswers = mockParticipants.flatMap(p => Array.from(p.answers.values()));
-        const overallAvg = Number((allAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) / allAnswers.length).toFixed(2));
-        expect(overallAvg).toBe(13.00); // (5 + 7 + 15 + 25) / 4 = 13.00
+        const overallAvg = Number(
+          (
+            allAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) / allAnswers.length
+          ).toFixed(2)
+        );
+        expect(overallAvg).toBe(13.0); // (5 + 7 + 15 + 25) / 4 = 13.00
       });
 
-      test('should handle empty or missing timing data gracefully', async () => {
+      it('should handle empty or missing timing data gracefully', async () => {
         const participantWithNoAnswers = {
           userId: 'user3',
           username: 'NoAnswers',
@@ -594,14 +618,17 @@ describe('QuizService', () => {
 
         // Should not crash with empty answers
         const answers = Array.from(participantWithNoAnswers.answers.values());
-        const avgResponseTime = answers.length > 0 
-          ? Math.round(answers.reduce((sum, answer) => sum + answer.timeSpent, 0) / answers.length)
-          : 0;
-        
+        const avgResponseTime =
+          answers.length > 0
+            ? Math.round(
+                answers.reduce((sum, answer) => sum + answer.timeSpent, 0) / answers.length
+              )
+            : 0;
+
         expect(avgResponseTime).toBe(0);
       });
 
-      test('should correctly round to 2 decimal places', async () => {
+      it('should correctly round to 2 decimal places', async () => {
         const participant = {
           userId: 'user4',
           username: 'DecimalUser',
@@ -609,32 +636,40 @@ describe('QuizService', () => {
           streak: 1,
           startTime: new Date(),
           answers: new Map([
-            [0, {
-              questionIndex: 0,
-              selectedAnswer: 0,
-              isCorrect: true,
-              timeSpent: 3.33333, // Should round to 3.33
-              pointsEarned: 10,
-              questionStartedAt: new Date(Date.now() - 3333),
-              answeredAt: new Date(),
-            }],
-            [1, {
-              questionIndex: 1,
-              selectedAnswer: 1,
-              isCorrect: true,
-              timeSpent: 4.66666, // Should round to 4.67
-              pointsEarned: 5,
-              questionStartedAt: new Date(Date.now() - 4667),
-              answeredAt: new Date(),
-            }],
+            [
+              0,
+              {
+                questionIndex: 0,
+                selectedAnswer: 0,
+                isCorrect: true,
+                timeSpent: 3.33333, // Should round to 3.33
+                pointsEarned: 10,
+                questionStartedAt: new Date(Date.now() - 3333),
+                answeredAt: new Date(),
+              },
+            ],
+            [
+              1,
+              {
+                questionIndex: 1,
+                selectedAnswer: 1,
+                isCorrect: true,
+                timeSpent: 4.66666, // Should round to 4.67
+                pointsEarned: 5,
+                questionStartedAt: new Date(Date.now() - 4667),
+                answeredAt: new Date(),
+              },
+            ],
           ]),
         };
 
         const answers = Array.from(participant.answers.values());
-        const avgResponseTime = Number((answers.reduce((sum, answer) => sum + answer.timeSpent, 0) / answers.length).toFixed(2));
-        
+        const avgResponseTime = Number(
+          (answers.reduce((sum, answer) => sum + answer.timeSpent, 0) / answers.length).toFixed(2)
+        );
+
         // (3.33333 + 4.66666) / 2 = 3.99999 -> rounds to 4.00
-        expect(avgResponseTime).toBe(4.00);
+        expect(avgResponseTime).toBe(4.0);
       });
     });
   });
