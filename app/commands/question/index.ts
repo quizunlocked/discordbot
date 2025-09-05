@@ -1,6 +1,9 @@
 import { SlashCommandBuilder, CommandInteraction, PermissionFlagsBits } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { handleHintAdd } from './hint-add.js';
+import { handleHintEdit } from './hint-edit.js';
+import { handleHintDelete } from './hint-delete.js';
+import { handleHintList } from './hint-list.js';
 
 export const data = new SlashCommandBuilder()
   .setName('question')
@@ -41,23 +44,68 @@ export const data = new SlashCommandBuilder()
               .setMaxLength(2000)
           )
       )
+      .addSubcommand(subcommand =>
+        subcommand
+          .setName('edit')
+          .setDescription('Edit an existing hint')
+          .addStringOption(option =>
+            option
+              .setName('hint_id')
+              .setDescription('The ID of the hint to edit')
+              .setRequired(true)
+          )
+      )
+      .addSubcommand(subcommand =>
+        subcommand
+          .setName('delete')
+          .setDescription('Delete a hint')
+          .addStringOption(option =>
+            option
+              .setName('hint_id')
+              .setDescription('The ID of the hint to delete')
+              .setRequired(true)
+          )
+      )
+      .addSubcommand(subcommand =>
+        subcommand
+          .setName('list')
+          .setDescription('List all hints for a question')
+          .addStringOption(option =>
+            option
+              .setName('question_id')
+              .setDescription('The ID of the question')
+              .setRequired(true)
+          )
+      )
   )
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
 
 export async function execute(interaction: CommandInteraction): Promise<void> {
   if (!interaction.isChatInputCommand()) return;
 
-  await interaction.deferReply({ ephemeral: true });
-
   const subcommandGroup = interaction.options.getSubcommandGroup();
   const subcommand = interaction.options.getSubcommand();
+
+  // Special handling for commands that show modal (hint edit)
+  const modalCommands = subcommandGroup === 'hint' && subcommand === 'edit';
+
+  if (!modalCommands) {
+    await interaction.deferReply({ ephemeral: true });
+  }
 
   try {
     // Validate channel type - question commands must be run in guild channels
     if (!interaction.guild || !interaction.channel || interaction.channel.isDMBased()) {
-      await interaction.editReply(
-        '❌ Question commands can only be used in server channels, not in direct messages.'
-      );
+      if (modalCommands) {
+        await interaction.reply({
+          content: '❌ Question commands can only be used in server channels, not in direct messages.',
+          ephemeral: true,
+        });
+      } else {
+        await interaction.editReply(
+          '❌ Question commands can only be used in server channels, not in direct messages.'
+        );
+      }
       return;
     }
 
@@ -65,6 +113,15 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
       switch (subcommand) {
         case 'add':
           await handleHintAdd(interaction);
+          break;
+        case 'edit':
+          await handleHintEdit(interaction);
+          break;
+        case 'delete':
+          await handleHintDelete(interaction);
+          break;
+        case 'list':
+          await handleHintList(interaction);
           break;
         default:
           await interaction.editReply('Unknown hint subcommand.');
@@ -74,8 +131,15 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
     }
   } catch (error) {
     logger.error('Error in question command:', error);
-    await interaction.editReply(
-      'There was an error executing the question command. Please check the logs.'
-    );
+    if (modalCommands) {
+      await interaction.reply({
+        content: 'There was an error executing the question command. Please check the logs.',
+        ephemeral: true,
+      });
+    } else {
+      await interaction.editReply(
+        'There was an error executing the question command. Please check the logs.'
+      );
+    }
   }
 }

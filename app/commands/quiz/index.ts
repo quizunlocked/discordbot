@@ -12,6 +12,9 @@ import { handleCreate } from './create.js';
 import { handleEdit } from './edit.js';
 import { handleDelete } from './delete.js';
 import { handleQuestionAdd } from './question-add.js';
+import { handleQuestionEdit } from './question-edit.js';
+import { handleQuestionDelete } from './question-delete.js';
+import { handleQuestionList } from './question-list.js';
 import { handleGet } from './get.js';
 import { handleGenerate } from './generate.js';
 import { handleTemplate } from './template.js';
@@ -170,6 +173,36 @@ export const data = new SlashCommandBuilder()
               .setRequired(true)
           )
       )
+      .addSubcommand(subcommand =>
+        subcommand
+          .setName('edit')
+          .setDescription('Edit an existing question')
+          .addStringOption(option =>
+            option
+              .setName('question_id')
+              .setDescription('The ID of the question to edit')
+              .setRequired(true)
+          )
+      )
+      .addSubcommand(subcommand =>
+        subcommand
+          .setName('delete')
+          .setDescription('Delete a question')
+          .addStringOption(option =>
+            option
+              .setName('question_id')
+              .setDescription('The ID of the question to delete')
+              .setRequired(true)
+          )
+      )
+      .addSubcommand(subcommand =>
+        subcommand
+          .setName('list')
+          .setDescription('List all questions in a quiz')
+          .addStringOption(option =>
+            option.setName('quiz_id').setDescription('The ID of the quiz').setRequired(true)
+          )
+      )
   )
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
 
@@ -180,9 +213,10 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
 
   // Special handling for commands that don't defer reply
-  // (start command defers on its own, create/question-add commands show modal immediately)
+  // (start command defers on its own, create/question-add/question-edit commands show modal immediately)
   const modalCommands = ['create', 'edit'];
-  const questionModalCommands = subcommandGroup === 'question' && subcommand === 'add';
+  const questionModalCommands =
+    subcommandGroup === 'question' && (subcommand === 'add' || subcommand === 'edit');
 
   try {
     if (subcommand !== 'start' && !modalCommands.includes(subcommand) && !questionModalCommands) {
@@ -194,7 +228,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
       if (
         subcommand === 'start' ||
         modalCommands.includes(subcommand) ||
-        (subcommandGroup === 'question' && subcommand === 'add')
+        (subcommandGroup === 'question' && (subcommand === 'add' || subcommand === 'edit'))
       ) {
         await interaction.reply({
           content: '❌ Quiz commands can only be used in server channels, not in direct messages.',
@@ -212,6 +246,15 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
       switch (subcommand) {
         case 'add':
           await handleQuestionAdd(interaction);
+          break;
+        case 'edit':
+          await handleQuestionEdit(interaction);
+          break;
+        case 'delete':
+          await handleQuestionDelete(interaction);
+          break;
+        case 'list':
+          await handleQuestionList(interaction);
           break;
         default:
           await interaction.editReply('Unknown question subcommand.');
@@ -255,7 +298,7 @@ export async function execute(interaction: CommandInteraction): Promise<void> {
     if (
       subcommand === 'start' ||
       modalCommands.includes(subcommand) ||
-      (subcommandGroup === 'question' && subcommand === 'add')
+      (subcommandGroup === 'question' && (subcommand === 'add' || subcommand === 'edit'))
     ) {
       await interaction.reply({
         content: 'There was an error executing the quiz command. Please check the logs.',

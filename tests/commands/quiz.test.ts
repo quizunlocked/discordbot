@@ -4,7 +4,11 @@ import { execute } from '../../app/commands/quiz';
 vi.mock('../../app/utils/logger', () => ({
   logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 }));
-vi.mock('../../app/utils/permissions', () => ({ requireAdminPrivileges: vi.fn() }));
+vi.mock('../../app/utils/permissions', () => ({
+  requireAdminPrivileges: vi.fn(),
+  canManageQuiz: vi.fn(),
+  hasAdminPrivileges: vi.fn(),
+}));
 vi.mock('../../app/services/QuizService', () => ({
   quizService: { getActiveSessionByChannel: vi.fn(), startQuiz: vi.fn(), stopQuiz: vi.fn() },
 }));
@@ -12,8 +16,10 @@ vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
     prisma: {
       user: { upsert: vi.fn() },
-      quiz: { create: vi.fn(), findFirst: vi.fn() },
-      question: { createMany: vi.fn() },
+      quiz: { create: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn() },
+      question: { createMany: vi.fn(), findUnique: vi.fn(), delete: vi.fn() },
+      questionAttempt: { deleteMany: vi.fn() },
+      hint: { deleteMany: vi.fn() },
       image: { findMany: vi.fn() },
       corpus: { findUnique: vi.fn() },
       $transaction: vi.fn(),
@@ -47,6 +53,50 @@ vi.mock('discord.js', async () => {
       setTitle: vi.fn().mockReturnThis(),
       addComponents: vi.fn().mockReturnThis(),
     })),
+    TextInputBuilder: vi.fn().mockImplementation(() => ({
+      setCustomId: vi.fn().mockReturnThis(),
+      setLabel: vi.fn().mockReturnThis(),
+      setStyle: vi.fn().mockReturnThis(),
+      setPlaceholder: vi.fn().mockReturnThis(),
+      setRequired: vi.fn().mockReturnThis(),
+      setMaxLength: vi.fn().mockReturnThis(),
+      setValue: vi.fn().mockReturnThis(),
+    })),
+    ActionRowBuilder: vi.fn().mockImplementation(() => ({
+      addComponents: vi.fn().mockReturnThis(),
+    })),
+    EmbedBuilder: vi.fn().mockImplementation(() => {
+      const embed = {
+        data: {
+          title: '',
+          description: '',
+          fields: [] as any,
+          color: null,
+          timestamp: null,
+        },
+        setTitle: vi.fn().mockImplementation(title => {
+          embed.data.title = title;
+          return embed;
+        }),
+        setDescription: vi.fn().mockImplementation(description => {
+          embed.data.description = description;
+          return embed;
+        }),
+        addFields: vi.fn().mockImplementation((...fields) => {
+          embed.data.fields.push(...fields);
+          return embed;
+        }),
+        setColor: vi.fn().mockImplementation(color => {
+          embed.data.color = color;
+          return embed;
+        }),
+        setTimestamp: vi.fn().mockImplementation(timestamp => {
+          embed.data.timestamp = timestamp;
+          return embed;
+        }),
+      };
+      return embed;
+    }),
   };
 });
 
@@ -862,6 +912,271 @@ describe('quiz command', () => {
     });
   });
 
+  describe('question edit subcommand', () => {
+    beforeEach(() => {
+      interaction.options.getSubcommandGroup.mockReturnValue('question');
+      interaction.options.getSubcommand.mockReturnValue('edit');
+    });
+
+    it('should show modal for editing question when user has permission', async () => {
+      const { canManageQuiz, hasAdminPrivileges } = await import('../../app/utils/permissions');
+
+      interaction.options.getString.mockReturnValue('question123');
+
+      const mockQuestion = {
+        id: 'question123',
+        questionText: 'What is the capital of France?',
+        options: JSON.stringify(['London', 'Berlin', 'Paris', 'Madrid']),
+        correctAnswer: 2,
+        points: 10,
+        timeLimit: 30,
+        quiz: {
+          id: 'quiz123',
+          title: 'Geography Quiz',
+          quizOwnerId: 'user1',
+        },
+      };
+
+      mockPrisma.question.findUnique.mockResolvedValue(mockQuestion);
+      (canManageQuiz as any).mockReturnValue(true);
+      (hasAdminPrivileges as any).mockReturnValue(false);
+
+      await execute(interaction as any);
+
+      expect(mockPrisma.question.findUnique).toHaveBeenCalledWith({
+        where: { id: 'question123' },
+        include: { quiz: true },
+      });
+      expect(mockShowModal).toHaveBeenCalled();
+    });
+
+    it('should reject if question not found', async () => {
+      interaction.options.getString.mockReturnValue('nonexistent');
+      mockPrisma.question.findUnique.mockResolvedValue(null);
+
+      await execute(interaction as any);
+
+      expect(interaction.reply).toHaveBeenCalledWith({
+        content: '❌ Question not found.',
+        ephemeral: true,
+      });
+    });
+
+    it('should reject if user cannot manage quiz', async () => {
+      const { canManageQuiz, hasAdminPrivileges } = await import('../../app/utils/permissions');
+
+      interaction.options.getString.mockReturnValue('question123');
+
+      const mockQuestion = {
+        id: 'question123',
+        questionText: 'What is the capital of France?',
+        options: JSON.stringify(['London', 'Berlin', 'Paris', 'Madrid']),
+        correctAnswer: 2,
+        points: 10,
+        timeLimit: 30,
+        quiz: {
+          id: 'quiz123',
+          title: 'Geography Quiz',
+          quizOwnerId: 'different_user',
+        },
+      };
+
+      mockPrisma.question.findUnique.mockResolvedValue(mockQuestion);
+      (canManageQuiz as any).mockReturnValue(false);
+      (hasAdminPrivileges as any).mockReturnValue(false);
+
+      await execute(interaction as any);
+
+      expect(interaction.reply).toHaveBeenCalledWith({
+        content: '❌ You can only edit questions in quizzes you own or have admin privileges for.',
+        ephemeral: true,
+      });
+    });
+  });
+
+  describe('question delete subcommand', () => {
+    beforeEach(() => {
+      interaction.options.getSubcommandGroup.mockReturnValue('question');
+      interaction.options.getSubcommand.mockReturnValue('delete');
+    });
+
+    it('should delete question and related data when user has permission', async () => {
+      const { canManageQuiz, hasAdminPrivileges } = await import('../../app/utils/permissions');
+
+      interaction.options.getString.mockReturnValue('question123');
+
+      const mockQuestion = {
+        id: 'question123',
+        questionText: 'What is the capital of France?',
+        options: JSON.stringify(['London', 'Berlin', 'Paris', 'Madrid']),
+        correctAnswer: 2,
+        points: 10,
+        timeLimit: 30,
+        quiz: {
+          id: 'quiz123',
+          title: 'Geography Quiz',
+          quizOwnerId: 'user1',
+        },
+        hints: [{ id: 'hint1' }, { id: 'hint2' }],
+        attempts: [{ id: 'attempt1' }],
+      };
+
+      mockPrisma.question.findUnique.mockResolvedValue(mockQuestion);
+      (canManageQuiz as any).mockReturnValue(true);
+      (hasAdminPrivileges as any).mockReturnValue(false);
+
+      mockPrisma.$transaction.mockImplementation(async (callback: any) => {
+        return await callback({
+          questionAttempt: { deleteMany: vi.fn() },
+          hint: { deleteMany: vi.fn() },
+          question: { delete: vi.fn() },
+        });
+      });
+
+      await execute(interaction as any);
+
+      expect(mockPrisma.question.findUnique).toHaveBeenCalledWith({
+        where: { id: 'question123' },
+        include: {
+          quiz: true,
+          hints: true,
+          attempts: true,
+        },
+      });
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(interaction.editReply).toHaveBeenCalledWith({
+        embeds: expect.arrayContaining([
+          expect.objectContaining({
+            data: expect.objectContaining({
+              title: '✅ Question Deleted Successfully',
+            }),
+          }),
+        ]),
+      });
+    });
+
+    it('should reject if question not found', async () => {
+      interaction.options.getString.mockReturnValue('nonexistent');
+      mockPrisma.question.findUnique.mockResolvedValue(null);
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith('❌ Question not found.');
+    });
+
+    it('should reject if user cannot manage quiz', async () => {
+      const { canManageQuiz, hasAdminPrivileges } = await import('../../app/utils/permissions');
+
+      interaction.options.getString.mockReturnValue('question123');
+
+      const mockQuestion = {
+        id: 'question123',
+        questionText: 'What is the capital of France?',
+        quiz: {
+          id: 'quiz123',
+          title: 'Geography Quiz',
+          quizOwnerId: 'different_user',
+        },
+        hints: [],
+        attempts: [],
+      };
+
+      mockPrisma.question.findUnique.mockResolvedValue(mockQuestion);
+      (canManageQuiz as any).mockReturnValue(false);
+      (hasAdminPrivileges as any).mockReturnValue(false);
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith(
+        '❌ You can only delete questions from quizzes you own or have admin privileges for.'
+      );
+    });
+  });
+
+  describe('question list subcommand', () => {
+    beforeEach(() => {
+      interaction.options.getSubcommandGroup.mockReturnValue('question');
+      interaction.options.getSubcommand.mockReturnValue('list');
+    });
+
+    it('should list all questions in a quiz', async () => {
+      interaction.options.getString.mockReturnValue('quiz123');
+
+      const mockQuiz = {
+        id: 'quiz123',
+        title: 'Geography Quiz',
+        questions: [
+          {
+            id: 'question1',
+            questionText: 'What is the capital of France?',
+            options: JSON.stringify(['London', 'Berlin', 'Paris', 'Madrid']),
+            correctAnswer: 2,
+            points: 10,
+            hints: [{ id: 'hint1' }, { id: 'hint2' }],
+          },
+          {
+            id: 'question2',
+            questionText: 'What is the capital of Italy?',
+            options: JSON.stringify(['Rome', 'Milan', 'Naples', 'Turin']),
+            correctAnswer: 0,
+            points: 15,
+            hints: [],
+          },
+        ],
+      };
+
+      mockPrisma.quiz.findUnique.mockResolvedValue(mockQuiz);
+
+      await execute(interaction as any);
+
+      expect(mockPrisma.quiz.findUnique).toHaveBeenCalledWith({
+        where: { id: 'quiz123' },
+        include: {
+          questions: {
+            include: {
+              hints: true,
+            },
+            orderBy: { id: 'asc' },
+          },
+        },
+      });
+      expect(interaction.editReply).toHaveBeenCalledWith({
+        embeds: expect.arrayContaining([
+          expect.objectContaining({
+            data: expect.objectContaining({
+              title: '📝 Questions in "Geography Quiz"',
+            }),
+          }),
+        ]),
+      });
+    });
+
+    it('should handle quiz not found', async () => {
+      interaction.options.getString.mockReturnValue('nonexistent');
+      mockPrisma.quiz.findUnique.mockResolvedValue(null);
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith('❌ Quiz not found.');
+    });
+
+    it('should handle quiz with no questions', async () => {
+      interaction.options.getString.mockReturnValue('quiz123');
+
+      const mockQuiz = {
+        id: 'quiz123',
+        title: 'Empty Quiz',
+        questions: [],
+      };
+
+      mockPrisma.quiz.findUnique.mockResolvedValue(mockQuiz);
+
+      await execute(interaction as any);
+
+      expect(interaction.editReply).toHaveBeenCalledWith('❌ This quiz has no questions.');
+    });
+  });
+
   describe('reply pattern verification', () => {
     it('should use deferReply for non-modal subcommands like stop', async () => {
       const { quizService } = await import('../../app/services/QuizService');
@@ -895,6 +1210,21 @@ describe('quiz command', () => {
       expect(interaction.deferReply).not.toHaveBeenCalled();
       expect(interaction.reply).toHaveBeenCalledWith({
         content: '❌ Error creating quiz form.',
+        ephemeral: true,
+      });
+    });
+
+    it('should NOT use deferReply for question edit modal command', async () => {
+      interaction.options.getSubcommandGroup.mockReturnValue('question');
+      interaction.options.getSubcommand.mockReturnValue('edit');
+      interaction.options.getString.mockReturnValue('question123');
+      mockPrisma.question.findUnique.mockResolvedValue(null);
+
+      await execute(interaction as any);
+
+      expect(interaction.deferReply).not.toHaveBeenCalled();
+      expect(interaction.reply).toHaveBeenCalledWith({
+        content: '❌ Question not found.',
         ephemeral: true,
       });
     });
