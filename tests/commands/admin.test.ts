@@ -19,15 +19,15 @@ vi.mock('../../app/services/ButtonCleanupService', () => ({ buttonCleanupService
 
 describe('admin command', () => {
   let interaction: any;
-  let requireAdminPrivileges: MockedFunction<any>;
+  let mockRequireAdminPrivileges: MockedFunction<any>;
 
   beforeEach(async () => {
-    const { requireAdminPrivileges: mockRequireAdminPrivileges } = await import(
+    const { requireAdminPrivileges: mockRequireAdminPrivilegesImport } = await import(
       '../../app/utils/permissions'
     );
-    requireAdminPrivileges = mockRequireAdminPrivileges as MockedFunction<any>;
-    requireAdminPrivileges.mockClear();
-    requireAdminPrivileges.mockResolvedValue(true);
+    mockRequireAdminPrivileges = mockRequireAdminPrivilegesImport as MockedFunction<any>;
+    mockRequireAdminPrivileges.mockClear();
+    mockRequireAdminPrivileges.mockResolvedValue(true);
 
     interaction = {
       isChatInputCommand: vi.fn().mockReturnValue(true),
@@ -68,33 +68,33 @@ describe('admin command', () => {
     interaction.options.getSubcommand.mockReturnValue('userdata');
     interaction.options.getUser.mockReturnValue({ id: 'user123', username: 'testuser' });
     await execute(interaction as any);
-    expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
+    expect(mockRequireAdminPrivileges).toHaveBeenCalledWith(interaction);
   });
 
   it('should not execute delete userdata when user lacks admin privileges', async () => {
-    requireAdminPrivileges.mockResolvedValue(false);
+    mockRequireAdminPrivileges.mockResolvedValue(false);
     interaction.options.getSubcommandGroup.mockReturnValue('delete');
     interaction.options.getSubcommand.mockReturnValue('userdata');
     interaction.options.getUser.mockReturnValue({ id: 'user123', username: 'testuser' });
     await execute(interaction as any);
     // The function should return early without calling any other functions
-    expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
+    expect(mockRequireAdminPrivileges).toHaveBeenCalledWith(interaction);
   });
 
   it('should check admin privileges for delete everything subcommand', async () => {
     interaction.options.getSubcommandGroup.mockReturnValue('delete');
     interaction.options.getSubcommand.mockReturnValue('everything');
     await execute(interaction as any);
-    expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
+    expect(mockRequireAdminPrivileges).toHaveBeenCalledWith(interaction);
   });
 
   it('should not execute delete everything when user lacks admin privileges', async () => {
-    requireAdminPrivileges.mockResolvedValue(false);
+    mockRequireAdminPrivileges.mockResolvedValue(false);
     interaction.options.getSubcommandGroup.mockReturnValue('delete');
     interaction.options.getSubcommand.mockReturnValue('everything');
     await execute(interaction as any);
     // The function should return early without calling any other functions
-    expect(requireAdminPrivileges).toHaveBeenCalledWith(interaction);
+    expect(mockRequireAdminPrivileges).toHaveBeenCalledWith(interaction);
   });
 
   it('should reject admin commands in DM channels', async () => {
@@ -109,7 +109,7 @@ describe('admin command', () => {
       content: '❌ Admin commands can only be used in server channels, not in direct messages.',
     });
     // Should not proceed to handle the subcommand
-    expect(requireAdminPrivileges).not.toHaveBeenCalled();
+    expect(mockRequireAdminPrivileges).not.toHaveBeenCalled();
   });
 
   it('should reject admin commands when channel is null', async () => {
@@ -123,6 +123,6 @@ describe('admin command', () => {
       content: '❌ Admin commands can only be used in server channels, not in direct messages.',
     });
     // Should not proceed to handle the subcommand
-    expect(requireAdminPrivileges).not.toHaveBeenCalled();
+    expect(mockRequireAdminPrivileges).not.toHaveBeenCalled();
   });
 });

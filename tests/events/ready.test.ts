@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import { execute } from '../../app/events/ready';
+import { logger } from '../../app/utils/logger';
 
 vi.mock('../../app/utils/logger', () => ({ logger: { info: vi.fn() } }));
 
@@ -11,7 +12,6 @@ describe('ready event', () => {
       guilds: { cache: { size: 5 } },
     };
     execute(client as any);
-    const { logger } = await import('../../app/utils/logger');
     expect(logger.info).toHaveBeenCalledWith('Ready! Logged in as TestBot#1234');
     expect(setActivity).toHaveBeenCalledWith('quizzes', { type: 2 });
     expect(logger.info).toHaveBeenCalledWith('Bot is now online and ready to serve 5 guilds');

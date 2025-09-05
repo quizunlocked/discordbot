@@ -1,5 +1,7 @@
 import { vi, type MockedFunction } from 'vitest';
 import { execute } from '../../app/commands/image';
+import { requireAdminPrivileges } from '../../app/utils/permissions';
+import { databaseService } from '../../app/services/DatabaseService';
 import * as fs from 'fs/promises';
 
 vi.mock('../../app/utils/logger', () => ({
@@ -43,21 +45,17 @@ global.fetch = vi.fn();
 
 describe('image command', () => {
   let interaction: any;
-  let requireAdminPrivileges: MockedFunction<any>;
+  let mockRequireAdminPrivileges: MockedFunction<any>;
   let mockPrisma: any;
   let mockFs: any;
 
   beforeEach(async () => {
-    const { requireAdminPrivileges: mockRequireAdminPrivileges } = await import(
-      '../../app/utils/permissions'
-    );
-    const { databaseService } = await import('../../app/services/DatabaseService');
-    requireAdminPrivileges = mockRequireAdminPrivileges as MockedFunction<any>;
+    mockRequireAdminPrivileges = requireAdminPrivileges as MockedFunction<any>;
     mockPrisma = databaseService.prisma;
     mockFs = fs as any;
 
-    requireAdminPrivileges.mockClear();
-    requireAdminPrivileges.mockResolvedValue(true);
+    mockRequireAdminPrivileges.mockClear();
+    mockRequireAdminPrivileges.mockResolvedValue(true);
 
     // Reset all mocks
     vi.clearAllMocks();
@@ -236,7 +234,7 @@ describe('image command', () => {
     });
 
     it('should require admin privileges', async () => {
-      requireAdminPrivileges.mockResolvedValue(false);
+      mockRequireAdminPrivileges.mockResolvedValue(false);
 
       await execute(interaction as any);
 

@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import { execute } from '../../app/commands/stats';
+import { leaderboardService } from '../../app/services/LeaderboardService';
 
 describe('stats command', () => {
   let interaction: any;
@@ -24,7 +25,6 @@ describe('stats command', () => {
   });
 
   it('should handle errors gracefully', async () => {
-    const { leaderboardService } = await import('../../app/services/LeaderboardService');
     vi.spyOn(leaderboardService, 'getUserStats').mockRejectedValue(new Error('fail'));
     await execute(interaction as any);
     expect(interaction.reply).toHaveBeenCalled();
@@ -56,8 +56,6 @@ describe('stats command', () => {
   });
 
   it('should display success rate correctly for various scenarios', async () => {
-    const { leaderboardService } = await import('../../app/services/LeaderboardService');
-
     // Test perfect score scenario
     vi.spyOn(leaderboardService, 'getUserStats').mockResolvedValue({
       totalScore: 100,
@@ -94,8 +92,6 @@ describe('stats command', () => {
   });
 
   it('should handle partial success rate correctly', async () => {
-    const { leaderboardService } = await import('../../app/services/LeaderboardService');
-
     // Test 75% success rate scenario
     vi.spyOn(leaderboardService, 'getUserStats').mockResolvedValue({
       totalScore: 75,
@@ -132,8 +128,6 @@ describe('stats command', () => {
   });
 
   it('should handle zero answers scenario', async () => {
-    const { leaderboardService } = await import('../../app/services/LeaderboardService');
-
     // Test zero answers scenario (quiz started but no questions answered)
     vi.spyOn(leaderboardService, 'getUserStats').mockResolvedValue({
       totalScore: 0,

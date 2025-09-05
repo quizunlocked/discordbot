@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import { execute } from '../../app/commands/question';
+import { databaseService } from '../../app/services/DatabaseService';
 
 vi.mock('../../app/utils/logger', () => ({
   logger: {
@@ -23,7 +24,6 @@ describe('Edit Question Add Hint Command', () => {
   let mockPrisma: any;
 
   beforeEach(async () => {
-    const { databaseService } = await import('../../app/services/DatabaseService');
     mockPrisma = databaseService.prisma;
     vi.clearAllMocks();
 

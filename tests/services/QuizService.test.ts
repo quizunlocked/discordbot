@@ -1,5 +1,6 @@
 import { quizService } from '../../app/services/QuizService';
 import { buttonCleanupService } from '../../app/services/ButtonCleanupService';
+import { databaseService } from '../../app/services/DatabaseService';
 
 vi.mock('../../app/services/DatabaseService', () => ({
   databaseService: {
@@ -225,17 +226,15 @@ describe('QuizService', () => {
 
   describe('setClient', () => {
     it('should set the Discord client instance', async () => {
-      const { quizService: service } = await import('../../app/services/QuizService');
       const mockClient = {} as any;
-      service.setClient(mockClient);
+      quizService.setClient(mockClient);
       // @ts-expect-error: Accessing private service properties for testing
-      expect(service.client).toBe(mockClient);
+      expect(quizService.client).toBe(mockClient);
     });
   });
 
   describe('getActiveSessionByChannel', () => {
     it('should return the active session for a given channel ID', async () => {
-      const { quizService: service } = await import('../../app/services/QuizService');
       const session = {
         id: 'test-session',
         quizId: 'quiz1',
@@ -248,14 +247,13 @@ describe('QuizService', () => {
         isQuestionComplete: false,
       };
       // @ts-expect-error: Accessing private service properties for testing
-      service.activeSessions.set(session.id, session);
-      const found = service.getActiveSessionByChannel('channel123');
+      quizService.activeSessions.set(session.id, session);
+      const found = quizService.getActiveSessionByChannel('channel123');
       expect(found).toBe(session);
     });
 
     it('should return undefined if no active session for the channel', async () => {
-      const { quizService: service } = await import('../../app/services/QuizService');
-      const result = service.getActiveSessionByChannel('nonexistent');
+      const result = quizService.getActiveSessionByChannel('nonexistent');
       expect(result).toBeUndefined();
     });
   });
@@ -265,7 +263,6 @@ describe('QuizService', () => {
     let mockPrisma: any;
 
     beforeEach(async () => {
-      const { databaseService } = await import('../../app/services/DatabaseService');
       mockPrisma = databaseService.prisma;
 
       // Add user-related mocks that were missing from the original mock
@@ -281,7 +278,6 @@ describe('QuizService', () => {
 
     describe('saveQuizAttempts', () => {
       it('should create users before saving quiz attempts (foreign key fix)', async () => {
-        const { quizService: service } = await import('../../app/services/QuizService');
         const mockQuiz = {
           id: 'quiz1',
           questions: [
@@ -380,7 +376,7 @@ describe('QuizService', () => {
         mockPrisma.questionAttempt.createMany.mockResolvedValueOnce({ count: 2 });
 
         // Call the private method indirectly through reflection
-        await service['saveQuizAttempts'](mockSession, mockParticipants, 120);
+        await quizService['saveQuizAttempts'](mockSession, mockParticipants, 120);
 
         // Verify users are created/updated before quiz attempts
         expect(mockPrisma.user.upsert).toHaveBeenCalledTimes(2);
@@ -401,7 +397,6 @@ describe('QuizService', () => {
       });
 
       it('should handle upsert properly when user already exists', async () => {
-        const { quizService: service } = await import('../../app/services/QuizService');
         const mockQuiz = { id: 'quiz1', questions: [{ id: 'q1', points: 10 }] };
 
         const mockParticipants = [
@@ -450,7 +445,7 @@ describe('QuizService', () => {
         mockPrisma.quizAttempt.create.mockResolvedValueOnce({ id: 'attempt1' });
         mockPrisma.questionAttempt.createMany.mockResolvedValueOnce({ count: 1 });
 
-        await service['saveQuizAttempts'](mockSession, mockParticipants, 60);
+        await quizService['saveQuizAttempts'](mockSession, mockParticipants, 60);
 
         // Should still call upsert (which will update the existing user)
         expect(mockPrisma.user.upsert).toHaveBeenCalledWith({
@@ -461,7 +456,6 @@ describe('QuizService', () => {
       });
 
       it('should not fail when participants have no answers', async () => {
-        const { quizService: service } = await import('../../app/services/QuizService');
         const mockQuiz = { id: 'quiz1', questions: [] };
 
         const mockParticipants = [
@@ -496,7 +490,7 @@ describe('QuizService', () => {
         });
         mockPrisma.quizAttempt.create.mockResolvedValueOnce({ id: 'attempt1' });
 
-        await service['saveQuizAttempts'](mockSession, mockParticipants, 30);
+        await quizService['saveQuizAttempts'](mockSession, mockParticipants, 30);
 
         // Should still create user and quiz attempt, but no question attempts
         expect(mockPrisma.user.upsert).toHaveBeenCalledTimes(1);
@@ -604,8 +598,7 @@ describe('QuizService', () => {
         mockPrisma.questionAttempt.createMany.mockResolvedValue({ count: 2 });
 
         // Test that the service correctly processes the participants and saves the data
-        const service = await import('../../app/services/QuizService');
-        await service.quizService['saveQuizAttempts'](mockSession, mockParticipants, 60);
+        await quizService['saveQuizAttempts'](mockSession, mockParticipants, 60);
 
         // Verify the service was called with the correct participant data
         expect(mockPrisma.quizAttempt.create).toHaveBeenCalledTimes(2);
@@ -642,9 +635,8 @@ describe('QuizService', () => {
         mockPrisma.quizAttempt.create.mockResolvedValue({ id: 'attempt1' });
 
         // Should not crash when processing participant with no answers
-        const service = await import('../../app/services/QuizService');
         await expect(
-          service.quizService['saveQuizAttempts'](mockSession, [participantWithNoAnswers], 30)
+          quizService['saveQuizAttempts'](mockSession, [participantWithNoAnswers], 30)
         ).resolves.not.toThrow();
 
         expect(mockPrisma.user.upsert).toHaveBeenCalledWith({
@@ -716,8 +708,7 @@ describe('QuizService', () => {
         mockPrisma.questionAttempt.createMany.mockResolvedValue({ count: 2 });
 
         // Test that the service correctly processes decimal timing values
-        const service = await import('../../app/services/QuizService');
-        await service.quizService['saveQuizAttempts'](mockSession, [participant], 30);
+        await quizService['saveQuizAttempts'](mockSession, [participant], 30);
 
         // Verify the service processed the participant data correctly
         expect(mockPrisma.quizAttempt.create).toHaveBeenCalledTimes(1);

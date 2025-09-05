@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { databaseService } from '../../app/services/DatabaseService.js';
+import { parseCorpusCSV, identifyColumns } from '../../app/commands/corpus/upload.js';
+import { hasTagIntersection } from '../../app/commands/quiz/generate.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import Papa from 'papaparse';
 
 describe('Corpus Template Integration', () => {
   beforeAll(async () => {
@@ -63,16 +66,12 @@ capitals","Rome has ancient history"`;
       });
 
       // Use the actual parsing function from the app
-      const { parseCorpusCSV, identifyColumns } = await import(
-        '../../app/commands/corpus/upload.js'
-      );
       const { entries, errors } = parseCorpusCSV(testCSV);
 
       expect(errors).toHaveLength(0);
       expect(entries).toHaveLength(3);
 
       // Test the column identification logic using actual function
-      const Papa = await import('papaparse');
       const parseResult = Papa.parse(testCSV, {
         header: true,
         skipEmptyLines: true,
@@ -99,7 +98,6 @@ category2","Hint for tagged question"
 "Another tagged question","Answer 3","category1","Another hint"`;
 
       // Use the actual parsing function from the app
-      const { parseCorpusCSV } = await import('../../app/commands/corpus/upload.js');
       const { entries, errors } = parseCorpusCSV(testCSV);
 
       expect(errors).toHaveLength(0);
@@ -131,7 +129,6 @@ category2","Hint for tagged question"
       ];
 
       // Use the actual tag intersection function from the app
-      const { hasTagIntersection } = await import('../../app/commands/quiz/generate.js');
 
       // Polish entries should intersect
       expect(hasTagIntersection(entries[0]!.tags, entries[1]!.tags)).toBe(true); // both have 'polish' and 'basic'

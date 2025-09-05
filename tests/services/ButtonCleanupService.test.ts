@@ -206,13 +206,10 @@ describe('ButtonCleanupService', () => {
 
   describe('setClient', () => {
     it('should set the Discord client instance', async () => {
-      const { buttonCleanupService: service } = await import(
-        '../../app/services/ButtonCleanupService'
-      );
       const mockClient = {} as any;
-      service.setClient(mockClient);
+      buttonCleanupService.setClient(mockClient);
       // @ts-expect-error: Service private property access for testing
-      expect(service.client).toBe(mockClient);
+      expect(buttonCleanupService.client).toBe(mockClient);
     });
   });
 });

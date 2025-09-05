@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { execute } from '../../app/commands/corpus';
+import { databaseService } from '../../app/services/DatabaseService';
+import Papa from 'papaparse';
 
 vi.mock('../../app/utils/logger', () => ({
   logger: {
@@ -43,11 +45,8 @@ describe('corpus command', () => {
   let mockPapa: any;
 
   beforeEach(async () => {
-    const { databaseService } = await import('../../app/services/DatabaseService');
-    const mockPapaImport = await import('papaparse');
-
     mockPrisma = databaseService.prisma;
-    mockPapa = mockPapaImport.default || mockPapaImport;
+    mockPapa = Papa;
 
     vi.clearAllMocks();
 
