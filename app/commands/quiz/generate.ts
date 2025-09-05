@@ -296,7 +296,7 @@ function getRandomElement<T>(array: T[]): T {
   return element;
 }
 
-function hasTagIntersection(tags1: string[], tags2: string[]): boolean {
+export function hasTagIntersection(tags1: string[], tags2: string[]): boolean {
   if (tags1.length === 0 || tags2.length === 0) {
     return false;
   }

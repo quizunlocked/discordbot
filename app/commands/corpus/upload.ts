@@ -267,7 +267,7 @@ async function downloadAttachment(url: string): Promise<string | null> {
   }
 }
 
-function identifyColumns(headers: string[]): {
+export function identifyColumns(headers: string[]): {
   questionCol: string | null;
   answerCol: string | null;
   tagCol: string | null;
@@ -320,7 +320,7 @@ function identifyColumns(headers: string[]): {
   return { questionCol, answerCol, tagCol, hintCols, errors };
 }
 
-function parseCorpusCSV(csvContent: string): {
+export function parseCorpusCSV(csvContent: string): {
   entries: CSVCorpusEntry[];
   errors: ValidationError[];
 } {
@@ -390,7 +390,7 @@ function parseCorpusCSV(csvContent: string): {
   return { entries, errors };
 }
 
-function transformRowToCorpusEntry(
+export function transformRowToCorpusEntry(
   row: any,
   questionCol: string,
   answerCol: string,

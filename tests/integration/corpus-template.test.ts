@@ -62,44 +62,33 @@ capitals","Rome has ancient history"`;
         },
       });
 
-      // Simulate CSV parsing (using the logic from our upload handler)
+      // Use the actual parsing function from the app
+      const { parseCorpusCSV, identifyColumns } = await import(
+        '../../app/commands/corpus/upload.js'
+      );
+      const { entries, errors } = parseCorpusCSV(testCSV);
+
+      expect(errors).toHaveLength(0);
+      expect(entries).toHaveLength(3);
+
+      // Test the column identification logic using actual function
       const Papa = await import('papaparse');
       const parseResult = Papa.parse(testCSV, {
         header: true,
         skipEmptyLines: true,
       });
-
-      expect(parseResult.errors).toHaveLength(0);
-      expect(parseResult.data).toHaveLength(3);
-
-      // Test the column identification logic
       const headers = Object.keys(parseResult.data[0] || {});
-      const questionPatterns = /^questions?$/i;
-      const answerPatterns = /^answers?$/i;
-      const tagPatterns = /^tags?$/i;
-
-      const questionCol = headers.find(h => questionPatterns.test(h));
-      const answerCol = headers.find(h => answerPatterns.test(h));
-      const tagCol = headers.find(h => tagPatterns.test(h));
+      const { questionCol, answerCol, tagCol } = identifyColumns(headers);
 
       expect(questionCol).toBe('questions');
       expect(answerCol).toBe('answers');
       expect(tagCol).toBe('tags');
 
-      // Test parsing of the first row
-      const firstRow = parseResult.data[0] as any;
-      expect(firstRow.questions).toContain('What is the capital of France?');
-      expect(firstRow.answers).toContain('Paris');
-      expect(firstRow.tags).toContain('europe');
-
-      // Test tag normalization
-      const tags = (firstRow.tags || '')
-        .trim()
-        .split('\n')
-        .map((t: string) => t.trim().toLowerCase())
-        .filter((t: string) => t.length > 0);
-
-      expect(tags).toEqual(['europe', 'geography', 'capitals']);
+      // Test parsing results from the actual function
+      const firstEntry = entries[0];
+      expect(firstEntry?.questionVariants).toContain('What is the capital of France?');
+      expect(firstEntry?.answerVariants).toContain('Paris');
+      expect(firstEntry?.tags).toEqual(['europe', 'geography', 'capitals']);
     });
 
     it('should handle mixed tagged and untagged entries in template format', async () => {
@@ -109,44 +98,30 @@ category2","Hint for tagged question"
 "Untagged question","Answer 2","","Hint for untagged question"
 "Another tagged question","Answer 3","category1","Another hint"`;
 
-      const Papa = await import('papaparse');
-      const parseResult = Papa.parse(testCSV, {
-        header: true,
-        skipEmptyLines: true,
-      });
+      // Use the actual parsing function from the app
+      const { parseCorpusCSV } = await import('../../app/commands/corpus/upload.js');
+      const { entries, errors } = parseCorpusCSV(testCSV);
 
-      expect(parseResult.data).toHaveLength(3);
+      expect(errors).toHaveLength(0);
+      expect(entries).toHaveLength(3);
 
-      const rows = parseResult.data as any[];
+      // First entry: has tags
+      expect(entries[0]?.tags).toEqual(['category1', 'category2']);
+      expect(entries[0]?.questionVariants).toEqual(['Tagged question 1']);
+      expect(entries[0]?.answerVariants).toEqual(['Answer 1']);
 
-      // First row: has tags
-      const tags1 = (rows[0].tags || '')
-        .trim()
-        .split('\n')
-        .map((t: string) => t.trim().toLowerCase())
-        .filter((t: string) => t.length > 0);
-      expect(tags1).toEqual(['category1', 'category2']);
+      // Second entry: no tags (empty string)
+      expect(entries[1]?.tags).toEqual([]);
+      expect(entries[1]?.questionVariants).toEqual(['Untagged question']);
+      expect(entries[1]?.answerVariants).toEqual(['Answer 2']);
 
-      // Second row: no tags (empty string)
-      const tags2 =
-        rows[1].tags &&
-        (rows[1].tags || '')
-          .trim()
-          .split('\n')
-          .map((t: string) => t.trim().toLowerCase())
-          .filter((t: string) => t.length > 0);
-      expect(tags2 || []).toEqual([]);
-
-      // Third row: has tags
-      const tags3 = (rows[2].tags || '')
-        .trim()
-        .split('\n')
-        .map((t: string) => t.trim().toLowerCase())
-        .filter((t: string) => t.length > 0);
-      expect(tags3).toEqual(['category1']);
+      // Third entry: has tags
+      expect(entries[2]?.tags).toEqual(['category1']);
+      expect(entries[2]?.questionVariants).toEqual(['Another tagged question']);
+      expect(entries[2]?.answerVariants).toEqual(['Answer 3']);
     });
 
-    it('should demonstrate tag intersection logic with template data', () => {
+    it('should demonstrate tag intersection logic with template data', async () => {
       // Sample entries like those in the template
       const entries = [
         { tags: ['polish', 'greetings', 'basic'], answerVariants: ['Cześć', 'Dzień dobry'] },
@@ -155,17 +130,8 @@ category2","Hint for tagged question"
         { tags: [], answerVariants: ['Universal answer'] }, // Untagged
       ];
 
-      // Test tag intersection logic
-      const hasTagIntersection = (tags1: string[], tags2: string[]): boolean => {
-        if (tags1.length === 0 || tags2.length === 0) {
-          return false;
-        }
-
-        const normalizedTags1 = tags1.map(tag => tag.toLowerCase().trim());
-        const normalizedTags2 = tags2.map(tag => tag.toLowerCase().trim());
-
-        return normalizedTags1.some(tag => normalizedTags2.includes(tag));
-      };
+      // Use the actual tag intersection function from the app
+      const { hasTagIntersection } = await import('../../app/commands/quiz/generate.js');
 
       // Polish entries should intersect
       expect(hasTagIntersection(entries[0]!.tags, entries[1]!.tags)).toBe(true); // both have 'polish' and 'basic'

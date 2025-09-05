@@ -577,33 +577,39 @@ describe('QuizService', () => {
           },
         ];
 
-        // Verify average response time calculation with 2 decimal precision
-        const fastUserAnswers = Array.from(mockParticipants[0]!.answers.values());
-        const fastUserAvg = Number(
-          (
-            fastUserAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) /
-            fastUserAnswers.length
-          ).toFixed(2)
-        );
-        expect(fastUserAvg).toBe(6.0); // (5 + 7) / 2 = 6.00
+        const mockSession = {
+          id: 'session123',
+          quizId: 'quiz1',
+          channelId: 'channel123',
+          currentQuestionIndex: 2,
+          participants: new Map(),
+          startTime: new Date(),
+          isActive: false,
+          isWaiting: false,
+          isQuestionComplete: true,
+          isPrivate: false,
+          answerSubmissionOrder: 0,
+        };
 
-        const slowUserAnswers = Array.from(mockParticipants[1]!.answers.values());
-        const slowUserAvg = Number(
-          (
-            slowUserAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) /
-            slowUserAnswers.length
-          ).toFixed(2)
-        );
-        expect(slowUserAvg).toBe(20.0); // (15 + 25) / 2 = 20.00
+        const mockQuiz = {
+          id: 'quiz1',
+          questions: [
+            { id: 'q1', points: 10 },
+            { id: 'q2', points: 15 },
+          ],
+        };
+        mockPrisma.quiz.findUnique.mockResolvedValueOnce(mockQuiz);
+        mockPrisma.user.upsert.mockResolvedValue({ id: 'user1', username: 'TestUser' });
+        mockPrisma.quizAttempt.create.mockResolvedValue({ id: 'attempt1' });
+        mockPrisma.questionAttempt.createMany.mockResolvedValue({ count: 2 });
 
-        // Verify overall average
-        const allAnswers = mockParticipants.flatMap(p => Array.from(p.answers.values()));
-        const overallAvg = Number(
-          (
-            allAnswers.reduce((sum, answer) => sum + answer.timeSpent, 0) / allAnswers.length
-          ).toFixed(2)
-        );
-        expect(overallAvg).toBe(13.0); // (5 + 7 + 15 + 25) / 4 = 13.00
+        // Test that the service correctly processes the participants and saves the data
+        const service = await import('../../app/services/QuizService');
+        await service.quizService['saveQuizAttempts'](mockSession, mockParticipants, 60);
+
+        // Verify the service was called with the correct participant data
+        expect(mockPrisma.quizAttempt.create).toHaveBeenCalledTimes(2);
+        expect(mockPrisma.questionAttempt.createMany).toHaveBeenCalledTimes(2);
       });
 
       it('should handle empty or missing timing data gracefully', async () => {
@@ -616,16 +622,36 @@ describe('QuizService', () => {
           answers: new Map(),
         };
 
-        // Should not crash with empty answers
-        const answers = Array.from(participantWithNoAnswers.answers.values());
-        const avgResponseTime =
-          answers.length > 0
-            ? Math.round(
-                answers.reduce((sum, answer) => sum + answer.timeSpent, 0) / answers.length
-              )
-            : 0;
+        const mockSession = {
+          id: 'session123',
+          quizId: 'quiz1',
+          channelId: 'channel123',
+          currentQuestionIndex: 0,
+          participants: new Map(),
+          startTime: new Date(),
+          isActive: false,
+          isWaiting: false,
+          isQuestionComplete: true,
+          isPrivate: false,
+          answerSubmissionOrder: 0,
+        };
 
-        expect(avgResponseTime).toBe(0);
+        const mockQuiz = { id: 'quiz1', questions: [] };
+        mockPrisma.quiz.findUnique.mockResolvedValueOnce(mockQuiz);
+        mockPrisma.user.upsert.mockResolvedValue({ id: 'user3', username: 'NoAnswers' });
+        mockPrisma.quizAttempt.create.mockResolvedValue({ id: 'attempt1' });
+
+        // Should not crash when processing participant with no answers
+        const service = await import('../../app/services/QuizService');
+        await expect(
+          service.quizService['saveQuizAttempts'](mockSession, [participantWithNoAnswers], 30)
+        ).resolves.not.toThrow();
+
+        expect(mockPrisma.user.upsert).toHaveBeenCalledWith({
+          where: { id: 'user3' },
+          update: { username: 'NoAnswers' },
+          create: { id: 'user3', username: 'NoAnswers' },
+        });
       });
 
       it('should correctly round to 2 decimal places', async () => {
@@ -663,13 +689,52 @@ describe('QuizService', () => {
           ]),
         };
 
-        const answers = Array.from(participant.answers.values());
-        const avgResponseTime = Number(
-          (answers.reduce((sum, answer) => sum + answer.timeSpent, 0) / answers.length).toFixed(2)
-        );
+        const mockSession = {
+          id: 'session123',
+          quizId: 'quiz1',
+          channelId: 'channel123',
+          currentQuestionIndex: 2,
+          participants: new Map(),
+          startTime: new Date(),
+          isActive: false,
+          isWaiting: false,
+          isQuestionComplete: true,
+          isPrivate: false,
+          answerSubmissionOrder: 0,
+        };
 
-        // (3.33333 + 4.66666) / 2 = 3.99999 -> rounds to 4.00
-        expect(avgResponseTime).toBe(4.0);
+        const mockQuiz = {
+          id: 'quiz1',
+          questions: [
+            { id: 'q1', points: 10 },
+            { id: 'q2', points: 5 },
+          ],
+        };
+        mockPrisma.quiz.findUnique.mockResolvedValueOnce(mockQuiz);
+        mockPrisma.user.upsert.mockResolvedValue({ id: 'user4', username: 'DecimalUser' });
+        mockPrisma.quizAttempt.create.mockResolvedValue({ id: 'attempt1' });
+        mockPrisma.questionAttempt.createMany.mockResolvedValue({ count: 2 });
+
+        // Test that the service correctly processes decimal timing values
+        const service = await import('../../app/services/QuizService');
+        await service.quizService['saveQuizAttempts'](mockSession, [participant], 30);
+
+        // Verify the service processed the participant data correctly
+        expect(mockPrisma.quizAttempt.create).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.questionAttempt.createMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.arrayContaining([
+              expect.objectContaining({
+                timeSpent: 3.33333,
+                pointsEarned: 10,
+              }),
+              expect.objectContaining({
+                timeSpent: 4.66666,
+                pointsEarned: 5,
+              }),
+            ]),
+          })
+        );
       });
     });
   });
