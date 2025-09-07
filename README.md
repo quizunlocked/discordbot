@@ -1,6 +1,6 @@
-# Quiz Unlocked Free Open Source
+# Quiz Unlocked Free Open Source Discord Bot
 
-A feature-rich Discord bot for easily generating and hosting quizzes with up to hundreds of users.
+A feature-rich Discord bot for easily generating and hosting quizzes with up to hundreds of users playing along.
 
 ## Features
 
