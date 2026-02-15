@@ -13,8 +13,6 @@ interface GeneratedQuestion {
 
 export async function handleGenerate(interaction: ChatInputCommandInteraction): Promise<void> {
   try {
-    await interaction.deferReply({ ephemeral: true });
-
     const corpusTitle = interaction.options.getString('from-corpus', true);
     const quizTitle = interaction.options.getString('quiz-title', true);
     const numQuestions = interaction.options.getInteger('num-questions', true);
